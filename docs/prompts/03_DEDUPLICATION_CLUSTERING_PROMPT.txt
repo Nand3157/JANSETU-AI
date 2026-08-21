@@ -1,0 +1,26 @@
+JANSETU AI — DEDUPLICATION AND CLUSTERING
+
+Decide whether a request belongs to an existing cluster.
+
+Consider:
+semantic similarity
+category
+geographic proximity
+affected service
+time context
+underlying problem
+
+Do not merge materially different problems.
+
+Return JSON:
+cluster_decision: MATCH_EXISTING | CREATE_NEW | UNCERTAIN
+candidate_cluster_id
+match_score
+reasons[]
+shared_problem_summary
+geographic_consistency
+semantic_consistency
+category_consistency
+needs_human_review
+
+Prefer precision over aggressive merging.

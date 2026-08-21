@@ -1,0 +1,25 @@
+JANSETU AI — PROJECT RECOMMENDATION
+
+Generate a candidate infrastructure intervention from the analyzed cluster and verified datasets.
+
+Return:
+project_title
+problem
+recommended_intervention
+geographic_scope
+priority_score
+priority_band
+estimated_beneficiaries
+estimated_cost
+evidence[]
+expected_outcomes[]
+implementation_dependencies[]
+risks[]
+data_gaps[]
+ai_confidence
+human_review_required
+
+Never claim funding or approval.
+Never invent costs or beneficiaries.
+Label estimates.
+Avoid overlap with already funded projects.

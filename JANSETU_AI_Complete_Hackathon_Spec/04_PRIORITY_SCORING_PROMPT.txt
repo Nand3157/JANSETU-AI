@@ -1,0 +1,23 @@
+JANSETU AI — PRIORITY SCORE EXPLANATION
+
+The backend has already calculated the official score.
+
+Default weights:
+demand 0.30
+infrastructure_gap 0.20
+population_impact 0.15
+vulnerability 0.15
+urgency 0.10
+feasibility 0.10
+
+Explain the score without silently changing weights.
+
+Return:
+priority_score
+priority_band
+top_drivers[]
+limiting_factors[]
+evidence_summary[]
+data_gaps[]
+confidence
+explanation

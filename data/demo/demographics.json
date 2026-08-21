@@ -1,0 +1,23 @@
+[
+  {
+    "country_id": "IN", "region_id": "Gujarat", "district_id": "Vadodara",
+    "population": 12400, "population_density": 420, "children_pct": 28, "elderly_pct": 9, "female_pct": 48,
+    "poverty_index": 0.34, "income_index": 42, "urban_rural": "rural",
+    "source": "Verified dataset — Census + district survey 2024 (synthetic demo)",
+    "source_date": "2024-03-01"
+  },
+  {
+    "country_id": "IN", "region_id": "Gujarat", "district_id": "Ahmedabad",
+    "population": 89000, "population_density": 890, "children_pct": 24, "elderly_pct": 11, "female_pct": 49,
+    "poverty_index": 0.22, "income_index": 61, "urban_rural": "urban",
+    "source": "Verified dataset — synthetic demo",
+    "source_date": "2024-03-01"
+  },
+  {
+    "country_id": "IN", "region_id": "Gujarat", "district_id": "Surat",
+    "population": 67500, "population_density": 1100, "children_pct": 26, "elderly_pct": 8, "female_pct": 47,
+    "poverty_index": 0.28, "income_index": 55, "urban_rural": "urban",
+    "source": "Verified dataset — synthetic demo",
+    "source_date": "2024-03-01"
+  }
+]

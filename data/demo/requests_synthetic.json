@@ -1,0 +1,15 @@
+[
+  {
+    "originalText": "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.",
+    "translatedText": "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.",
+    "sourceLanguage": "gu", "districtId": "Vadodara", "category": "roads", "urgencyScore": 4, "count": 4218
+  },
+  {
+    "originalText": "Water supply comes only twice a week, pressure is very low",
+    "sourceLanguage": "en", "districtId": "Ahmedabad", "category": "water", "urgencyScore": 3, "count": 892
+  },
+  {
+    "originalText": "Flooding in our lane every monsoon, drains are blocked",
+    "sourceLanguage": "en", "districtId": "Surat", "category": "flooding_drainage", "urgencyScore": 4, "count": 1240
+  }
+]

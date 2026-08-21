@@ -1,0 +1,22 @@
+{
+  "name": "jansetu-ai",
+  "private": true,
+  "version": "1.0.0",
+  "description": "JANSETU AI — Digital Public Good for civic infrastructure intelligence",
+  "workspaces": ["apps/web", "packages/shared", "services/api"],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=services/api\" \"npm run dev --workspace=apps/web\"",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "dev:api": "npm run dev --workspace=services/api",
+    "build": "npm run build --workspaces",
+    "lint": "eslint . --ext .ts,.tsx",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

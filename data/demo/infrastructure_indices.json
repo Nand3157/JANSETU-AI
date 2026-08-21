@@ -1,0 +1,20 @@
+[
+  {
+    "country_id": "IN", "region_id": "Gujarat", "district_id": "Vadodara",
+    "road_index": 38, "health_access_index": 42, "water_index": 61, "education_index": 55, "transport_index": 40, "digital_connectivity_index": 48, "electricity_index": 72, "overall_index": 46,
+    "source": "Verified dataset — infrastructure survey 2024 (synthetic demo)",
+    "source_date": "2024-02-15"
+  },
+  {
+    "country_id": "IN", "region_id": "Gujarat", "district_id": "Ahmedabad",
+    "road_index": 68, "health_access_index": 74, "water_index": 52, "education_index": 78, "transport_index": 71, "digital_connectivity_index": 82, "electricity_index": 88, "overall_index": 72,
+    "source": "Verified dataset — synthetic demo",
+    "source_date": "2024-02-15"
+  },
+  {
+    "country_id": "IN", "region_id": "Gujarat", "district_id": "Surat",
+    "road_index": 55, "health_access_index": 60, "water_index": 48, "education_index": 62, "transport_index": 58, "digital_connectivity_index": 65, "electricity_index": 80, "overall_index": 58,
+    "source": "Verified dataset — synthetic demo",
+    "source_date": "2024-02-15"
+  }
+]

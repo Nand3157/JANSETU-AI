@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --background: 0 0% 100%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
+* { @apply border-border; }
+html { scroll-behavior: smooth; }
+body { @apply bg-[#F8FAFC] text-ink antialiased selection:bg-[#174EA6] selection:text-white; }
+:where(button,a,input,textarea,select):focus-visible { outline: 2px solid #174EA6; outline-offset: 2px; }
+
+.civic-gradient { background: linear-gradient(180deg, #F8FAFC 0%, #EFF3FA 100%); }
+.navbar-blur {
+  backdrop-filter: blur(16px) saturate(1.15);
+  background: rgba(255,255,255,0.92);
+  border-bottom: 1px solid #E5E7EB;
+}
+.card-premium {
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 1px 3px rgba(23,32,51,0.07), 0 4px 12px rgba(23,32,51,0.06);
+  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+  will-change: transform;
+}
+.card-premium:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(11,31,58,0.10), 0 4px 12px rgba(11,31,58,0.06); border-color: #D2D8E3; }
+/* All cards, rows, pills get hover — perf: transform/opacity only */
+table tbody tr { transition: background 0.15s ease, transform 0.15s ease; }
+table tbody tr:hover { background: #F8FAFC; transform: translateX(1px); }
+input, select, textarea { transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease; }
+input:hover, select:hover, textarea:hover { border-color: #CBD5E1; }
+input:focus, select:focus, textarea:focus { border-color: #174EA6; box-shadow: 0 0 0 3px rgba(23,78,166,0.10); }
+a:hover { text-decoration-color: #174EA6; }
+.shimmer-border { position: relative; overflow: hidden; }
+.shimmer-border::after {
+  content:""; position:absolute; inset:0; border-radius:inherit; padding:1px;
+  background: linear-gradient(90deg, transparent, rgba(23,78,166,0.12), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; opacity:0; transition: opacity 0.2s;
+}
+.shimmer-border:hover::after { opacity:1; }
+
+/* — Universal hover system — perf: transform + opacity only — */
+.hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; will-change: transform; }
+.hover-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(11,31,58,0.08); }
+.hover-scale { transition: transform 0.15s ease; will-change: transform; }
+.hover-scale:hover { transform: scale(1.02); }
+.hover-glow:hover { box-shadow: 0 0 0 4px rgba(23,78,166,0.08); }
+.hover-border:hover { border-color: #174EA6 !important; }
+.nav-pill { transition: background 0.18s, color 0.18s, transform 0.18s; }
+.nav-pill:hover { transform: translateY(-1px); }
+.table-row { transition: background 0.15s, transform 0.15s; }
+.table-row:hover { background: #F8FAFC; transform: translateX(1px); }
+.badge-hover { transition: transform 0.15s; }
+.badge-hover:hover { transform: scale(1.05); }
+.input-hover { transition: border-color 0.18s, box-shadow 0.18s; }
+.input-hover:hover { border-color: #CBD5E1; }
+.input-hover:focus-within { border-color: #174EA6; box-shadow: 0 0 0 3px rgba(23,78,166,0.10); }
+/* Auto-hover for all premium rounded cards — covers Home, Gov, Citizen without per-file edits */
+div[class*="rounded-[20px]"].bg-white, div[class*="rounded-[20px]"][class*="border"], div[class*="rounded-2xl"].bg-white {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*="border"]:hover, div[class*="rounded-2xl"].bg-white:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(11,31,58,0.07);
+  border-color: #D2D8E3;
+}
+
+.galaxy-blur {
+  background:
+    radial-gradient(900px 520px at 18% -8%, rgba(23,78,166,0.07), transparent 60%),
+    radial-gradient(700px 480px at 88% 0%, rgba(24,128,56,0.04), transparent 55%);
+}
+@keyframes hotspot-pulse { 0%,100% { transform: scale(1); opacity:0.88 } 50% { transform: scale(1.07); opacity:1 } }
+.hotspot-pulse { animation: hotspot-pulse 2.6s ease-in-out infinite; will-change: transform; }
+.hotspot-hover { transition: transform 0.2s, filter 0.2s; }
+.hotspot-hover:hover { transform: scale(1.08); filter: brightness(1.05); }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 8px; border: 2px solid #F8FAFC; }
+::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
+.touch-target { min-height: 44px; min-width: 44px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

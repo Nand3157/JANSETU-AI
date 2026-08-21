@@ -1,0 +1,273 @@
+"use client";
+import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScoreBars } from "@/components/civic/ScoreBars";
+import { TrustLabels } from "@/components/civic/TrustLabels";
+import { HotspotMap } from "@/components/civic/HotspotMap";
+import { api } from "@/lib/api";
+import { MapPinned, TrendingUp, Users, Banknote, Lightbulb, MessageCircle, BarChart3, Shield, Search, Filter } from "lucide-react";
+
+export default function GovernmentDashboard() {
+  const [kpis, setKpis] = useState<any>(null);
+  const [clusters, setClusters] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [geojson, setGeojson] = useState<any>(null);
+  const [selected, setSelected] = useState<any>(null);
+  const [copilotQ, setCopilotQ] = useState("Which projects should we prioritize within ₹10 Cr?");
+  const [copilotA, setCopilotA] = useState<any>(null);
+  const [budget, setBudget] = useState<string>("10");
+  const [objective, setObjective] = useState<"max_priority"|"max_beneficiaries"|"equity">("max_priority");
+  const [risk, setRisk] = useState<"low"|"medium"|"high">("medium");
+  const [brief, setBrief] = useState<any>(null);
+  const [impact, setImpact] = useState<any>(null);
+
+  async function load() {
+    try {
+      const k: any = await api("/api/analytics/kpis");
+      setKpis(k);
+      const c: any = await api("/api/clusters");
+      setClusters(c.clusters || []);
+      if (c.clusters?.length && !selected) setSelected(c.clusters[0]);
+      try { const h:any = await api("/api/analytics/hotspots"); setGeojson(h.geojson); } catch {}
+      try { const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch {}
+    } catch { /* api not running */ }
+  }
+  useEffect(()=> { load(); }, []);
+
+  async function askCopilot() {
+    try {
+      const r: any = await api("/api/copilot", { method: "POST", body: JSON.stringify({ question: copilotQ }) });
+      setCopilotA(r);
+    } catch (e:any) { setCopilotA({ answer: e.message, evidence: [] }); }
+  }
+
+  return (
+    <div className="mx-auto max-w-[1280px] px-4 md:px-6 py-6 space-y-6">
+      {/* Filters — PRD: country → region → district → sector → time */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="font-semibold">Filters:</span>
+        {["IN","Gujarat","Vadodara","All sectors","Last 90 days"].map(f=> (
+          <span key={f} className="inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-200 px-3 py-1.5"><Filter className="h-3.5 w-3.5 text-muted" /> {f}</span>
+        ))}
+        <span className="ml-auto hidden md:inline-flex items-center gap-1.5 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5"><Shield className="h-3.5 w-3.5" /> Role: policymaker · App Check + RBAC enforced on backend</span>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {[
+          { label: "Requests", value: kpis?.kpis.totalRequests ?? "—", icon: Search, sub: "last 90 days" },
+          { label: "Hotspots", value: kpis?.kpis.hotspots ?? "—", icon: MapPinned, sub: "clusters" },
+          { label: "High-priority", value: kpis?.kpis.highPriority ?? "—", icon: TrendingUp, sub: "need action" },
+          { label: "Recommended", value: kpis?.kpis.recommendedProjects ?? "—", icon: Lightbulb, sub: "projects" },
+          { label: "Investment gap", value: kpis ? `₹${kpis.kpis.investmentGapCr} Cr` : "—", icon: Banknote, sub: "Vadodara roads" },
+        ].map(card=> (
+          <Card key={card.label} className="p-4">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted">{card.label}</span>
+              <card.icon className="h-4 w-4 text-muted" />
+            </div>
+            <div className="mt-1 text-2xl font-black tracking-tight text-ink">{String(card.value)}</div>
+            <div className="text-xs text-muted">{card.sub}</div>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-[1.35fr_0.85fr] gap-6">
+        {/* Map + Priority Queue */}
+        <div className="space-y-6">
+          <Card className="p-0 overflow-hidden">
+            <CardHeader className="p-5 pb-3">
+              <CardTitle className="flex items-center gap-2"><MapPinned className="h-4 w-4 text-civic-700" /> Demand Hotspot Map</CardTitle>
+              <CardDescription>Interactive map · heatmap · hotspot clusters · request points · BigQuery GIS (mock GeoJSON)</CardDescription>
+            </CardHeader>
+            <div className="mx-5">
+              <HotspotMap geojson={geojson} onSelect={(id)=> setSelected(clusters.find((c:any)=> c.clusterId===id) || selected)} center={selected?.centroid ? { lat: selected.centroid.lat, lng: selected.centroid.lng } : undefined} />
+            </div>
+            <div className="p-5 flex flex-wrap gap-2 text-xs">
+              <Badge tone="critical">Critical ≥80</Badge><Badge tone="high">High 65–79</Badge><Badge tone="moderate">Moderate 45–64</Badge><Badge tone="low">Low &lt;45</Badge>
+              <span className="text-muted">· GIS: request points + project points + boundaries</span>
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-0 pb-3"><CardTitle>Priority Queue</CardTitle><CardDescription>Deterministic — sorted by priority_score · human review before funding</CardDescription></CardHeader>
+            <div className="space-y-2">
+              {clusters.length===0 && <div className="text-sm text-muted">No clusters — start the API (`npm run dev:api`) and submit a citizen request to populate.</div>}
+              {clusters.map((c:any)=> (
+                <button key={c.clusterId} onClick={()=> setSelected(c)} className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition ${selected?.clusterId===c.clusterId?"bg-civic-50 border-civic-200 ring-1 ring-civic-200":"bg-white border-slate-200 hover:bg-slate-50"}`}>
+                  <span className={`h-10 w-10 rounded-xl grid place-items-center text-white font-black text-sm shrink-0 ${c.priorityBand==="critical"?"bg-red-500":c.priorityBand==="high"?"bg-amber-500":c.priorityBand==="moderate"?"bg-sky-600":"bg-slate-400"}`}>{Math.round(c.priorityScore||0)}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold truncate">{c.title}</div>
+                    <div className="text-xs text-muted truncate">{c.districtId} · {c.category} · {c.requestCount} req · pop {c.populationAffected ?? "—"}</div>
+                  </div>
+                  <Badge tone={c.priorityBand==="critical"?"critical":c.priorityBand==="high"?"high":c.priorityBand==="moderate"?"moderate":"low"}>{c.priorityBand||"—"}</Badge>
+                </button>
+              ))}
+            </div>
+          </Card>
+        </div>
+
+        {/* Detail + Copilot + Budget */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="p-0 pb-3">
+              <CardTitle className="flex items-center gap-2">{selected ? selected.title : "Hotspot Detail"} {selected && <Badge tone={selected.priorityBand==="high"?"high":selected.priorityBand==="critical"?"critical":"moderate"}>{selected.priorityScore} · {selected.priorityBand}</Badge>}</CardTitle>
+              <CardDescription>Requests · population · category · infra gap · vulnerability · investment gap · priority score</CardDescription>
+            </CardHeader>
+            {selected ? (
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black">{selected.requestCount}</div><div className="text-xs text-muted">requests</div></div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black">{selected.populationAffected||"—"}</div><div className="text-xs text-muted">pop. affected</div></div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black">{selected.investmentGapScore ?? "—"}</div><div className="text-xs text-muted">invest. gap</div></div>
+                </div>
+                <ScoreBars components={{
+                  demand: selected.demandScore, infrastructure_gap: selected.infrastructureGapScore,
+                  population_impact: selected.populationImpactScore, vulnerability: selected.vulnerabilityScore,
+                  urgency: selected.urgencyScore, feasibility: selected.feasibilityScore
+                }} />
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs leading-relaxed">
+                  <span className="font-semibold">Why prioritized:</span> Citizen demand {selected.demandScore} + infra gap {selected.infrastructureGapScore} + vulnerability {selected.vulnerabilityScore}. Monsoon isolates hospital/school access. <span className="text-muted">Evidence: {selected.evidenceRefs?.join(", ")||"—"}</span>
+                </div>
+                <TrustLabels />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={async()=> {
+                    try { const r:any = await api("/api/projects/generate", { method:"POST", body: JSON.stringify({ clusterId: selected.clusterId }) }); alert(`Project drafted: ${r.project.title} — ₹${(r.project.estimatedCost/1e7).toFixed(1)}Cr · ${r.project.estimatedBeneficiaries} beneficiaries · Human review required`); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ alert(e.message); }
+                  }}>Generate candidate project</Button>
+                  <Button size="sm" variant="secondary" onClick={async()=> {
+                    try { const r:any = await api(`/api/clusters/${selected.clusterId}/explain`); alert(r.explanation + "\n\nEvidence: " + r.evidence_summary.join(" | ") + "\n\nGaps: " + (r.data_gaps.join(" | ")||"none")); } catch(e:any){ alert(e.message); }
+                  }}>Explain score</Button>
+                </div>
+                {(() => {
+                  const proj = projects.find((p:any)=> p.clusterId===selected.clusterId);
+                  if (!proj) return <div className="text-xs text-muted">No project yet — generate candidate to start impact loop.</div>;
+                  return (
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                      <div className="text-xs font-semibold">Project: {proj.title} · <Badge tone={proj.approvalStatus==="approved"?"verified":proj.approvalStatus==="rejected"?"critical":"moderate"}>{proj.approvalStatus||"pending"}</Badge> <Badge tone="estimate">₹{(proj.estimatedCost/1e7).toFixed(1)}Cr est.</Badge></div>
+                      <div className="text-xs text-muted">Status: {proj.implementationStatus||"proposed"} → Reviewed → Funded → In Progress → Completed → Impact</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["reviewed","funded","in_progress","completed","impact_measured"].map(s=> (
+                          <button key={s} onClick={async()=> {
+                            try { const r:any = await api(`/api/projects/${proj.projectId}/status`, { method:"POST", body: JSON.stringify({ status:s }) }); alert(`Status → ${s}`); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ alert(e.message); }
+                          }} className="text-xs rounded-full bg-white border border-slate-200 px-2.5 py-1 hover:bg-slate-100">{s}</button>
+                        ))}
+                      </div>
+                      <div className="flex gap-1.5">
+                        <Button size="sm" variant="secondary" onClick={async()=> {
+                          try { const r:any = await api(`/api/projects/${proj.projectId}/review`, { method:"POST", body: JSON.stringify({ decision:"approved", reason:"Evidence reviewed, aligns with priorities" }) }); alert("Approved — audit logged"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]);} catch(e:any){alert(e.message)}
+                        }}>Approve (human)</Button>
+                        <Button size="sm" variant="secondary" onClick={async()=> {
+                          try { const r:any = await api(`/api/projects/${proj.projectId}/review`, { method:"POST", body: JSON.stringify({ decision:"rejected", reason:"Insufficient evidence — needs survey" }) }); alert("Rejected — audit logged"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]);} catch(e:any){alert(e.message)}
+                        }}>Reject</Button>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            ) : <div className="text-sm text-muted">Select a hotspot to see evidence, score components, and recommended intervention.</div>}
+          </Card>
+
+          <Card>
+            <CardHeader className="p-0 pb-3"><CardTitle className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-violet-600" /> Policy Copilot</CardTitle><CardDescription>Grounded in verified datasets — never fabricates. Ranking · hotspots · district comparisons · budget scenarios.</CardDescription></CardHeader>
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {["Which projects should we prioritize?","Why is Vadodara underserved?","What fits within ₹10 Cr?","What evidence supports this?","What changed this month?"].map(s=> (
+                  <button key={s} onClick={()=> setCopilotQ(s)} className={`text-xs rounded-full px-3 py-1.5 border ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"}`}>{s}</button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="Ask a policy question..." />
+                <Button onClick={askCopilot}>Ask</Button>
+              </div>
+              {copilotA && (
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                  <div className="text-sm font-medium">Answer</div>
+                  <div className="text-sm leading-relaxed whitespace-pre-wrap">{copilotA.answer || JSON.stringify(copilotA, null, 2)}</div>
+                  {copilotA.evidence?.length ? <div className="text-xs"><span className="font-semibold">Evidence:</span> {copilotA.evidence.join(" · ")}</div> : null}
+                  {copilotA.data_gaps?.length ? <div className="text-xs text-amber-700">Data gaps: {copilotA.data_gaps.join(" · ")}</div> : null}
+                  {copilotA.trade_offs ? <div className="text-xs text-slate-700 bg-white border border-slate-200 rounded-xl p-2">Trade-offs: {copilotA.trade_offs}</div> : null}
+                  <div className="text-[11px] text-muted">{copilotA.human_review_notice || "Evidence-led, human-governed."}</div>
+                </motion.div>
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-0 pb-3"><CardTitle className="flex items-center gap-2"><Banknote className="h-4 w-4 text-emerald-600" /> Budget Simulator</CardTitle><CardDescription>Inputs: budget · objective · risk tolerance → portfolio · cost · beneficiaries · unfunded · trade-offs (08_POLICY_BRIEF flow)</CardDescription></CardHeader>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-sm">Budget (₹ Cr) <input type="number" value={budget} onChange={e=> setBudget(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
+              <label className="text-sm">Objective
+                <select value={objective} onChange={e=> setObjective(e.target.value as any)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <option value="max_priority">Max priority / cost</option><option value="max_beneficiaries">Max beneficiaries</option><option value="equity">Equity (vuln-weighted)</option>
+                </select>
+              </label>
+            </div>
+            <label className="text-sm mt-3 block">Risk tolerance
+              <select value={risk} onChange={e=> setRisk(e.target.value as any)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                <option value="low">Low — feasibility ≥70</option><option value="medium">Medium — ≥55</option><option value="high">High — all projects</option>
+              </select>
+            </label>
+            <div className="mt-3 flex gap-2">
+              <Button size="sm" onClick={async()=> {
+                try { const r:any = await api("/api/copilot/simulate", { method:"POST", body: JSON.stringify({ budget: Number(budget)*1e7, objective, risk_tolerance: risk }) }); setCopilotA(r); } catch(e:any){ alert(e.message); }
+              }}>Simulate Portfolio</Button>
+              <Button size="sm" variant="secondary" onClick={async()=> {
+                try { const r:any = await api("/api/copilot", { method:"POST", body: JSON.stringify({ question: `What fits within ₹${budget} Cr with objective ${objective} risk ${risk}?` }) }); setCopilotA(r);} catch(e:any){alert(e.message)}
+              }}>Via Copilot</Button>
+            </div>
+            {copilotA?.selected_projects && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div className="text-xs font-semibold">Simulated Portfolio — ₹{(copilotA.total_cost/1e7).toFixed(1)}Cr / ₹{budget}Cr · {copilotA.estimated_beneficiaries} beneficiaries · {copilotA.selected_projects.length} projects</div>
+                <div className="space-y-1.5">
+                  {copilotA.selected_projects.map((p:any)=> (
+                    <div key={p.projectId} className="rounded-xl bg-white border border-slate-200 p-2 flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium truncate">{p.title}</span><span className="text-xs text-muted">₹{(p.estimatedCost/1e7).toFixed(1)}Cr · {p.estimatedBeneficiaries} ben · {p.priorityScore}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="text-xs"><span className="font-semibold">Unfunded high-priority:</span> {copilotA.unfunded_high_priority?.map((u:any)=>u.title).join("; ")||"none"}</div>
+                <div className="text-xs text-slate-700 bg-white border border-slate-200 rounded-xl p-2">Trade-offs: {copilotA.trade_offs}</div>
+                <div className="text-[11px] text-muted">Assumptions: {copilotA.assumptions?.join(" · ")} · Data gaps: {copilotA.data_gaps?.join(" · ")}</div>
+              </div>
+            )}
+            <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-muted">Outputs: selected portfolio, total cost, estimated beneficiaries, expected outcomes, unfunded high-priority needs, trade-offs. All costs labeled ESTIMATE. Human review required.</div>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-0 pb-3"><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Impact Dashboard</CardTitle><CardDescription>Baseline → Target → Actual · observed vs modeled · measurement source & quality (07_IMPACT_REPORT)</CardDescription></CardHeader>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              {[
+                { k: impact?.baseline_metrics?.[0]?.baseline ? `${impact.baseline_metrics[0].baseline} min` : "45 min", l: "Baseline travel", sub: "observed · survey 2024" },
+                { k: impact?.target_metrics?.[0]?.target ? `${impact.target_metrics[0].target} min` : "22 min", l: "Target", sub: "after road upgrade" },
+                { k: impact?.actual_metrics?.[0]?.actual ? `${impact.actual_metrics[0].actual} min` : "—", l: "Actual", sub: impact?.actual_metrics?.[0]?.actual ? "observed" : "pending · not yet built" },
+              ].map(x=> (
+                <div key={x.l} className="rounded-xl border border-slate-200 bg-white p-3"><div className="font-black">{x.k}</div><div className="text-xs font-medium">{x.l}</div><div className="text-[11px] text-muted">{x.sub}</div></div>
+              ))}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={async()=> {
+                try { const p:any = await api("/api/projects/recommended"); const pid = p.projects[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/impact`); setImpact(r); } catch(e:any){ alert(e.message); }
+              }}>Load Impact</Button>
+              <Button size="sm" variant="secondary" onClick={async()=> {
+                try { const p:any = await api("/api/projects/recommended"); const pid = p.projects[0]?.projectId; const r:any = await api(`/api/projects/${pid}/impact`, { method:"POST", body: JSON.stringify({ actual: 28, measurement_date: new Date().toISOString().slice(0,10), source: "Observed — post-implementation survey" }) }); setImpact(r); } catch(e:any){ alert(e.message); }
+              }}>Record Actual 28min</Button>
+              <Button size="sm" variant="secondary" onClick={async()=> {
+                try { const p:any = await api("/api/projects/recommended"); const pid = p.projects[0]?.projectId; const r:any = await api(`/api/projects/${pid}/brief`); setBrief(r.brief); } catch(e:any){ alert(e.message); }
+              }}>Generate Policy Brief</Button>
+            </div>
+            {impact && <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-1"><div><span className="font-semibold">Observed:</span> {impact.observed_changes?.join(", ")||"none"} </div><div><span className="font-semibold">Estimated:</span> {impact.estimated_impact?.[0]?.metric} {impact.estimated_impact?.[0]?.estimated} — {impact.estimated_impact?.[0]?.note}</div><div className="text-muted">Limitations: {impact.limitations?.join(" · ")} · Quality: {impact.data_quality}</div></div>}
+            {brief && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed max-h-[320px] overflow-auto"><div className="font-semibold">Policy Brief — 08 sections + decision</div><div className="mt-1"><span className="font-medium">1 Executive Summary:</span> {brief.executive_summary}</div><div><span className="font-medium">7 Intervention:</span> {brief.recommended_intervention}</div><div><span className="font-medium">8 Expected Impact:</span> {brief.expected_impact}</div><div><span className="font-medium">12 Decision Required:</span> {brief.decision_required}</div><div className="text-[11px] text-muted mt-1">Sources: {brief.sources?.join(" · ")} · Estimates: {brief.labels?.estimates?.join(", ")}</div></div>}
+            <div className="mt-3 flex gap-2 text-xs"><Badge tone="verified">Observed</Badge><Badge tone="estimate">Estimated impact</Badge><span className="text-muted py-1">Limitations labeled · never claims causation beyond evidence</span></div>
+          </Card>
+        </div>
+      </div>
+
+      <Card className="border-amber-200 bg-amber-50">
+        <div className="text-sm"><span className="font-semibold">Architecture boundary:</span> Frontend = experience · Backend = authority · Gemini = intelligence · Data = evidence · Deterministic engine = official score · Human policymaker = final decision.</div>
+      </Card>
+    </div>
+  );
+}

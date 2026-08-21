@@ -1,0 +1,18 @@
+[
+  {
+    "planId": "inv_vad_road_2024",
+    "countryId": "IN", "regionId": "Gujarat", "districtId": "Vadodara", "sector": "roads",
+    "projectName": "Rural Roads Maintenance — Vadodara",
+    "plannedBudget": 54200000, "allocatedAmount": 12000000, "status": "partial",
+    "source": "Verified dataset — district investment ledger (synthetic demo)",
+    "sourceDate": "2024-01-10", "startDate": "2024-04-01", "endDate": "2025-03-31"
+  },
+  {
+    "planId": "inv_ahd_water_2024",
+    "countryId": "IN", "regionId": "Gujarat", "districtId": "Ahmedabad", "sector": "water",
+    "projectName": "Ahmedabad East Water Network",
+    "plannedBudget": 80000000, "allocatedAmount": 45000000, "status": "partial",
+    "source": "Verified dataset — synthetic demo",
+    "sourceDate": "2024-01-10", "startDate": "2024-04-01", "endDate": "2025-03-31"
+  }
+]

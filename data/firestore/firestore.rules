@@ -1,0 +1,32 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users — self or admin
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && (request.auth.uid == userId || isSuperAdmin());
+    }
+    // citizen_requests — citizens can create own, read own; analysts/policymakers read aggregate (no precise location unless necessary)
+    match /citizen_requests/{requestId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow read: if request.auth != null && (resource.data.userId == request.auth.uid || isAnalystOrAbove());
+      allow update: if isBackendService(); // only backend (Cloud Run) via Admin SDK may update AI fields, clusterId, priorityScore
+    }
+    match /request_clusters/{clusterId} {
+      allow read: if isAnalystOrAbove();
+      allow write: if isBackendService() || isAdmin();
+    }
+    match /projects/{projectId} {
+      allow read: if isAnalystOrAbove();
+      allow write: if isBackendService() || isPolicymakerOrAbove();
+    }
+    match /investment_plans/{planId} { allow read: if isAnalystOrAbove(); allow write: if isAdmin(); }
+    match /audit_logs/{auditId} { allow read: if isAdmin(); allow create: if isBackendService(); }
+
+    function isAdmin() { return request.auth != null && request.auth.token.role in ['admin','super_admin']; }
+    function isSuperAdmin() { return request.auth != null && request.auth.token.role == 'super_admin'; }
+    function isAnalystOrAbove() { return request.auth != null && request.auth.token.role in ['analyst','policymaker','program_manager','admin','super_admin']; }
+    function isPolicymakerOrAbove() { return request.auth != null && request.auth.token.role in ['policymaker','program_manager','admin','super_admin']; }
+    function isBackendService() { return request.auth != null && request.auth.token.role == 'service' || isAdmin(); }
+  }
+}
