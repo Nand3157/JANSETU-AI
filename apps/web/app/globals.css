@@ -2,14 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --background: 0 0% 100%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
+:root { --background: 210 40% 98%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
 * { @apply border-border; }
 html { scroll-behavior: smooth; }
 /* Kill horizontal scrolling / mobile overflow globally */
 html, body { overflow-x: hidden; }
 @supports (overflow-x: clip) { html, body { overflow-x: clip; } }
 img, svg, video, canvas { max-width: 100%; }
-body { @apply bg-[#F8FAFC] text-ink antialiased selection:bg-[#174EA6] selection:text-white; }
+body { @apply bg-[#F5F7FB] text-ink antialiased selection:bg-[#174EA6] selection:text-white; }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
 :where(button,a,input,textarea,select):focus-visible { outline: 2px solid #174EA6; outline-offset: 2px; }
 
@@ -22,10 +22,12 @@ body { @apply bg-[#F8FAFC] text-ink antialiased selection:bg-[#174EA6] selection
 .card-premium {
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
-  box-shadow: 0 1px 3px rgba(23,32,51,0.07), 0 4px 12px rgba(23,32,51,0.06);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
-  will-change: transform;
+  box-shadow: 0 1px 2px rgba(23,32,51,0.05), 0 8px 24px rgba(23,32,51,0.045);
 }
+.page-heading { font-size: clamp(1.55rem, 2.5vw, 2.15rem); line-height: 1.12; letter-spacing: -0.035em; font-weight: 750; color: #0B1F3A; }
+.eyebrow { color: #174EA6; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 750; }
+.soft-section { background: linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 100%); }
+.touch-target { min-height: 44px; min-width: 44px; }
 .card-premium:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(11,31,58,0.10), 0 4px 12px rgba(11,31,58,0.06); border-color: #D2D8E3; }
 /* All cards, rows, pills get hover — perf: transform/opacity only */
 table tbody tr { transition: background 0.15s ease, transform 0.15s ease; }
@@ -59,6 +61,11 @@ a:hover { text-decoration-color: #174EA6; }
 .input-hover { transition: border-color 0.18s, box-shadow 0.18s; }
 .input-hover:hover { border-color: #CBD5E1; }
 .input-hover:focus-within { border-color: #174EA6; box-shadow: 0 0 0 3px rgba(23,78,166,0.10); }
+.galaxy-blur {
+  background:
+    radial-gradient(900px 520px at 18% -8%, rgba(23,78,166,0.07), transparent 60%),
+    radial-gradient(700px 480px at 88% 0%, rgba(24,128,56,0.04), transparent 55%);
+}
 /* Auto-hover for all premium rounded cards — covers Home, Gov, Citizen without per-file edits */
 div[class*="rounded-[20px]"].bg-white, div[class*="rounded-[20px]"][class*="border"], div[class*="rounded-2xl"].bg-white {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -67,12 +74,6 @@ div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(11,31,58,0.07);
   border-color: #D2D8E3;
-}
-
-.galaxy-blur {
-  background:
-    radial-gradient(900px 520px at 18% -8%, rgba(23,78,166,0.07), transparent 60%),
-    radial-gradient(700px 480px at 88% 0%, rgba(24,128,56,0.04), transparent 55%);
 }
 @keyframes hotspot-pulse { 0%,100% { transform: scale(1); opacity:0.88 } 50% { transform: scale(1.07); opacity:1 } }
 .hotspot-pulse { animation: hotspot-pulse 2.6s ease-in-out infinite; will-change: transform; }

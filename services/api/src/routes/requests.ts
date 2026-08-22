@@ -12,12 +12,21 @@ const ANALYST_ROLES = ["analyst", "policymaker", "program_manager", "admin", "su
 // Server-side input validation (#8) + explicit field whitelist (#18)
 const createRequestSchema = z.object({
   originalText: z.string().trim().min(3).max(5000),
+  category: z.enum(["transport","roads","water","sanitation","electricity","healthcare","education","housing","public_safety","digital_connectivity","environment","flooding_drainage","waste_management","public_spaces","other"]).optional(),
   sourceLanguage: z.enum(["auto", "en", "hi", "gu"]).optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
   locationSource: z.enum(["device", "user_text", "geocoded", "inferred"]).nullable().optional(),
   audioUrl: z.string().url().max(2048).nullable().optional(),
   photoUrl: z.string().url().max(2048).nullable().optional(),
+});
+
+// GET /api/requests — citizen sees own requests; analysts see all
+requestsRouter.get("/", (req, res) => {
+  const user = (req as any).user;
+  const all = store.listRequests();
+  const mine = ANALYST_ROLES.includes(user.role) ? all : all.filter(r => r.userId === user.uid);
+  res.json({ requests: mine.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) });
 });
 
 // POST /api/requests — frontend submits voice/text/photo + location
@@ -33,6 +42,7 @@ requestsRouter.post("/", async (req, res) => {
   const created = store.createRequest({
     userId: user.uid,
     originalText: d.originalText,
+    category: d.category || null,
     sourceLanguage: d.sourceLanguage || "auto",
     latitude: d.latitude ?? null,
     longitude: d.longitude ?? null,
@@ -75,7 +85,7 @@ requestsRouter.post("/:id/analyze", async (req, res) => {
   store.updateRequest(r.requestId, {
     sourceLanguage: ai.source_language,
     translatedText: ai.translated_text,
-    category: ai.category as any,
+     category: (r.category || ai.category) as any,
     subcategory: ai.subcategory,
     problemStatement: ai.problem_statement,
     affectedServices: ai.affected_services,
@@ -159,5 +169,4 @@ requestsRouter.post("/:id/analyze", async (req, res) => {
     human_review_notice: "This is an AI-assisted recommendation based on the available evidence. Final prioritization, funding, and implementation decisions remain with the authorized public authority.",
   });
 });
-
 

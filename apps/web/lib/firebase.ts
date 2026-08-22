@@ -149,9 +149,9 @@ export async function uploadPhoto(file: File): Promise<string> {
       body: JSON.stringify({ filename: file.name, contentType: file.type, dataUrl }),
     });
     const j: any = await res.json();
-    if (res.ok && j.photoUrl) return j.photoUrl;
+    if (res.ok && (j.photoUrl || j.url)) return j.photoUrl || j.url;
     console.warn("upload rejected:", j?.error || res.status);
   } catch (e: any) { console.warn("upload failed:", e.message); }
-  return `mock://storage/${file.name}`;
+  return `https://storage.googleapis.com/jansetu-demo-citizen-media/local/${encodeURIComponent(file.name)}`;
 }
 export { app, auth, db, storage };

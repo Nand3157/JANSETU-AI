@@ -9,14 +9,29 @@ import { PhotoUploader } from "@/components/civic/PhotoUploader";
 import { Send, Languages, AlertTriangle, CheckCircle2, Loader2, Edit3, ShieldCheck, Clock, MapPinned, FileText } from "lucide-react";
 import { api } from "@/lib/api";
 import { getCurrentUser, signInAnonymouslyMock } from "@/lib/firebase";
+import { saveDraft } from "@/lib/draft";
+import { submitCitizenRequest } from "@/lib/submitRequest";
+
+const categories = [
+  { value: "water", label: "Water", hint: "Supply, leakage, drainage" },
+  { value: "roads", label: "Roads", hint: "Roads, bridges, access" },
+  { value: "electricity", label: "Electricity", hint: "Power or street lights" },
+  { value: "healthcare", label: "Healthcare", hint: "Clinics, ambulances, access" },
+  { value: "sanitation", label: "Sanitation", hint: "Waste, toilets, cleanliness" },
+  { value: "education", label: "Education", hint: "Schools and learning" },
+  { value: "other", label: "Other", hint: "Anything else" },
+];
 
 export default function SubmitPage() {
   const [text, setText] = useState("અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.");
+  const [category, setCategory] = useState("roads");
+  const [otherCategory, setOtherCategory] = useState("");
   const [lang, setLang] = useState("gu");
   const [locText, setLocText] = useState("Village X, Vadodara District, Gujarat");
   const [coords, setCoords] = useState<{lat:number,lng:number}|null>({ lat: 22.3072, lng: 73.1812 });
   const [locSource, setLocSource] = useState<string>("user_text");
   const [photoFile, setPhotoFile] = useState<File|null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -28,18 +43,10 @@ export default function SubmitPage() {
     setLoading(true); setError(null); setResult(null);
     try {
       if (!user) await signInAnonymouslyMock();
-      // In prod: upload photoFile to Cloud Storage via signed URL → get photoUrl
-      const photoUrl = photoFile ? `mock://storage/${photoFile.name}` : null;
-      const created: any = await api("/api/requests", {
-        method: "POST",
-        body: JSON.stringify({
-          originalText: text, sourceLanguage: lang,
-          latitude: coords?.lat ?? 22.3072, longitude: coords?.lng ?? 73.1812,
-          locationSource: locSource, photoUrl, audioUrl: null
-        }),
-        headers: { "x-role": "citizen", "x-country": "IN" }
+      const analyzed: any = await submitCitizenRequest({
+         text, category, lang, lat: coords?.lat ?? 22.3072, lng: coords?.lng ?? 73.1812,
+        locSource, audioUrl, photoFile,
       });
-      const analyzed: any = await api(`/api/requests/${created.requestId}/analyze`, { method: "POST" });
       setResult(analyzed);
       setHistory(h=> [{ ...analyzed.request, analyzed }, ...h].slice(0,6));
       setEditing(false);
@@ -62,7 +69,7 @@ export default function SubmitPage() {
         <span className="hidden md:inline-flex items-center gap-1.5 text-xs rounded-full bg-white border border-slate-200 px-3 py-1.5"><ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> {user? `Signed in · ${user.uid.slice(0,8)}` : "Anonymous · Firebase Auth"} </span>
       </div>
 
-      <Card className="mt-6 space-y-5">
+      <Card className="mt-7 space-y-7">
         {/* Language + Voice */}
         <div className="flex flex-wrap items-center gap-3">
           <select value={lang} onChange={e=> setLang(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
@@ -72,11 +79,19 @@ export default function SubmitPage() {
           <button onClick={demoFill} className="ml-auto text-xs rounded-full bg-white border border-slate-200 px-3 py-1.5 hover:bg-slate-50">Fill Gujarati demo</button>
         </div>
 
-        <div className="grid md:grid-cols-[1.15fr_0.85fr] gap-6">
+        <section className="space-y-3 border-t border-slate-200 pt-6">
+          <div><h2 className="text-base font-semibold">What is the issue about?</h2><p className="mt-1 text-sm text-muted">Choose the closest category. You can still describe the issue in your own words.</p></div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {categories.map(item=><button type="button" key={item.value} onClick={()=>setCategory(item.value)} className={`min-h-[76px] rounded-2xl border p-3 text-left transition ${category===item.value ? "border-[#174EA6] bg-[#E8F0FE] ring-2 ring-[#174EA6]/10" : "border-slate-200 bg-white hover:border-[#CBD5E1]"}`}><div className="text-sm font-semibold">{item.label}</div><div className="mt-1 text-xs text-muted leading-snug">{item.hint}</div></button>)}
+          </div>
+          {category === "other" && <label className="block max-w-xl"><span className="text-sm font-medium">Tell us the category</span><input value={otherCategory} onChange={e=>setOtherCategory(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="For example: public space, animal care..." /></label>}
+        </section>
+
+        <div className="grid md:grid-cols-[1.15fr_0.85fr] gap-8 border-t border-slate-200 pt-6">
           <div className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-medium">Voice / Text <span className="text-muted font-normal">· choose one</span></label>
-              <VoiceRecorder langHint={lang} onTranscript={(t,l)=> { setText(t); if(l) setLang(l); }} />
+              <VoiceRecorder langHint={lang} onTranscript={(t,l,media)=> { setText(t); if(l) setLang(l); setAudioUrl(media?.audioUrl || null); saveDraft({ text: t, lang: l || lang, audioUrl: media?.audioUrl || null }); }} />
               <textarea value={text} onChange={e=> setText(e.target.value)} rows={5} className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-civic-500/20 focus:border-civic-300" placeholder="Describe the problem in your language..." />
               <div className="text-[11px] text-muted">Original text is immutable per spec. Translated_text is shown in confirmation but original is preserved.</div>
             </div>

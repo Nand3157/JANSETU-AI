@@ -7,6 +7,7 @@ import { projectsRouter } from "./routes/projects.js";
 import { copilotRouter } from "./routes/copilot.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { uploadRouter } from "./routes/upload.js";
+import { transcribeRouter } from "./routes/transcribe.js";
 import { store } from "./services/store.js";
 import { scoreCluster } from "./services/ranking.js";
 
@@ -103,6 +104,7 @@ app.use("/api", generalLimiter);
 
 // Uploads mount FIRST with their own larger JSON cap (base64 photos ≤ ~6.7MB wire size)
 app.use("/api/upload", generalLimiter, uploadRouter);
+app.use("/api/transcribe", aiLimiter, transcribeRouter);
 
 // Everything else gets the tight default cap
 app.use(express.json({ limit: process.env.MAX_BODY_BYTES || "100kb" }));

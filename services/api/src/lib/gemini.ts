@@ -6,12 +6,16 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
+import { parseMediaDataUrl } from "./media.js";
 
 type GeminiOpts = {
   systemPrompt: string;
   userPrompt: string;
+  /** Optional inline media (audio for transcription) as a data URL: data:audio/webm;base64,... */
+  audioDataUrl?: string;
   responseSchema?: any; // JSON schema for responseMimeType application/json
   model?: string;
+  jsonMode?: boolean;
 };
 
 function loadPrompt(name: string): string {
@@ -46,30 +50,68 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     console.warn(`Gemini daily cap reached (${q.used}/${q.cap}) — using deterministic fallback for the rest of ${dayKeySafe()}`);
     return null;
   }
-  if (!(await recordGeminiCall())) return null;
   try {
     const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
     if (!GoogleGenerativeAI) return null;
     const genAI = new GoogleGenerativeAI(key);
     const modelName = opts.model || process.env.GEMINI_MODEL || "gemini-3.5-flash";
+    const jsonMode = opts.jsonMode !== false;
     const model = genAI.getGenerativeModel({
       model: modelName,
       systemInstruction: opts.systemPrompt,
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 2048),
-        responseMimeType: "application/json",
+        maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096),
+        responseMimeType: jsonMode ? "application/json" : "text/plain",
+        ...(opts.responseSchema ? { responseSchema: opts.responseSchema } : {}),
+        // Gemini 3.x thinking can consume the output budget; keep civic JSON calls cheap.
+        thinkingConfig: { thinkingBudget: 0 },
       } as any,
     });
     // Prompt-injection guardrail: cap user-supplied text length before it reaches the model
     const userPrompt = String(opts.userPrompt).slice(0, 12000);
-    const result = await model.generateContent(userPrompt);
+
+    const parts: any[] = [{ text: userPrompt }];
+    if (opts.audioDataUrl) {
+      const parsed = parseMediaDataUrl(opts.audioDataUrl);
+      if (!parsed || !parsed.mimeType.startsWith("audio/")) throw new Error("invalid audio dataUrl");
+      if (parsed.buffer.length > 8 * 1024 * 1024) throw new Error("audio too large");
+      parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.buffer.toString("base64") } });
+    }
+
+    const result = await model.generateContent(parts);
     const text = result.response.text();
+    if (!text) return null;
+    await recordGeminiCall();
     return { text, raw: result.response };
   } catch (e: any) {
     console.warn("Gemini real call failed, falling back to mock:", e.message);
     return null;
   }
+}
+
+export async function transcribeAudio(
+  audioDataUrl: string,
+  langHint = "auto",
+): Promise<{ transcript: string; language: string; source: "gemini" | "mock" }> {
+  const sys = "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language and meaning. Never invent civic facts that were not spoken.";
+  const user = `Transcribe the attached audio. langHint=${langHint}. Return ONLY JSON with keys transcript (string) and language (gu|hi|en|und).`;
+  const real = await callGeminiReal({ systemPrompt: sys, userPrompt: user, audioDataUrl, jsonMode: true });
+  if (real?.text) {
+    try {
+      let parsed: any;
+      try { parsed = JSON.parse(real.text); } catch {
+        const m = real.text.match(/\{[\s\S]*\}/);
+        if (m) parsed = JSON.parse(m[0]);
+      }
+      const transcript = String(parsed?.transcript || parsed?.text || "").trim();
+      const language = String(parsed?.language || langHint || "und").slice(0, 8);
+      if (transcript) return { transcript, language, source: "gemini" };
+    } catch {}
+    const fallback = real.text.replace(/```json|```/g, "").trim();
+    if (fallback && !fallback.startsWith("{")) return { transcript: fallback, language: langHint === "auto" ? "und" : langHint, source: "gemini" };
+  }
+  return { transcript: "", language: langHint === "auto" ? "und" : langHint, source: "mock" };
 }
 
 function dayKeySafe() { return new Date().toISOString().slice(0, 10); }

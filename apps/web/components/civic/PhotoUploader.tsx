@@ -30,7 +30,7 @@ export function PhotoUploader({ onFile }: { onFile: (file: File | null, previewU
         <div className="relative rounded-2xl overflow-hidden border border-slate-200 bg-white">
           <img src={preview} alt="preview" className="h-48 w-full object-cover" />
           <button onClick={()=> { setPreview(null); setName(null); onFile(null); }} className="absolute top-2 right-2 h-8 w-8 rounded-full bg-black/60 text-white grid place-items-center"><X className="h-4 w-4" /></button>
-          <div className="p-2 flex items-center gap-1.5 text-xs text-muted"><Camera className="h-3.5 w-3.5" /> {name} · will upload via Pub/Sub + Cloud Storage (mock preview)</div>
+          <div className="p-2 flex items-center gap-1.5 text-xs text-muted"><Camera className="h-3.5 w-3.5" /> {name} · uploaded on submit</div>
         </div>
       )}
     </div>

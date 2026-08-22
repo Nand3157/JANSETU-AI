@@ -10,6 +10,9 @@ import { HotspotMap } from "@/components/civic/HotspotMap";
 import { api } from "@/lib/api";
 import { MapPinned, TrendingUp, Users, Banknote, Lightbulb, MessageCircle, BarChart3, Shield, Search, Filter } from "lucide-react";
 
+const DEMO_KPIS = { kpis: { totalRequests: 4218, hotspots: 12, highPriority: 4, recommendedProjects: 6, investmentGapCr: 18.4 } };
+const DEMO_CLUSTERS = [{ clusterId: "demo-roads", title: "Monsoon road access", districtId: "Vadodara", category: "roads", requestCount: 4218, populationAffected: 12400, priorityScore: 94, priorityBand: "critical", demandScore: 92, infrastructureGapScore: 88, populationImpactScore: 80, vulnerabilityScore: 82, urgencyScore: 90, feasibilityScore: 64, investmentGapScore: 71, evidenceRefs: ["demo survey", "citizen requests"] }];
+
 export default function GovernmentDashboard() {
   const [kpis, setKpis] = useState<any>(null);
   const [clusters, setClusters] = useState<any[]>([]);
@@ -33,7 +36,12 @@ export default function GovernmentDashboard() {
       if (c.clusters?.length && !selected) setSelected(c.clusters[0]);
       try { const h:any = await api("/api/analytics/hotspots"); setGeojson(h.geojson); } catch {}
       try { const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch {}
-    } catch { /* api not running */ }
+    } catch {
+      // Keep the dashboard useful when the optional API is not running locally.
+      setKpis(DEMO_KPIS);
+      setClusters(DEMO_CLUSTERS);
+      if (!selected) setSelected(DEMO_CLUSTERS[0]);
+    }
   }
   useEffect(()=> { load(); }, []);
 

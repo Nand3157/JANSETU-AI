@@ -3,7 +3,11 @@
   "private": true,
   "version": "1.0.0",
   "description": "JANSETU AI — Digital Public Good for civic infrastructure intelligence",
-  "workspaces": ["apps/web", "packages/shared", "services/api"],
+  "workspaces": [
+    "apps/web",
+    "packages/shared",
+    "services/api"
+  ],
   "scripts": {
     "sync-env": "node scripts/sync-env.mjs",
     "predev": "node scripts/sync-env.mjs",
@@ -22,5 +26,10 @@
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "allowScripts": {
+    "@firebase/util@1.15.3": true,
+    "esbuild@0.28.2": true,
+    "protobufjs@7.6.5": true
   }
 }
