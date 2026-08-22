@@ -5,8 +5,12 @@
   "description": "JANSETU AI — Digital Public Good for civic infrastructure intelligence",
   "workspaces": ["apps/web", "packages/shared", "services/api"],
   "scripts": {
+    "sync-env": "node scripts/sync-env.mjs",
+    "predev": "node scripts/sync-env.mjs",
     "dev": "concurrently \"npm run dev --workspace=services/api\" \"npm run dev --workspace=apps/web\"",
+    "predev:web": "node scripts/sync-env.mjs",
     "dev:web": "npm run dev --workspace=apps/web",
+    "predev:api": "node scripts/sync-env.mjs",
     "dev:api": "npm run dev --workspace=services/api",
     "build": "npm run build --workspaces",
     "lint": "eslint . --ext .ts,.tsx",

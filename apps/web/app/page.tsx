@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Mic, ArrowRight, Sparkles, ShieldCheck, Globe, Layers, Target, TrendingUp, Users, MapPin, Activity, Quote } from "lucide-react";
+import { ArrowRight, Sparkles, ShieldCheck, Layers, Target, TrendingUp, MapPin, Activity, Quote } from "lucide-react";
 
 // Animated counter — react-bits inspired, low JS
 function Counter({ value, suffix="" }: { value: number; suffix?: string }) {
@@ -123,33 +123,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* VALUE PROP — 4 premium cards — shadcn + indie */}
-      <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-12">
-        <div className="max-w-[720px]">
-          <h2 className="text-[22px] font-semibold tracking-tight">Understand demand. Identify gaps. Prioritize action.</h2>
-          <p className="text-sm text-[#78716C] mt-2">Not a complaint portal. A public intelligence layer.</p>
-        </div>
-        <div className="mt-8 grid md:grid-cols-4 gap-4">
-          {[
-            { k:"LISTEN", t:"Multilingual citizen voice", d:"Voice, text, photos — in Gujarati, Hindi, English. Preserve meaning, flag ambiguity.", icon: Quote },
-            { k:"UNDERSTAND", t:"AI organizes feedback", d:"Gemini extracts category, urgency, location, affected groups — validated server-side.", icon: Sparkles },
-            { k:"PRIORITIZE", t:"Evidence-backed priorities", d:"Deterministic score: demand 30% + gap 20% + pop 15% + vuln 15% + urgency 10% + feas 10%.", icon: Target },
-            { k:"MEASURE", t:"Track real impact", d:"Baseline → Target → Actual with observed vs modeled, audit-logged.", icon: TrendingUp },
-          ].map((c,i)=> (
-            <motion.div key={c.k} initial={{ opacity:0, y:8 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ delay:i*0.06 }} whileHover={{ y:-3 }} className="card-premium rounded-[20px] p-5 shimmer-border hover-lift cursor-pointer">
-              <div className="h-9 w-9 rounded-xl bg-[#F5F5F4] border border-[#E5E7EB] grid place-items-center group-hover:bg-[#E8F0FE] transition-colors"><c.icon className="h-4 w-4 text-[#0C0A09] group-hover:text-[#174EA6] transition-colors" /></div>
-              <div className="mt-3 text-[11px] tracking-[0.12em] font-semibold text-[#78716C]">{c.k}</div>
-              <div className="text-[15px] font-semibold mt-1 leading-tight">{c.t}</div>
-              <div className="text-sm leading-relaxed text-[#78716C] mt-1.5">{c.d}</div>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* HOW IT WORKS — 6-step timeline — lndev + coss */}
-      <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-10">
+      {/* HOW IT WORKS — 6-step timeline + 4 pillars */}
+      <section id="how-it-works" className="mx-auto max-w-[1280px] px-4 md:px-6 py-12">
         <div className="flex items-end justify-between gap-4">
-          <h2 className="text-xl font-semibold tracking-tight">Citizen voice → Public action</h2>
+          <div>
+            <h2 className="text-[22px] font-semibold tracking-tight">Citizen voice → Public action</h2>
+            <p className="text-sm text-[#78716C] mt-2">Not a complaint portal. A public intelligence layer.</p>
+          </div>
           <Link href="/how-it-works" className="hidden md:inline-flex text-sm font-medium underline decoration-[#E7E5E4] underline-offset-4 hover:text-black">How it works →</Link>
         </div>
         <div className="mt-8 relative">
@@ -170,6 +150,21 @@ export default function Home() {
               </div>
             ))}
           </div>
+        </div>
+        <div className="mt-10 grid md:grid-cols-4 gap-4">
+          {[
+            { k:"LISTEN", t:"Multilingual citizen voice", d:"Voice, text, photos — in Gujarati, Hindi, English. Preserve meaning, flag ambiguity.", icon: Quote },
+            { k:"UNDERSTAND", t:"AI organizes feedback", d:"Gemini extracts category, urgency, location, affected groups — validated server-side.", icon: Sparkles },
+            { k:"PRIORITIZE", t:"Evidence-backed priorities", d:"Deterministic score: demand 30% + gap 20% + pop 15% + vuln 15% + urgency 10% + feas 10%.", icon: Target },
+            { k:"MEASURE", t:"Track real impact", d:"Baseline → Target → Actual with observed vs modeled, audit-logged.", icon: TrendingUp },
+          ].map((c,i)=> (
+            <motion.div key={c.k} initial={{ opacity:0, y:8 }} whileInView={{ opacity:1, y:0 }} viewport={{ once:true }} transition={{ delay:i*0.06 }} whileHover={{ y:-3 }} className="card-premium rounded-[20px] p-5 shimmer-border hover-lift cursor-pointer">
+              <div className="h-9 w-9 rounded-xl bg-[#F5F5F4] border border-[#E5E7EB] grid place-items-center"><c.icon className="h-4 w-4 text-[#0C0A09]" /></div>
+              <div className="mt-3 text-[11px] tracking-[0.12em] font-semibold text-[#78716C]">{c.k}</div>
+              <div className="text-[15px] font-semibold mt-1 leading-tight">{c.t}</div>
+              <div className="text-sm leading-relaxed text-[#78716C] mt-1.5">{c.d}</div>
+            </motion.div>
+          ))}
         </div>
       </section>
 
@@ -223,20 +218,11 @@ export default function Home() {
             <h2 className="text-2xl font-semibold tracking-tight">Turn public voice into measurable action.</h2>
             <p className="text-sm text-[#78716C] mt-1">Citizen PWA + Government dashboard · Evidence-led · Human-governed.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-wrap gap-3">
             <Link href="/citizen/submit"><Button size="lg" className="rounded-full">Raise a Community Need</Button></Link>
-            <Link href="/government"><Button variant="secondary" size="lg" className="rounded-full">Explore JANSETU</Button></Link>
+            <Link href="/register"><Button variant="secondary" size="lg" className="rounded-full">Create Account</Button></Link>
+            <Link href="/login"><Button variant="ghost" size="lg" className="rounded-full">Log In</Button></Link>
           </div>
-        </div>
-      </section>
-
-      {/* Governance footer stripe — minimal */}
-      <section className="border-t border-[#E7E5E4] bg-white">
-        <div className="mx-auto max-w-[1280px] px-4 md:px-6 py-6 flex flex-wrap gap-3 items-center text-xs text-[#78716C]">
-          <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5" /> Citizen-first · Evidence-first · Human-governed</span>
-          <span className="h-1 w-1 rounded-full bg-[#E7E5E4]" />
-          <span>Frontend untrusted · Backend owns scoring · Every recommendation traceable</span>
-          <span className="ml-auto inline-flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" /> BRICS Strategy · India-first demo</span>
         </div>
       </section>
     </div>

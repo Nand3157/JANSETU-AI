@@ -13,7 +13,7 @@ const nav = [
   { href: "/government/investment", label: "Investment Gaps", icon: Wallet },
   { href: "/government/copilot", label: "Policy Copilot", icon: Building2 },
   { href: "/government/budget", label: "Budget Simulator", icon: LineChart },
-  { href: "/government/impact", label: "Impact", icon: BarChart3 },
+  { href: "/government/impact", label: "Impact Dashboard", icon: BarChart3 },
   { href: "/government/explorer", label: "Data Explorer", icon: Database },
 ];
 const admin = [
@@ -49,10 +49,12 @@ export default function GovLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar — desktop */}
       <aside className="hidden lg:flex w-[264px] shrink-0 bg-white border-r border-[#E5E7EB] flex-col sticky top-0 h-[100vh]">
         <div className="h-[64px] flex items-center gap-2.5 px-5 border-b border-[#E5E7EB]">
-          <div className="h-8 w-8 rounded-lg bg-[#174EA6] grid place-items-center text-white">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 16 C7 10, 10 8, 12 12 C14 16, 17 13, 20 16" stroke="white" strokeWidth="1.6" strokeLinecap="round"/><circle cx="7" cy="13.5" r="1.6" fill="white"/><circle cx="12" cy="12" r="1.6" fill="white"/><circle cx="17" cy="13.5" r="1.6" fill="white"/></svg>
-          </div>
-          <div><div className="font-bold text-sm tracking-tight text-[#0B1F3A]">JANSETU AI</div><div className="text-[11px] tracking-widest text-[#5F6368]">GOVERNMENT</div></div>
+          <Link href="/government" aria-label="Government dashboard home" className="flex items-center gap-2.5 hover-scale">
+            <div className="h-8 w-8 rounded-lg bg-[#174EA6] grid place-items-center text-white">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M4 16 C7 10, 10 8, 12 12 C14 16, 17 13, 20 16" stroke="white" strokeWidth="1.6" strokeLinecap="round"/><circle cx="7" cy="13.5" r="1.6" fill="white"/><circle cx="12" cy="12" r="1.6" fill="white"/><circle cx="17" cy="13.5" r="1.6" fill="white"/></svg>
+            </div>
+            <div><div className="font-bold text-sm tracking-tight text-[#0B1F3A]">JANSETU AI</div><div className="text-[11px] tracking-widest text-[#5F6368]">GOVERNMENT</div></div>
+          </Link>
         </div>
         <nav className="flex-1 overflow-auto py-4 px-3 space-y-5">
           <div className="space-y-1">

@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+export const metadata: Metadata = { title: "BRICS" };
 export default function BricsPage() {
   return (
     <div className="mx-auto max-w-[880px] px-4 md:px-6 py-12">

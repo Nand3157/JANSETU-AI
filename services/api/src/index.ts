@@ -65,29 +65,70 @@ function seed() {
 }
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+app.set("trust proxy", 1); // Cloud Run / App Router terminates TLS
+
+// ── Security headers (directive #15) ────────────────────────────────────────
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains"); // behind managed TLS
+    res.removeHeader("X-Powered-By");
+  }
+  next();
+});
+
+// ── CORS whitelist (directive #13) — no wildcard with credentials/sensitive data
+const allowedOrigins = (process.env.CORS_ORIGINS || "")
+  .split(",").map(s => s.trim()).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    if (!allowedOrigins.length && process.env.NODE_ENV !== "production") return cb(null, true); // dev convenience only
+    cb(new Error("origin_not_allowed"));
+  },
+  methods: ["GET", "POST"],
+  credentials: false, // auth is Bearer ID tokens, never cookies
+}));
+
 app.use(authMiddleware);
+
+// ── Rate limits (directive #6): general + stricter AI budget ────────────────
+import { rateLimit } from "./lib/rateLimit.js";
+const generalLimiter = rateLimit({ scope: "general", max: Number(process.env.RATE_MAX_GENERAL || 300) });
+const aiLimiter = rateLimit({ scope: "ai", max: Number(process.env.RATE_MAX_AI || 30) });
+app.use("/api", generalLimiter);
+
+// Uploads mount FIRST with their own larger JSON cap (base64 photos ≤ ~6.7MB wire size)
+app.use("/api/upload", generalLimiter, uploadRouter);
+
+// Everything else gets the tight default cap
+app.use(express.json({ limit: process.env.MAX_BODY_BYTES || "100kb" }));
 
 // Health
 app.get("/health", (_req, res) => res.json({ ok: true, service: "jansetu-api", version: "1.0.0", chain: "Citizen → AI → Evidence → Prioritization → Human → Impact" }));
 
 // API
 app.use("/api/requests", requestsRouter);
-app.use("/api/clusters", clustersRouter);
+app.use("/api/clusters", aiLimiter, clustersRouter);
 app.use("/api/projects", projectsRouter);
-app.use("/api/copilot", copilotRouter);
+app.use("/api/copilot", aiLimiter, copilotRouter);
 app.use("/api/analytics", analyticsRouter);
-app.use("/api/upload", uploadRouter);
 
-// Seed on boot
-seed();
+// Seed on boot (skip when seeded externally via data/firestore/seed.js)
+if (process.env.SKIP_SEED !== "true") seed();
 
-// 404 + error
+// 404
 app.use((req,res)=> res.status(404).json({ error: "not found", path: req.path }));
+
+// Errors — never leak stack traces or DB errors to clients in production (#17)
 app.use((err:any,_req:any,res:any,_next:any)=> {
   console.error(err);
-  res.status(500).json({ error: "internal", detail: err.message });
+  const expose = process.env.SHOW_ERRORS === "true" || process.env.NODE_ENV !== "production";
+  if (err?.message === "origin_not_allowed") return res.status(403).json({ error: "forbidden" });
+  res.status(500).json({ error: "internal_error", ...(expose ? { detail: err?.message } : {}) });
 });
 
 const port = Number(process.env.PORT || 8080);

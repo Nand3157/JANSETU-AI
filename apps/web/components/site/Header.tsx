@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown, Globe } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 function Logo() {
   return (
@@ -26,7 +26,6 @@ function Logo() {
 const nav = [
   { href: "/how-it-works", label: "How It Works" },
   { href: "/impact", label: "Impact" },
-  { href: "/for-governments", label: "For Governments" },
   { href: "/brics", label: "BRICS" },
   { href: "/about", label: "About" },
 ];
@@ -42,6 +41,10 @@ export function Header() {
     return ()=> window.removeEventListener("scroll", onScroll);
   }, []);
   useEffect(()=> setOpen(false), [pathname]);
+  useEffect(()=> {
+    document.body.style.overflow = open ? "hidden" : "";
+    return ()=> { document.body.style.overflow = ""; };
+  }, [open]);
   if (hidePublic) return null;
   return (
     <header className={`sticky top-0 z-50 ${scrolled ? "navbar-blur shadow-nav" : "bg-white/80 backdrop-blur-xl border-b border-transparent"}`}>
@@ -58,25 +61,22 @@ export function Header() {
           })}
         </nav>
         <div className="flex items-center gap-2">
-          <button className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-white px-3 py-1.5 text-xs font-medium text-[#172033] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] hover:shadow-sm transition-all">
-            <Globe className="h-3.5 w-3.5 text-[#5F6368]" /> EN <ChevronDown className="h-3 w-3 text-[#5F6368]" />
-          </button>
           <Link href="/login" className="hidden md:inline-flex h-9 px-4 items-center rounded-full border border-[#E5E7EB] bg-white text-sm font-medium text-[#172033] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] hover:shadow-sm hover:-translate-y-[1px] transition-all">Log In</Link>
-          <Link href="/citizen/submit" className="hidden md:inline-flex h-9 px-5 items-center rounded-full bg-[#174EA6] text-white text-sm font-medium hover:bg-[#0B1F3A] shadow-sm hover:shadow-md hover:-translate-y-[1px] transition-all">Raise a Community Need</Link>
-          <button onClick={()=> setOpen(v=> !v)} aria-label="Menu" className="lg:hidden h-9 w-9 grid place-items-center rounded-full border border-[#E5E7EB] bg-white">
+          <Link href="/register" className="hidden md:inline-flex h-9 px-5 items-center rounded-full bg-[#174EA6] text-white text-sm font-medium hover:bg-[#0B1F3A] shadow-sm hover:shadow-md hover:-translate-y-[1px] transition-all">Register</Link>
+          <button onClick={()=> setOpen(v=> !v)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} className="lg:hidden touch-target h-9 w-9 grid place-items-center rounded-full border border-[#E5E7EB] bg-white">
             {open ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
         </div>
       </div>
       {open && (
-        <div className="lg:hidden border-t border-[#E5E7EB] bg-white">
-          <div className="px-4 py-3 space-y-1">
+        <div className="lg:hidden border-t border-[#E5E7EB] bg-white max-h-[calc(100dvh-64px)] overflow-y-auto">
+          <div className="px-4 py-3 space-y-1 pb-[max(12px,env(safe-area-inset-bottom))]">
             {nav.map(n=> (
-              <Link key={n.href} href={n.href} className="block rounded-xl px-3 py-2.5 text-sm font-medium text-[#172033] hover:bg-[#F8FAFC]">{n.label}</Link>
+              <Link key={n.href} href={n.href} onClick={()=> setOpen(false)} className={`block rounded-xl px-3 py-3 text-sm font-medium ${pathname === n.href ? "bg-[#E8F0FE] text-[#174EA6]" : "text-[#172033] hover:bg-[#F8FAFC]"}`}>{n.label}</Link>
             ))}
             <div className="pt-3 flex gap-2">
-              <Link href="/login" className="flex-1 h-10 grid place-items-center rounded-full border border-[#E5E7EB] text-sm font-medium">Log In</Link>
-              <Link href="/citizen/submit" className="flex-1 h-10 grid place-items-center rounded-full bg-[#174EA6] text-white text-sm font-medium">Raise Need</Link>
+              <Link href="/login" onClick={()=> setOpen(false)} className="flex-1 h-11 grid place-items-center rounded-full border border-[#E5E7EB] text-sm font-medium">Log In</Link>
+              <Link href="/register" onClick={()=> setOpen(false)} className="flex-1 h-11 grid place-items-center rounded-full bg-[#174EA6] text-white text-sm font-medium">Register</Link>
             </div>
           </div>
         </div>

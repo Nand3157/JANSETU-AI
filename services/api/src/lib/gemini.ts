@@ -39,20 +39,31 @@ export const MAIN_SYSTEM = (()=> {
 export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; raw: any } | null> {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!key) return null;
+  // Daily spend cap — refuse paid calls once the ceiling is hit (mock fallback takes over)
+  const { geminiQuota, recordGeminiCall } = await import("./rateLimit.js");
+  const q = geminiQuota();
+  if (q.exceeded) {
+    console.warn(`Gemini daily cap reached (${q.used}/${q.cap}) — using deterministic fallback for the rest of ${dayKeySafe()}`);
+    return null;
+  }
+  if (!(await recordGeminiCall())) return null;
   try {
     const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
     if (!GoogleGenerativeAI) return null;
     const genAI = new GoogleGenerativeAI(key);
-    const modelName = opts.model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
+    const modelName = opts.model || process.env.GEMINI_MODEL || "gemini-3.5-flash";
     const model = genAI.getGenerativeModel({
       model: modelName,
       systemInstruction: opts.systemPrompt,
       generationConfig: {
         temperature: 0.2,
+        maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 2048),
         responseMimeType: "application/json",
       } as any,
     });
-    const result = await model.generateContent(opts.userPrompt);
+    // Prompt-injection guardrail: cap user-supplied text length before it reaches the model
+    const userPrompt = String(opts.userPrompt).slice(0, 12000);
+    const result = await model.generateContent(userPrompt);
     const text = result.response.text();
     return { text, raw: result.response };
   } catch (e: any) {
@@ -60,6 +71,8 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     return null;
   }
 }
+
+function dayKeySafe() { return new Date().toISOString().slice(0, 10); }
 
 export function getPrompt(name: string) { return loadPrompt(name); }
 export const promptFiles = {

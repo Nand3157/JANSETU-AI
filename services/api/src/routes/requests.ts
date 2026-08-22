@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { z } from "zod";
 import { store } from "../services/store.js";
 import { analyzeCitizenIntake, decideCluster } from "../services/aiOrchestrator.js";
 import { scoreCluster } from "../services/ranking.js";
@@ -6,21 +7,38 @@ import { decide as decideLocal } from "../services/clusterService.js";
 
 export const requestsRouter = Router();
 
+const ANALYST_ROLES = ["analyst", "policymaker", "program_manager", "admin", "super_admin"];
+
+// Server-side input validation (#8) + explicit field whitelist (#18)
+const createRequestSchema = z.object({
+  originalText: z.string().trim().min(3).max(5000),
+  sourceLanguage: z.enum(["auto", "en", "hi", "gu"]).optional(),
+  latitude: z.number().min(-90).max(90).nullable().optional(),
+  longitude: z.number().min(-180).max(180).nullable().optional(),
+  locationSource: z.enum(["device", "user_text", "geocoded", "inferred"]).nullable().optional(),
+  audioUrl: z.string().url().max(2048).nullable().optional(),
+  photoUrl: z.string().url().max(2048).nullable().optional(),
+});
+
 // POST /api/requests — frontend submits voice/text/photo + location
 requestsRouter.post("/", async (req, res) => {
-  const { originalText, latitude, longitude, locationSource, audioUrl, photoUrl, sourceLanguage } = req.body;
-  if (!originalText) return res.status(400).json({ error: "originalText required" });
+  const parsed = createRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: "validation_failed", issues: parsed.error.issues.map(i => ({ path: i.path.join("."), message: i.message })) });
+  }
+  const d = parsed.data;
 
   const user = (req as any).user;
+  // Only whitelisted fields are persisted; userId/countryId come from the verified token, never the body
   const created = store.createRequest({
     userId: user.uid,
-    originalText,
-    sourceLanguage: sourceLanguage || "auto",
-    latitude: latitude ?? null,
-    longitude: longitude ?? null,
-    locationSource: locationSource || null,
-    audioUrl: audioUrl || null,
-    photoUrl: photoUrl || null,
+    originalText: d.originalText,
+    sourceLanguage: d.sourceLanguage || "auto",
+    latitude: d.latitude ?? null,
+    longitude: d.longitude ?? null,
+    locationSource: d.locationSource || null,
+    audioUrl: d.audioUrl || null,
+    photoUrl: d.photoUrl || null,
     countryId: user.countryId,
     status: "received",
   });
@@ -28,10 +46,14 @@ requestsRouter.post("/", async (req, res) => {
   res.status(201).json(created);
 });
 
-// GET /api/requests/{id}
+// GET /api/requests/{id} — server-side ownership check (#4): citizens read only their own
 requestsRouter.get("/:id", (req, res) => {
   const r = store.getRequest(req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
+  const user = (req as any).user;
+  if (r.userId !== user.uid && !ANALYST_ROLES.includes(user.role)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
   res.json(r);
 });
 
@@ -39,6 +61,10 @@ requestsRouter.get("/:id", (req, res) => {
 requestsRouter.post("/:id/analyze", async (req, res) => {
   const r = store.getRequest(req.params.id);
   if (!r) return res.status(404).json({ error: "not found" });
+  const user = (req as any).user;
+  if (r.userId !== user.uid && !ANALYST_ROLES.includes(user.role)) {
+    return res.status(403).json({ error: "forbidden" });
+  }
 
   // 1) AI intake — pass langHint to preserve gu detection even if encoding edge
   const intake = await analyzeCitizenIntake({ text: r.originalText, locationRaw: `${r.latitude},${r.longitude}`, langHint: r.sourceLanguage });

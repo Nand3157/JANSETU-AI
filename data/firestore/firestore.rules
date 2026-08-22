@@ -22,11 +22,14 @@ service cloud.firestore {
     }
     match /investment_plans/{planId} { allow read: if isAnalystOrAbove(); allow write: if isAdmin(); }
     match /audit_logs/{auditId} { allow read: if isAdmin(); allow create: if isBackendService(); }
+    // AI spend accounting — written only by backend, read by admins
+    match /ai_usage/{dayId} { allow read: if isAdmin(); allow write: if false; }
+    match /{document=**} { allow read, write: if false; } // deny-by-default for anything else
 
     function isAdmin() { return request.auth != null && request.auth.token.role in ['admin','super_admin']; }
     function isSuperAdmin() { return request.auth != null && request.auth.token.role == 'super_admin'; }
     function isAnalystOrAbove() { return request.auth != null && request.auth.token.role in ['analyst','policymaker','program_manager','admin','super_admin']; }
     function isPolicymakerOrAbove() { return request.auth != null && request.auth.token.role in ['policymaker','program_manager','admin','super_admin']; }
-    function isBackendService() { return request.auth != null && request.auth.token.role == 'service' || isAdmin(); }
+    function isBackendService() { return (request.auth != null && request.auth.token.role == 'service') || isAdmin(); }
   }
 }

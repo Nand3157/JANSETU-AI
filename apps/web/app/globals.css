@@ -5,7 +5,12 @@
 :root { --background: 0 0% 100%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
 * { @apply border-border; }
 html { scroll-behavior: smooth; }
+/* Kill horizontal scrolling / mobile overflow globally */
+html, body { overflow-x: hidden; }
+@supports (overflow-x: clip) { html, body { overflow-x: clip; } }
+img, svg, video, canvas { max-width: 100%; }
 body { @apply bg-[#F8FAFC] text-ink antialiased selection:bg-[#174EA6] selection:text-white; }
+.safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
 :where(button,a,input,textarea,select):focus-visible { outline: 2px solid #174EA6; outline-offset: 2px; }
 
 .civic-gradient { background: linear-gradient(180deg, #F8FAFC 0%, #EFF3FA 100%); }
