@@ -1,5 +1,5 @@
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Header as SiteHeader } from "@/components/site/Header";
 import { SiteFooter } from "@/components/site/Footer";
 
@@ -9,7 +9,12 @@ export const metadata: Metadata = {
     template: "%s · JANSETU AI",
   },
   description: "Citizen voice → AI understanding → Evidence fusion → Transparent prioritization → Human decision → Impact",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
