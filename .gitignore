@@ -145,3 +145,4 @@ vite.config.ts.timestamp-*
 service-account.json
 *.pem
 *.key
+env.local
