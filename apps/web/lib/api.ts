@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+const BASE = process.env.NEXT_PUBLIC_API_URL || ""; // fallback to relative /api (Vercel rewrite) in prod; localhost only when explicitly set in .env.local
 
 // Build auth headers from firebase/localStorage (C-14/H-18 fix)
 function getAuthHeaders(): Record<string, string> {
