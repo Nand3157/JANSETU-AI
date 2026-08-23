@@ -29,7 +29,7 @@ async function init() {
     console.log("✓ Firebase client initialized");
   } catch (e) { console.warn("Firebase client init failed (mock mode)", e); }
 }
-if (firebaseConfig) init();
+const initPromise: Promise<void> = firebaseConfig ? init() : Promise.resolve();
 
 // Mock auth for demo when Firebase not configured — public is unauthenticated, dashboards require login
 // C-14 fix: validate mock user from localStorage — only allow known roles, sanitize
@@ -104,36 +104,91 @@ export function getCurrentUser(): User | null {
 // Async helper: resolves role server-authoritatively via fresh ID token + Firestore doc.
 // Use in layouts when getCurrentUser() returns stale "citizen" but user may be govt.
 export async function getVerifiedUser(): Promise<User | null> {
-  if (auth?.currentUser && db) {
+  const localUser = getCurrentUser();
+  if (auth?.currentUser) {
     const u: any = auth.currentUser;
+    // Force refresh to pick up custom claims set via Admin SDK (set-role.mjs)
+    let claimRole: string | undefined;
+    let tokenResolved = false;
     try {
-      // Force refresh to pick up custom claims set via Admin SDK (set-role.mjs)
       let token: any = null;
       try { token = await u.getIdTokenResult(true); } catch { token = await u.getIdTokenResult().catch(()=>null); }
-      let role: string | undefined = (token?.claims as any)?.role;
-      // If claim missing or still citizen, check Firestore doc (covers stale-token + doc-only roles)
-      if ((!role || role === "citizen") && db) {
-        try {
-          const { doc, getDoc } = await import("firebase/firestore");
-          const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
-          const docRole = snap?.get?.("role");
-          if (docRole) role = docRole;
-        } catch {}
+      if (token) { tokenResolved = true; claimRole = (token.claims as any)?.role; }
+    } catch {}
+    // If claim missing or still citizen, check Firestore doc (covers stale-token + doc-only roles)
+    let docRole: string | undefined;
+    let docResolved = false;
+    if ((!claimRole || claimRole === "citizen") && db) {
+      try {
+        const { doc, getDoc } = await import("firebase/firestore");
+        const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
+        // The read itself succeeded — its answer (even "no role field") is authoritative
+        docResolved = true;
+        if (snap?.exists?.()) {
+          const r = snap.get("role");
+          if (r) docRole = String(r);
+        }
+      } catch { docResolved = false; }
+    }
+    const allowed = ALLOWED_MOCK_ROLES as readonly string[];
+    // Precedence mirrors signInPortal: gov claim wins; a citizen/missing claim can be
+    // upgraded by the Firestore doc.
+    let finalRole: string | undefined =
+      claimRole && allowed.includes(claimRole) ? claimRole : undefined;
+    if ((!finalRole || finalRole === "citizen") && docRole && allowed.includes(docRole)) {
+      finalRole = docRole;
+    }
+    // Downgrade protection: when NO authoritative source answered (no claim + unreadable
+    // or role-less doc), keep the role resolved at login instead of defaulting to citizen.
+    // This stops transient token/Firestore failures from flipping an authorized govt
+    // account back to the citizen portal.
+    const authoritative = tokenResolved && (!!claimRole || docResolved);
+    if (!finalRole) {
+      const cached = localUser && localUser.uid === u.uid ? localUser.role : undefined;
+      if (cached && allowed.includes(cached)) {
+        const isGovCached = ["policymaker", "analyst", "program_manager", "admin", "super_admin"].includes(cached);
+        if (!authoritative || isGovCached) finalRole = cached;
       }
-      if (!role) role = "citizen";
-      const allowed = ALLOWED_MOCK_ROLES as readonly string[];
-      const finalRole = allowed.includes(role) ? role : "citizen";
-      // Map gov group to policymaker for legacy callers, but preserve original for layouts
-      // We store original role so GovLayout can distinguish policymaker/analyst etc.
-      const user: User = { uid: u.uid, displayName: u.displayName || u.email, role: finalRole, email: u.email };
-      // Sync cache so sync getCurrentUser() is correct next time
+    }
+    if (!finalRole) finalRole = "citizen";
+    const user: User = { uid: u.uid, displayName: u.displayName || u.email, role: finalRole, email: u.email };
+    // Sync the cache ONLY when an authoritative source confirmed the role — never
+    // persist a guess produced by failed reads (that poisoned govt sessions before).
+    if (authoritative) {
       mockUser = user;
       persistMock();
-      (u as any).role = finalRole;
-      return user;
-    } catch {}
+    }
+    try { (u as any).role = finalRole; } catch {}
+    return user;
   }
   return getCurrentUser();
+}
+
+// Resolves once Firebase Auth has restored/confirmed the session (or after `ms`).
+// Guards call this before deciding role so a fresh page load doesn't act on a
+// half-initialized auth state.
+export async function waitForAuth(ms = 4000): Promise<User | null> {
+  try { await initPromise; } catch {}
+  if (!auth) return null;
+  if ((auth as any).currentUser) return (auth as any).currentUser as User;
+  try {
+    const { onAuthStateChanged } = await import("firebase/auth");
+    return await new Promise<User | null>((resolve) => {
+      let done = false;
+      let unsub: (() => void) | null = null;
+      const finish = (u: User | null) => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        try { unsub?.(); } catch {}
+        resolve(u);
+      };
+      const timer: any = setTimeout(() => finish(((auth as any).currentUser as User) || null), ms);
+      try {
+        unsub = (onAuthStateChanged as any)(auth, (u: any) => finish(u || null));
+      } catch { finish(null); }
+    });
+  } catch { return ((auth as any)?.currentUser as User) || null; }
 }
 export function setMockRole(role: "citizen" | "government") {
   const r = role === "government" ? "policymaker" : "citizen";
@@ -149,6 +204,10 @@ export async function getIdToken(): Promise<string | null> {
   return null;
 }
 export async function signInAnonymouslyMock() {
+  // Already signed in (portal user or a previous anon)? Reuse that identity instead
+  // of overwriting the cached role — anonymous sign-in used to wipe govt roles down
+  // to citizen, which bounced officials out of /government on every navigation.
+  if (auth?.currentUser) return getCurrentUser();
   if (auth) {
     try {
       const { signInAnonymously } = await import("firebase/auth");
@@ -158,8 +217,10 @@ export async function signInAnonymouslyMock() {
       return mockUser;
     } catch {}
   }
-  mockUser = { uid: "demo-citizen-" + Math.random().toString(36).slice(2,6), role: "citizen" };
-  persistMock();
+  if (!mockUser) {
+    mockUser = { uid: "demo-citizen-" + Math.random().toString(36).slice(2,6), role: "citizen" };
+    persistMock();
+  }
   return mockUser;
 }
 export async function signOutMock() {

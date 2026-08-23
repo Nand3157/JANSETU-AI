@@ -113,12 +113,7 @@
       ]
     }
   ],
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://jansetu-api.example.com/api/:path*"
-    }
-  ],
+  "rewrites": [],
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- apps/web/ packages/shared/ vercel.json package.json",
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1"

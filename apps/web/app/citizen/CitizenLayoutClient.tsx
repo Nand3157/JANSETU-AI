@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Home, Mic, FileText, BarChart3, User } from "lucide-react";
-import { getCurrentUser, getVerifiedUser, isFirebaseConfigured, auth } from "@/lib/firebase";
+import { getCurrentUser, getVerifiedUser, isFirebaseConfigured, waitForAuth, auth } from "@/lib/firebase";
 
 const nav = [
   { href: "/citizen", label: "Home", icon: Home },
@@ -20,13 +20,16 @@ export default function CitizenLayoutClient({ children }: { children: React.Reac
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Wait for Firebase session restore so a fresh load doesn't misfire.
+      await waitForAuth().catch(() => {});
+      if (cancelled) return;
       let u = getCurrentUser();
-      // FIX: gov UID XOdCkx09x2VoQqGssdpndNYSNAS2 landed here as citizen due to stale sync cache.
-      // If Firebase is configured and user appears citizen, verify server-authoritatively (fresh token + Firestore)
-      if (u && u.role === "citizen" && isFirebaseConfigured() && auth?.currentUser) {
+      // Verify server-authoritatively whenever Firebase auth is present — the
+      // localStorage cache alone can be stale/poisoned and cause portal bouncing.
+      if (auth?.currentUser) {
         try {
           const v = await getVerifiedUser();
-          if (!cancelled && v) u = v;
+          if (!cancelled && v && v.uid === auth.currentUser.uid) u = v;
         } catch {}
         if (cancelled) return;
       }

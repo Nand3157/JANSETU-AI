@@ -11,12 +11,39 @@ export default function BudgetPage() {
   const [res, setRes] = useState<any>(null);
   const [err, setErr] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  function demoSimulate() {
+    const mock = [
+      { projectId: "proj_vadodara_roads_01", title: "All-Weather Rural Road Upgrade — Vadodara Cluster", estimatedCost: 42000000, estimatedBeneficiaries: 12400, priorityScore: 78.5, clusterFeas: 64 },
+      { projectId: "proj_surat_drain", title: "Drainage Upgrade — Surat Low-Lying Wards", estimatedCost: 35000000, estimatedBeneficiaries: 22000, priorityScore: 68, clusterFeas: 55 },
+      { projectId: "proj_ahmedabad_water", title: "Water Supply Augmentation — Ahmedabad East", estimatedCost: 28000000, estimatedBeneficiaries: 18500, priorityScore: 61, clusterFeas: 71 },
+      { projectId: "proj_rajkot_health", title: "PHC Staffing — Rajkot Rural", estimatedCost: 18000000, estimatedBeneficiaries: 9800, priorityScore: 58, clusterFeas: 62 },
+    ];
+    const needFeas = risk === "low" ? 70 : risk === "medium" ? 55 : 0;
+    const filtered = mock.filter(p => p.clusterFeas >= needFeas);
+    const scored = [...filtered].sort((a,b) => {
+      if (objective === "max_beneficiaries") return (b.estimatedBeneficiaries/b.estimatedCost)-(a.estimatedBeneficiaries/a.estimatedCost);
+      if (objective === "equity") return (b.priorityScore*1.2/b.estimatedCost)-(a.priorityScore*1.2/a.estimatedCost);
+      if (objective === "infra_gap") return (b.priorityScore*1.1/b.estimatedCost)-(a.priorityScore*1.1/a.estimatedCost);
+      if (objective === "balanced") return (b.priorityScore*0.5 + b.estimatedBeneficiaries/1000*0.5)/b.estimatedCost - (a.priorityScore*0.5 + a.estimatedBeneficiaries/1000*0.5)/a.estimatedCost;
+      return (b.priorityScore/b.estimatedCost)-(a.priorityScore/a.estimatedCost);
+    });
+    const cap = budget*1e7;
+    let total=0, ben=0; const sel:any[]=[]; const un:any[]=[];
+    for (const p of scored) { if (total + p.estimatedCost <= cap) { sel.push(p); total+=p.estimatedCost; ben+=p.estimatedBeneficiaries; } else un.push(p); }
+    return { total_cost: total, estimated_beneficiaries: ben, selected_projects: sel, unfunded_high_priority: un, trade_offs: `Demo portfolio (API offline): budget ₹${budget}Cr, objective ${objective}, risk ${risk} — ${sel.length}/${mock.length} projects, ₹${(total/1e7).toFixed(1)}Cr used, ${ben.toLocaleString()} people. ${un.length} unfunded.`, assumptions: ["Demo mode — API offline. Costs ESTIMATES"], data_gaps: ["Demo mode — Live ledger not connected"], human_review_notice: "Demo mode — API unavailable, showing local simulation. Human review required." };
+  }
+
   async function simulate() {
-    setErr(null); setLoading(true);
+    setErr(null); setLoading(true); setRes(null);
     try {
       const r:any = await api("/api/copilot/simulate", { method:"POST", body: JSON.stringify({ budget: budget*1e7, objective, risk_tolerance: risk }) });
       setRes(r);
-    } catch (e:any) { setErr(e.message); }
+    } catch (e:any) {
+      const msg = String(e.message || "Failed to fetch");
+      const isOffline = msg.toLowerCase().includes("failed to fetch") || msg.includes("timed out") || msg.includes("NetworkError");
+      if (isOffline) setRes(demoSimulate());
+      else setErr(msg);
+    }
     finally { setLoading(false); }
   }
   return (

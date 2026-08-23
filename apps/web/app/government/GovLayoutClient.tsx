@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Map, Layers, Sparkles, LineChart, Wallet, BarChart3, Database, Settings, Shield, Search, Bell, ChevronDown, Building2, Menu, X, LogOut } from "lucide-react";
-import { getCurrentUser, getVerifiedUser, signOutMock, setMockRole, isFirebaseConfigured, auth } from "@/lib/firebase";
+import { getCurrentUser, getVerifiedUser, signOutMock, setMockRole, isFirebaseConfigured, waitForAuth, auth } from "@/lib/firebase";
 
 const nav = [
   { href: "/government", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -38,18 +38,22 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      const isDemoMode = !isFirebaseConfigured();
+      // Wait for Firebase to restore the session so a fresh page load doesn't
+      // decide on a half-initialized auth state.
+      await waitForAuth().catch(() => {});
+      if (cancelled) return;
       let u = getCurrentUser();
-      // FIX: gov UID XOdCkx09x2VoQqGssdpndNYSNAS2 was seen as citizen due to getCurrentUser ignoring mockUser.
-      // If we see citizen but Firebase auth present, verify server-authoritatively (fresh token + doc).
-      // This recovers stale "jansetu_mock_user" citizen entries after set-role.mjs upgrade.
-      if (u && u.role === "citizen" && isFirebaseConfigured() && auth?.currentUser) {
+      // Server-authoritative verification whenever Firebase auth is present —
+      // never trust the localStorage cache alone for the govt/citizen decision.
+      // (A stale/poisoned cache used to bounce authorized officials to /citizen.)
+      if (auth?.currentUser) {
         try {
           const v = await getVerifiedUser();
-          if (!cancelled && v && v.role !== "citizen") u = v;
+          if (!cancelled && v && v.uid === auth.currentUser.uid) u = v;
         } catch {}
         if (cancelled) return;
       }
-      const isDemoMode = !isFirebaseConfigured();
       if (!u) {
         if (isDemoMode) {
           setMockRole("government");
@@ -57,6 +61,11 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
           return;
         }
         router.replace("/login");
+        return;
+      }
+      const allowedGov = ["policymaker", "analyst", "program_manager", "admin", "super_admin"];
+      if (allowedGov.includes(u.role || "")) {
+        if (!cancelled) setReady(true);
         return;
       }
       if (u.role === "citizen") {
@@ -71,12 +80,7 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
         router.replace("/citizen");
         return;
       }
-      const allowedGov = ["policymaker", "analyst", "program_manager", "admin", "super_admin"];
-      if (!allowedGov.includes(u.role || "")) {
-        router.replace("/login");
-        return;
-      }
-      if (!cancelled) setReady(true);
+      router.replace("/login");
     })();
     return () => { cancelled = true; };
   }, [pathname, router]);

@@ -86,10 +86,6 @@
     {
       "source": "/.well-known/mcp",
       "destination": "/.well-known/mcp"
-    },
-    {
-      "source": "/api/:path*",
-      "destination": "https://jansetu-api.example.com/api/:path*"
     }
   ],
   "env": {
