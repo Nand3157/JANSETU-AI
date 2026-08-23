@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Lint • Typecheck • Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: node scripts/sync-env.mjs || true
+      - run: npx tsc --noEmit --project services/api/tsconfig.json
+      - run: npx tsc --noEmit --project apps/web/tsconfig.json
+      - run: npm run build --workspace=services/api
+      - run: npm run build --workspace=apps/web
+        env:
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:8080' }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://jansetu-ai-web-sooty.vercel.app' }}
+          NEXT_PUBLIC_FIREBASE_CONFIG: ${{ vars.NEXT_PUBLIC_FIREBASE_CONFIG || '' }}
+          NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY: ${{ vars.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY || '' }}

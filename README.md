@@ -88,6 +88,57 @@ All responses include `human_review_notice` where recommendation.
 
 Never store only final priority score; store every component + weightVersion.
 
+## Auto Deploy — Vercel
+
+This repo is **auto-deploy enabled** for Vercel. Every `git push` to `main` deploys `apps/web` to production.
+
+### How it works
+- **Root `vercel.json`**: `buildCommand: npm run build --workspace=apps/web`, `outputDirectory: apps/web/.next`, `regions: bom1`, `github.autoAlias/autoJobCancelation: true`
+- **Web `apps/web/vercel.json`**: Next.js framework, security headers (`Vary`, `X-Frame-Options`, `HSTS`), `/api/:path*` rewrites → API
+- **`services/api/vercel.json`**: Express → `@vercel/node` (`dist/index.js`) if you deploy API to Vercel; Cloud Run remains an option
+- **`.github/workflows/vercel-deploy.yml`**: GitHub Action — on `push: main` → typecheck + build → `amondnet/vercel-action@v25 --prod`; on `pull_request` → preview deploy. Triggers are native Vercel Git integration plus this workflow for CI guard.
+- **`.github/workflows/ci.yml`**: CI only (no deploy) — typecheck + build matrix for PRs
+
+### One-time Vercel setup (2 min)
+1. **Import to Vercel**: https://vercel.com/new → Import `Nand3157/JANSETU-AI` → set **Root Directory** `apps/web` (or keep root and Vercel reads root `vercel.json`)
+   - Framework Preset: `Next.js` — Build Command auto-detected as above
+   - Install Command: `npm install`
+2. **Connect GitHub**: Vercel → Project → Settings → Git → connected to `main` (auto-deploy on push now active)
+3. **Add Env Vars** (Vercel → Settings → Environment Variables — **never commit**):
+   ```
+   NEXT_PUBLIC_API_URL=https://<your-api>.vercel.app  (or Cloud Run URL)
+   NEXT_PUBLIC_SITE_URL=https://<your-web>.vercel.app
+   NEXT_PUBLIC_FIREBASE_CONFIG={"apiKey":"...","projectId":"..."}  # safe, protected by Rules
+   NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY=AIza...  # restrict to your domains in GCP Console
+   ```
+   API env (Vercel or Cloud Run Secrets — **server-only**, never `NEXT_PUBLIC_`):
+   ```
+   GEMINI_API_KEY=...
+   GEMINI_MODEL=gemini-2.0-flash
+   FIREBASE_SERVICE_ACCOUNT_JSON={"project_id":"...","private_key":"..."}
+   FIREBASE_PROJECT_ID=jansetu-ai-ed677
+   SUPABASE_URL=https://...supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=...  # rotate if previously in .env
+   CORS_ORIGINS=https://<your-web>.vercel.app
+   ALLOW_DEMO_AUTH=false
+   SHOW_ERRORS=false
+   NODE_ENV=production
+   ```
+4. **GitHub Action secrets** (for workflow deploy via `vercel-action` — optional if using native Vercel Git integration only):
+   - `vercel.com` → Account → Tokens → create `VERCEL_TOKEN`
+   - Run locally: `npx vercel link` (inside `apps/web` then root) → generates `.vercel/project.json` → copy `orgId` → `VERCEL_ORG_ID`, `projectId` → `VERCEL_PROJECT_ID`; API pair → `VERCEL_API_PROJECT_ID`
+   - GitHub → `Nand3157/JANSETU-AI` → Settings → Secrets → Actions → add those + `NEXT_PUBLIC_API_URL` vars
+
+### Verify auto deploy
+```bash
+git commit --allow-empty -m "chore: test vercel auto deploy"
+git push origin main
+# Vercel → Deployments → shows Building → Ready
+# GitHub → Actions → Vercel Auto Deploy → green check
+```
+
+`ignoreCommand` avoids redundant web deploys when only docs/tests change. `bom1` (Mumbai) keeps latency low for India-first users.
+
 ---
 
 Built for hackathon demo — synthetic data labeled as such. Swap `services/api/src/services/store.ts` with Firebase Admin SDK + BigQuery GIS for prod.

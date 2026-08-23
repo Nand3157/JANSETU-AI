@@ -1,15 +1,51 @@
 {
+  "framework": "nextjs",
+  "buildCommand": "npm run build --workspace=apps/web",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
+  "devCommand": "npm run dev --workspace=apps/web",
+  "cleanUrls": true,
+  "regions": ["bom1"],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
         {
           "key": "Vary",
-          "value": "Accept, Accept-Encoding"
+          "value": "Accept, Accept-Encoding, RSC, Next-Router-State-Tree, Next-Router-Prefetch"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Strict-Transport-Security",
+          "value": "max-age=63072000; includeSubDomains; preload"
         },
         {
           "key": "X-Powered-By",
           "value": "JANSETU AI"
+        }
+      ]
+    },
+    {
+      "source": "/(citizen|government|login|register|reset-password)(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow, noarchive"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
         }
       ]
     },
@@ -50,6 +86,13 @@
     {
       "source": "/.well-known/mcp",
       "destination": "/.well-known/mcp"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://jansetu-api.example.com/api/:path*"
     }
-  ]
+  ],
+  "env": {
+    "NEXT_TELEMETRY_DISABLED": "1"
+  }
 }
