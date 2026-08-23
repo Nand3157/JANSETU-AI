@@ -46,12 +46,7 @@ export const MAIN_SYSTEM = (()=> {
 })();
 
 function isValidGeminiKey(key: string): boolean {
-  // Real Gemini API keys from AI Studio are AIzaSy... 39+ chars. AQ... is not valid for this SDK.
-  if (!key || key.length < 20) return false;
-  if (key.startsWith("AQ.")) {
-    console.warn("GEMINI_API_KEY starts with AQ. — this format is NOT compatible with @google/generative-ai SDK (expects AIzaSy...). Using mock fallback. Generate a key at aistudio.google.com");
-    return false;
-  }
+  if (!key || key.length < 10) return false;
   return true;
 }
 

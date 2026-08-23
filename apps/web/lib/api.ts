@@ -53,22 +53,28 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
       signal: controller.signal,
     });
     if (!res.ok) {
-      // Try to parse JSON error, fallback to text — don't leak raw HTML stack
+      // Try to parse JSON error, fallback to clean text — never leak raw HTML or tags
       let detail = "";
       try {
         const ct = res.headers.get("content-type") || "";
         if (ct.includes("application/json")) {
           const j: any = await res.json();
-          detail = j.error || j.message || JSON.stringify(j).slice(0, 500);
+          detail = j.error || j.message || j.detail || JSON.stringify(j).slice(0, 300);
         } else {
           const text = await res.text();
-          // Don't expose stack traces or HTML; truncate and sanitize
-          detail = text.slice(0, 300).replace(/<[^>]*>/g, "").trim() || `HTTP ${res.status}`;
+          // If HTML page returned (e.g. 404/500), extract readable title or use clean status text
+          const titleMatch = text.match(/<title[^>]*>([^<]+)<\/title>/i);
+          if (titleMatch && titleMatch[1]) {
+            detail = titleMatch[1].trim();
+          } else {
+            const stripped = text.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+            detail = stripped.length > 0 && stripped.length < 150 ? stripped : res.statusText || `HTTP ${res.status}`;
+          }
         }
       } catch {
-        detail = `HTTP ${res.status}`;
+        detail = res.statusText || `HTTP ${res.status}`;
       }
-      throw new Error(`${res.status} ${detail}`);
+      throw new Error(`${res.status}: ${detail}`);
     }
     return res.json() as Promise<T>;
   } catch (e: any) {

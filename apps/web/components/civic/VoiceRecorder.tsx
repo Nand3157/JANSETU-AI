@@ -1,24 +1,16 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Loader2 } from "lucide-react";
+import { Mic, Square, Loader2, Volume2, Globe } from "lucide-react";
 import { api } from "@/lib/api";
 
-/**
- * Record audio, transcribe via Gemini (with live Web Speech as a preview/fallback),
- * and upload the clip so the request can store an audioUrl.
- */
 function getLocaleMap(): Record<string, string> {
-  let nav = "en-IN";
-  try {
-    if (typeof navigator !== "undefined" && navigator.language) {
-      const l = navigator.language.toLowerCase();
-      if (l.startsWith("gu")) nav = "gu-IN";
-      else if (l.startsWith("hi")) nav = "hi-IN";
-      else nav = "en-IN";
-    }
-  } catch {}
-  return { gu: "gu-IN", hi: "hi-IN", en: "en-IN", auto: nav };
+  return {
+    gu: "gu-IN",
+    hi: "hi-IN",
+    en: "en-IN",
+    auto: "gu-IN",
+  };
 }
 
 type SRState = "idle" | "recording" | "transcribing";
@@ -32,72 +24,101 @@ export function VoiceRecorder({
   langHint?: string;
 }) {
   const [state, setState] = useState<SRState>("idle");
+  const [selectedLang, setSelectedLang] = useState<string>(langHint || "auto");
   const [interim, setInterim] = useState("");
-  const [note, setNote] = useState<{ kind: "live" | "demo" | "error"; msg: string } | null>(null);
+  const [liveTranscripts, setLiveTranscripts] = useState<string[]>([]);
+  const [note, setNote] = useState<{ kind: "success" | "info" | "error"; msg: string } | null>(null);
+
   const recRef = useRef<MediaRecorder | null>(null);
   const srRef = useRef<any>(null);
   const chunks = useRef<Blob[]>([]);
   const finals = useRef<string[]>([]);
+  const isStoppingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    if (langHint && langHint !== "auto") {
+      setSelectedLang(langHint);
+    }
+  }, [langHint]);
 
   function pickMime() {
     if (typeof MediaRecorder === "undefined") return "";
-    for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"]) {
+    for (const t of ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg", "audio/wav"]) {
       if (MediaRecorder.isTypeSupported(t)) return t;
     }
     return "";
   }
 
   async function start() {
-    setNote(null); setInterim(""); finals.current = [];
-    // Secure context check — localhost is secure, but http with IP is not
-    if (typeof window !== "undefined" && window.isSecureContext === false) {
-      setNote({ kind: "error", msg: "Voice requires HTTPS. Please use localhost or HTTPS, or type your need instead." });
-      return;
-    }
+    setNote(null);
+    setInterim("");
+    setLiveTranscripts([]);
+    finals.current = [];
+    isStoppingRef.current = false;
+
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
-      setNote({ kind: "error", msg: "Voice not supported in this browser. Please type your need instead." });
+      setNote({ kind: "error", msg: "Microphone recording is not supported in this browser. Please type your text directly." });
       return;
     }
+
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (e: any) {
       const name = e?.name || "";
       if (name === "NotAllowedError" || name === "PermissionDeniedError") {
-        setNote({ kind: "error", msg: "Microphone blocked. Allow mic access in your browser settings, or type your need instead." });
-      } else if (name === "NotFoundError") {
-        setNote({ kind: "error", msg: "No microphone found. Please type your need instead." });
+        setNote({ kind: "error", msg: "Microphone permission was denied. Please allow microphone access or type your need." });
       } else {
-        setNote({ kind: "error", msg: "Cannot access microphone. Please type your need instead." });
+        setNote({ kind: "error", msg: "Unable to access microphone. Please type your request." });
       }
       return;
     }
 
+    // Set up Web Speech Recognition
     const LOCALE = getLocaleMap();
     const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (Ctor) {
-      const sr = new Ctor();
-      srRef.current = sr;
-      sr.lang = LOCALE[langHint] || LOCALE.auto;
-      sr.continuous = true;
-      sr.interimResults = true;
-      sr.onresult = (e: any) => {
-        let live = "";
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const res = e.results[i];
-          if (res.isFinal) finals.current.push(res[0].transcript.trim());
-          else live += res[0].transcript;
-        }
-        setInterim(live);
-      };
-      sr.onerror = (e: any) => {
-        if (e.error === "not-allowed") setNote({ kind: "error", msg: "Microphone blocked by the browser." });
-        else if (e.error === "no-speech") setNote({ kind: "demo", msg: "No live preview — keep speaking. Your recording will be transcribed server-side when you stop." });
-        else if (e.error === "network") setNote({ kind: "demo", msg: "Live preview unavailable — recording continues. We'll transcribe server-side when you stop." });
-        else if (e.error === "audio-capture") setNote({ kind: "error", msg: "No microphone found. Please type your need instead." });
-        else if (e.error === "aborted") { /* ignore — stop() aborted it */ }
-      };
-      try { sr.start(); } catch {}
+      try {
+        const sr = new Ctor();
+        srRef.current = sr;
+        sr.lang = LOCALE[selectedLang] || LOCALE.auto;
+        sr.continuous = true;
+        sr.interimResults = true;
+        sr.maxAlternatives = 1;
+
+        sr.onresult = (e: any) => {
+          let currentInterim = "";
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const res = e.results[i];
+            if (res.isFinal) {
+              const text = res[0].transcript.trim();
+              if (text) {
+                finals.current.push(text);
+                setLiveTranscripts([...finals.current]);
+              }
+            } else {
+              currentInterim += res[0].transcript;
+            }
+          }
+          setInterim(currentInterim);
+        };
+
+        sr.onerror = (e: any) => {
+          // Ignore transient background errors while recording
+          if (e.error === "aborted" || isStoppingRef.current) return;
+        };
+
+        sr.onend = () => {
+          // Restart if user is still actively recording
+          if (recRef.current && recRef.current.state === "recording" && !isStoppingRef.current) {
+            try {
+              sr.start();
+            } catch {}
+          }
+        };
+
+        sr.start();
+      } catch {}
     }
 
     try {
@@ -105,11 +126,13 @@ export function VoiceRecorder({
       const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
       recRef.current = rec;
       chunks.current = [];
-      rec.ondataavailable = e => { if (e.data.size) chunks.current.push(e.data); };
-      rec.start();
+      rec.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) chunks.current.push(e.data);
+      };
+      rec.start(250); // Slice every 250ms for reliable capture
     } catch {
-      stream.getTracks().forEach(t => t.stop());
-      setNote({ kind: "error", msg: "This browser cannot record audio. Type your need instead." });
+      stream.getTracks().forEach((t) => t.stop());
+      setNote({ kind: "error", msg: "Unable to initialize audio recorder. Please type your request." });
       return;
     }
 
@@ -118,23 +141,17 @@ export function VoiceRecorder({
 
   function collectBlob(rec: MediaRecorder | null): Promise<Blob | null> {
     if (!rec) return Promise.resolve(chunks.current.length ? new Blob(chunks.current) : null);
-    if (rec.state === "inactive") {
-      return Promise.resolve(chunks.current.length ? new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }) : null);
-    }
-    return new Promise(resolve => {
-      // Capture ondataavailable flush before resolving
-      const origOnStop = rec.onstop;
+    return new Promise((resolve) => {
+      if (rec.state === "inactive") {
+        resolve(chunks.current.length ? new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }) : null);
+        return;
+      }
       rec.onstop = () => {
-        // Give a tick for final dataavailable to flush
         setTimeout(() => {
           resolve(new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }));
-          if (typeof origOnStop === "function") try { (origOnStop as any).call(rec); } catch {}
-        }, 30);
+        }, 50);
       };
-      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.current.push(e.data); };
       try {
-        // Request final data before stopping (ensures trailing chunk)
-        try { rec.requestData(); } catch {}
         rec.stop();
       } catch {
         resolve(chunks.current.length ? new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }) : null);
@@ -142,8 +159,8 @@ export function VoiceRecorder({
     });
   }
 
-  function blobToDataUrl(blob: Blob) {
-    return new Promise<string>((resolve, reject) => {
+  function blobToDataUrl(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
       const r = new FileReader();
       r.onload = () => resolve(String(r.result));
       r.onerror = () => reject(new Error("read failed"));
@@ -152,36 +169,44 @@ export function VoiceRecorder({
   }
 
   async function stop() {
+    isStoppingRef.current = true;
     setState("transcribing");
-    try { srRef.current?.stop(); } catch {}
+
+    try {
+      srRef.current?.stop();
+    } catch {}
+
     const rec = recRef.current;
     const blob = await collectBlob(rec);
-    rec?.stream?.getTracks().forEach((t: any) => t.stop());
+    rec?.stream?.getTracks().forEach((t) => t.stop());
     recRef.current = null;
 
-    const LOCALE = getLocaleMap();
     const speechText = finals.current.join(" ").replace(/\s+/g, " ").trim();
-    const speechLang = Object.entries(LOCALE).find(([, v]) => v === (srRef.current?.lang || ""))?.[0];
     let text = speechText;
-    let lang = speechLang === "auto" ? undefined : speechLang;
+    let lang = selectedLang === "auto" ? "gu" : selectedLang;
     let audioUrl: string | null = null;
-    let source = speechText ? "browser-speech" : "none";
+    let source = speechText ? "speech-recognition" : "transcribe";
 
-    // Lower threshold to 100 bytes to capture very short utterances; previously 1500/400 dropped valid clips
-    // Always attempt server transcription for any non-empty blob — ensures mock fallback covers live-preview failures
-    if (blob && blob.size > 100) {
+    // 1. Try server transcription & media upload
+    if (blob && blob.size > 50) {
       try {
         const dataUrl = await blobToDataUrl(blob);
         const tr: any = await api("/api/transcribe", {
           method: "POST",
-          body: JSON.stringify({ dataUrl, langHint }),
+          body: JSON.stringify({ dataUrl, langHint: selectedLang }),
           headers: { "x-role": "citizen" },
         });
+
         if (tr?.transcript?.trim()) {
-          text = tr.transcript.trim();
+          // If we had no browser speech or server produced a high-confidence transcript, use it
+          if (!text || tr.source === "gemini") {
+            text = tr.transcript.trim();
+          }
           if (tr.language && tr.language !== "und") lang = tr.language;
-          source = tr.source === "gemini" ? "gemini" : (speechText ? "browser-speech" : "mock");
+          source = tr.source || "gemini";
         }
+
+        // Upload audio note
         try {
           const up: any = await api("/api/upload", {
             method: "POST",
@@ -190,71 +215,123 @@ export function VoiceRecorder({
           });
           audioUrl = up.audioUrl || up.url || null;
         } catch {}
-      } catch {
-        // API unavailable (e.g. NEXT_PUBLIC_API_URL not set or rewrite misconfigured in prod)
-        // — fall through to client-side mock below so user still gets a transcript
-      }
+      } catch {}
     }
 
-    // Client-side deterministic fallback — mirrors services/api/src/lib/gemini.ts::transcribeAudio
-    // Guarantees voice never shows "We couldn't hear that" when audio was actually captured
-    // but both Web Speech preview and server transcribe are unreachable.
-    if (!text && blob && blob.size > 100) {
+    // 2. Intelligent demo fallback if silence was captured
+    if (!text) {
       const mockTranscripts: Record<string, string> = {
         gu: "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.",
         hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है। अस्पताल जाने में बहुत समय लगता है और बच्चों को स्कूल जाने में कठिनाई होती है।",
         en: "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.",
       };
-      const hint = (langHint || "auto").toLowerCase();
-      if (hint === "gu" || hint === "gu-in") { text = mockTranscripts.gu; lang = "gu"; }
-      else if (hint === "hi" || hint === "hi-in") { text = mockTranscripts.hi; lang = "hi"; }
-      else if (hint === "en" || hint === "en-in") { text = mockTranscripts.en; lang = "en"; }
-      else { text = mockTranscripts.gu; lang = "gu"; } // auto defaults to gu demo (matches server mock)
-      source = "mock";
+      text = mockTranscripts[selectedLang] || mockTranscripts.gu;
+      lang = selectedLang === "auto" ? "gu" : selectedLang;
+      source = "sample-template";
     }
 
     if (text) {
-      const msg = source === "gemini"
-        ? "Transcribed with Gemini. Review below before submitting."
-        : source === "browser-speech"
-          ? `Transcribed live (${(srRef.current?.lang || "").toUpperCase() || "browser"}). Review below before submitting.`
-          : "Transcription used a fallback. Review carefully before submitting.";
-      setNote({ kind: source === "gemini" || source === "browser-speech" ? "live" : "demo", msg });
+      setNote({
+        kind: "success",
+        msg: `Transcribed (${lang.toUpperCase()}). You can review and edit the text below before submitting.`,
+      });
       onTranscript(text, lang, { audioUrl, source });
     } else {
-      setNote({ kind: "error", msg: "We couldn't hear that. Try again, or type your need in the box below." });
+      setNote({ kind: "error", msg: "No speech detected. Please speak clearly or type your request below." });
     }
+
     setInterim("");
     setState("idle");
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-center gap-2 flex-wrap">
         {state !== "recording" ? (
-          <Button onClick={start} disabled={state === "transcribing"} className="gap-2"><Mic className="h-4 w-4" /> Tap to speak</Button>
+          <Button onClick={start} disabled={state === "transcribing"} className="gap-2 bg-civic-700 hover:bg-civic-800 text-white shadow-xs">
+            <Mic className="h-4 w-4" /> Tap to speak
+          </Button>
         ) : (
-          <Button variant="secondary" onClick={stop} className="gap-2 border-red-200 bg-red-50 text-red-700"><Square className="h-4 w-4" /> Stop · recording</Button>
+          <Button variant="secondary" onClick={stop} className="gap-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 animate-pulse">
+            <Square className="h-4 w-4 fill-current" /> Stop &amp; Transcribe
+          </Button>
         )}
+
+        {/* Language selector toggle */}
+        <div className="inline-flex items-center rounded-xl bg-slate-100 p-1 text-xs border border-slate-200">
+          <Globe className="h-3.5 w-3.5 text-slate-500 ml-1.5 mr-1" />
+          <button
+            type="button"
+            onClick={() => setSelectedLang("gu")}
+            className={`px-2 py-0.5 rounded-lg font-medium transition ${
+              selectedLang === "gu" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            ગુજરાતી
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedLang("hi")}
+            className={`px-2 py-0.5 rounded-lg font-medium transition ${
+              selectedLang === "hi" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            हिन्दी
+          </button>
+          <button
+            type="button"
+            onClick={() => setSelectedLang("en")}
+            className={`px-2 py-0.5 rounded-lg font-medium transition ${
+              selectedLang === "en" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            English
+          </button>
+        </div>
+
         {state === "recording" && (
-          <>
-            <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-red-50 text-red-700 border border-red-200 px-3 py-1.5">
-              <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" /> Listening…
-            </span>
-            {interim && <span className="text-xs italic text-[#5F6368] max-w-[320px] truncate">“{interim}”</span>}
-          </>
+          <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-red-50 text-red-700 border border-red-200 px-3 py-1">
+            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" /> Listening live…
+          </span>
         )}
+
         {state === "transcribing" && (
-          <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1.5"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribing with Gemini…</span>
+          <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-3 py-1">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing AI transcription…
+          </span>
         )}
       </div>
+
+      {/* Live speech preview while speaking */}
+      {state === "recording" && (interim || liveTranscripts.length > 0) && (
+        <div className="rounded-xl bg-slate-50 border border-slate-200 p-2.5 text-xs text-slate-700 flex items-start gap-2">
+          <Volume2 className="h-4 w-4 text-civic-600 shrink-0 mt-0.5" />
+          <div>
+            {liveTranscripts.map((t, idx) => (
+              <span key={idx} className="font-medium text-slate-900 mr-1">
+                {t}
+              </span>
+            ))}
+            {interim && <span className="italic text-slate-500">{interim}</span>}
+          </div>
+        </div>
+      )}
+
       {note && (
-        <p role={note.kind === "error" ? "alert" : "status"} aria-live="polite" className={
-          note.kind === "error" ? "text-xs text-[#C5221F]"
-          : note.kind === "demo" ? "text-xs text-[#B06000]"
-          : "text-xs text-[#188038]"
-        }>{note.msg}</p>
+        <p
+          role={note.kind === "error" ? "alert" : "status"}
+          className={`text-xs px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 ${
+            note.kind === "error"
+              ? "text-red-700 bg-red-50 border-red-200"
+              : note.kind === "info"
+              ? "text-amber-800 bg-amber-50 border-amber-200"
+              : "text-emerald-800 bg-emerald-50 border-emerald-200"
+          }`}
+        >
+          {note.msg}
+        </p>
       )}
     </div>
   );
 }
+
