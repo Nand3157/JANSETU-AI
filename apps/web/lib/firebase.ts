@@ -136,6 +136,138 @@ export async function signInPortal(email: string, pass: string): Promise<{ role:
   return { role: r as any, uid: cred.user.uid };
 }
 
+// ── Google OAuth — real popup/redirect, with mock fallback ─────────
+export async function signInWithGoogle(): Promise<{ role: "citizen" | "policymaker"; uid: string }> {
+  // Mock mode when Firebase not configured
+  if (!auth || !firebaseConfig) {
+    setMockRole("citizen");
+    return { role: "citizen", uid: getCurrentUser()!.uid };
+  }
+  try {
+    const { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } = await import("firebase/auth");
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    // Try to consume any pending redirect result first (handles redirect flow)
+    try {
+      const redirectRes: any = await (getRedirectResult as any)(auth).catch(() => null);
+      if (redirectRes?.user) {
+        const u = redirectRes.user;
+        const token = await u.getIdTokenResult().catch(() => null);
+        let role: string = token?.claims?.role;
+        if (!role && db) {
+          try {
+            const { doc, getDoc } = await import("firebase/firestore");
+            const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
+            if (!snap?.exists?.()) {
+              // New Google user — create minimal profile doc as citizen
+              try {
+                const { doc: doc2, setDoc, serverTimestamp } = await import("firebase/firestore");
+                await (setDoc as any)((doc2 as any)(db, "users", u.uid), {
+                  displayName: u.displayName || u.email,
+                  email: u.email,
+                  photoURL: u.photoURL || null,
+                  role: "citizen",
+                  provider: "google",
+                  identityVerified: u.emailVerified || false,
+                  createdAt: (serverTimestamp as any)(),
+                });
+              } catch {}
+              role = "citizen";
+            } else {
+              role = snap?.get?.("role") || "citizen";
+            }
+          } catch { role = "citizen"; }
+        }
+        const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
+        mockUser = { uid: u.uid, displayName: u.displayName || u.email, role: r, email: u.email || undefined };
+        persistMock();
+        return { role: r as any, uid: u.uid };
+      }
+    } catch {}
+    let cred: any;
+    try {
+      cred = await (signInWithPopup as any)(auth, provider);
+    } catch (e: any) {
+      const code = String(e?.code || "");
+      // Popup blocked/closed → fallback to redirect (more reliable on mobile / strict browsers)
+      if (code.includes("popup-blocked") || code.includes("popup-closed") || code.includes("cancelled-popup-request") || code.includes("popup-closed-by-user")) {
+        await (signInWithRedirect as any)(auth, provider);
+        // Redirect will reload page; caller will handle via getRedirectResult on next load
+        // Throw a sentinel so UI can show "Redirecting…"
+        const redirectErr: any = new Error("redirecting");
+        redirectErr.code = "redirecting";
+        throw redirectErr;
+      }
+      throw e;
+    }
+    const u = cred.user;
+    // Create Firestore profile if new Google user
+    let role: string | undefined;
+    try {
+      const token = await u.getIdTokenResult();
+      role = (token.claims as any)?.role;
+    } catch {}
+    if (!role && db) {
+      try {
+        const { doc, getDoc } = await import("firebase/firestore");
+        const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
+        if (!snap?.exists?.()) {
+          try {
+            const { doc: doc2, setDoc, serverTimestamp } = await import("firebase/firestore");
+            await (setDoc as any)((doc2 as any)(db, "users", u.uid), {
+              displayName: u.displayName || u.email,
+              email: u.email,
+              photoURL: u.photoURL || null,
+              role: "citizen",
+              provider: "google",
+              identityVerified: u.emailVerified || false,
+              createdAt: (serverTimestamp as any)(),
+            });
+          } catch {}
+          role = "citizen";
+        } else {
+          role = snap?.get?.("role") || "citizen";
+        }
+      } catch { role = "citizen"; }
+    }
+    const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
+    mockUser = { uid: u.uid, displayName: u.displayName || u.email || u.email, role: r, email: u.email || undefined };
+    persistMock();
+    return { role: r as any, uid: u.uid };
+  } catch (e: any) {
+    // Preserve mock fallback for known unrecoverable but still surface actionable message
+    if (e?.code === "redirecting") throw e;
+    throw e;
+  }
+}
+
+// Call this on app mount to finish a redirect flow (e.g., in LoginClient useEffect)
+export async function consumeGoogleRedirect(): Promise<{ role: "citizen" | "policymaker"; uid: string } | null> {
+  if (!auth || !firebaseConfig) return null;
+  try {
+    const { getRedirectResult } = await import("firebase/auth");
+    const res: any = await (getRedirectResult as any)(auth);
+    if (!res?.user) return null;
+    const u = res.user;
+    let role: string = "citizen";
+    try {
+      const token = await u.getIdTokenResult();
+      role = (token.claims as any)?.role || role;
+    } catch {}
+    if (role === "citizen" && db) {
+      try {
+        const { doc, getDoc } = await import("firebase/firestore");
+        const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
+        if (snap?.exists?.()) role = snap?.get?.("role") || "citizen";
+      } catch {}
+    }
+    const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
+    mockUser = { uid: u.uid, displayName: u.displayName || u.email, role: r, email: u.email || undefined };
+    persistMock();
+    return { role: r as any, uid: u.uid };
+  } catch { return null; }
+}
+
 export async function registerPortal(input: { name: string; email: string; mobile: string; language: string; city: string; password: string }): Promise<{ verificationEmailSent: boolean }> {
   if (!auth) { setMockRole("citizen"); return { verificationEmailSent: false }; }
   const { createUserWithEmailAndPassword, sendEmailVerification } = await import("firebase/auth");
