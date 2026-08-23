@@ -6,6 +6,7 @@ import { clustersRouter } from "./routes/clusters.js";
 import { projectsRouter } from "./routes/projects.js";
 import { copilotRouter } from "./routes/copilot.js";
 import { analyticsRouter } from "./routes/analytics.js";
+import { govDataRouter } from "./routes/govdata.js";
 import { uploadRouter } from "./routes/upload.js";
 import { transcribeRouter } from "./routes/transcribe.js";
 import { store } from "./services/store.js";
@@ -32,20 +33,22 @@ function seed() {
   // Score it deterministically
   try { scoreCluster(cl.clusterId); } catch (e) { console.warn("seed score failed", e); }
 
-  // Additional demo clusters for map
+  // Additional demo clusters for map — deterministic centroids (Google Maps mandatory for hackathon)
+  const DISTRICT_CENTROIDS: Record<string,{lat:number,lng:number}> = {
+    Ahmedabad: { lat: 23.0225, lng: 72.5714 }, Surat: { lat: 21.1702, lng: 72.8311 }, Rajkot: { lat: 22.3039, lng: 70.8022 },
+  };
   [
     { districtId: "Ahmedabad", category: "water", requestCount: 892, title: "Intermittent Water Supply — Ahmedabad East" },
     { districtId: "Surat", category: "flooding_drainage", requestCount: 1240, title: "Flooding in Low-Lying Wards — Surat" },
     { districtId: "Rajkot", category: "healthcare", requestCount: 543, title: "PHC Staffing Gap — Rajkot Rural" },
   ].forEach(d => {
-    // Idempotent: use deterministic IDs for demo clusters too
     const demoId = `cl_demo_${d.districtId.toLowerCase()}_${d.category}`;
     if (store.getCluster(demoId)) return;
     const c = store.createCluster({
       clusterId: demoId,
       countryId: "IN", regionId: "Gujarat", districtId: d.districtId,
       category: d.category as any, title: d.title, summary: d.title,
-      centroid: { lat: 21.5 + Math.random()*2, lng: 71.5 + Math.random()*2 },
+      centroid: DISTRICT_CENTROIDS[d.districtId] || { lat: 22.3, lng: 72.3 },
       requestCount: d.requestCount, status: "open", urgencyScore: 60,
     });
     try { scoreCluster(c.clusterId); } catch {}
@@ -145,6 +148,7 @@ app.use("/api/clusters", aiLimiter, clustersRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/copilot", aiLimiter, copilotRouter);
 app.use("/api/analytics", analyticsRouter);
+app.use("/api/govdata", generalLimiter, govDataRouter);
 
 // Seed on boot (skip when seeded externally via data/firestore/seed.js)
 if (process.env.SKIP_SEED !== "true") seed();

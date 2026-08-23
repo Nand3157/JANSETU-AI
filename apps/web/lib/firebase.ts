@@ -63,11 +63,7 @@ function persistMock() {
   try { if (mockUser) localStorage.setItem("jansetu_mock_user", JSON.stringify(mockUser)); else localStorage.removeItem("jansetu_mock_user"); } catch {}
 }
 export function getCurrentUser(): User | null {
-  if (auth?.currentUser) {
-    const u: any = auth.currentUser;
-    return { uid: u.uid, displayName: u.displayName || u.email, role: (u as any).role || "citizen", email: u.email };
-  }
-  // re-hydrate on call in case localStorage was set after init — with validation
+  // Re-hydrate mockUser from localStorage if needed — always validate
   if (!mockUser && typeof window !== "undefined") {
     try {
       const s = localStorage.getItem("jansetu_mock_user");
@@ -79,7 +75,65 @@ export function getCurrentUser(): User | null {
       }
     } catch {}
   }
+  if (auth?.currentUser) {
+    const u: any = auth.currentUser;
+    // FIX: govt UID XOdCkx09x2VoQqGssdpndNYSNAS2 was landing in citizen because
+    // this returned (u as any).role || "citizen" — Firebase Auth user has no ".role".
+    // Honor the server-authoritative role cached in mockUser/localStorage when uid matches.
+    if (mockUser && mockUser.uid === u.uid && mockUser.role) {
+      return { uid: u.uid, displayName: u.displayName || mockUser.displayName || u.email, role: mockUser.role, email: u.email || mockUser.email };
+    }
+    if (typeof window !== "undefined") {
+      try {
+        const s = localStorage.getItem("jansetu_mock_user");
+        if (s) {
+          const parsed = JSON.parse(s);
+          const sanitized = sanitizeMockUser(parsed);
+          if (sanitized && sanitized.uid === u.uid) {
+            mockUser = sanitized;
+            return { uid: u.uid, displayName: u.displayName || sanitized.displayName || u.email, role: sanitized.role, email: u.email || sanitized.email };
+          }
+        }
+      } catch {}
+    }
+    return { uid: u.uid, displayName: u.displayName || u.email, role: (u as any).role || "citizen", email: u.email };
+  }
   return mockUser;
+}
+
+// Async helper: resolves role server-authoritatively via fresh ID token + Firestore doc.
+// Use in layouts when getCurrentUser() returns stale "citizen" but user may be govt.
+export async function getVerifiedUser(): Promise<User | null> {
+  if (auth?.currentUser && db) {
+    const u: any = auth.currentUser;
+    try {
+      // Force refresh to pick up custom claims set via Admin SDK (set-role.mjs)
+      let token: any = null;
+      try { token = await u.getIdTokenResult(true); } catch { token = await u.getIdTokenResult().catch(()=>null); }
+      let role: string | undefined = (token?.claims as any)?.role;
+      // If claim missing or still citizen, check Firestore doc (covers stale-token + doc-only roles)
+      if ((!role || role === "citizen") && db) {
+        try {
+          const { doc, getDoc } = await import("firebase/firestore");
+          const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
+          const docRole = snap?.get?.("role");
+          if (docRole) role = docRole;
+        } catch {}
+      }
+      if (!role) role = "citizen";
+      const allowed = ALLOWED_MOCK_ROLES as readonly string[];
+      const finalRole = allowed.includes(role) ? role : "citizen";
+      // Map gov group to policymaker for legacy callers, but preserve original for layouts
+      // We store original role so GovLayout can distinguish policymaker/analyst etc.
+      const user: User = { uid: u.uid, displayName: u.displayName || u.email, role: finalRole, email: u.email };
+      // Sync cache so sync getCurrentUser() is correct next time
+      mockUser = user;
+      persistMock();
+      (u as any).role = finalRole;
+      return user;
+    } catch {}
+  }
+  return getCurrentUser();
 }
 export function setMockRole(role: "citizen" | "government") {
   const r = role === "government" ? "policymaker" : "citizen";
@@ -117,21 +171,34 @@ export async function signOutMock() {
 // ── Real portal auth — used when NEXT_PUBLIC_FIREBASE_CONFIG is set ─────────
 // Passwords never touch our servers; Firebase Auth handles hashing/verification.
 // Role is resolved server-authoritatively: custom claim → users/{uid}.doc → citizen.
+// FIX: gov UID XOdCkx09x2VoQqGssdpndNYSNAS2 was stuck as citizen due to stale token + getCurrentUser ignoring mockUser.
+// Now: force token refresh, merge Firestore doc (doc can upgrade stale citizen→gov), and persist precise role.
 export async function signInPortal(email: string, pass: string): Promise<{ role: "citizen" | "policymaker"; uid: string }> {
   if (!auth) { setMockRole(email.includes("gov") ? "government" : "citizen"); return { role: getCurrentUser()?.role === "policymaker" ? "policymaker" : "citizen", uid: getCurrentUser()!.uid }; }
   const { signInWithEmailAndPassword } = await import("firebase/auth");
   const cred: any = await (signInWithEmailAndPassword as any)(auth, email.trim(), pass);
-  const token = await cred.user.getIdTokenResult();
-  let role: string = (token.claims as any)?.role;
-  if (!role && db) {
+  // Force token refresh so customClaims set via set-role.mjs are visible immediately
+  let token: any = null;
+  try { await cred.user.getIdToken(true); token = await cred.user.getIdTokenResult(true); } catch { try { token = await cred.user.getIdTokenResult(); } catch {} }
+  let role: string | undefined = (token?.claims as any)?.role;
+  // If claim missing or stale citizen, check Firestore doc — doc is synced by set-role.mjs
+  if ((!role || role === "citizen") && db) {
     try {
       const { doc, getDoc } = await import("firebase/firestore");
       const snap: any = await (getDoc as any)((doc as any)(db, "users", cred.user.uid));
-      role = snap?.get?.("role") || "citizen";
-    } catch { role = "citizen"; }
+      const docRole = snap?.get?.("role");
+      if (docRole) role = docRole;
+    } catch {}
   }
-  const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
-  mockUser = { uid: cred.user.uid, displayName: cred.user.displayName || cred.user.email, role: r, email: cred.user.email || undefined };
+  if (!role) role = "citizen";
+  const allowed = ALLOWED_MOCK_ROLES as readonly string[];
+  const finalRole = allowed.includes(role) ? role : "citizen";
+  const isGov = ["policymaker","analyst","program_manager","admin","super_admin"].includes(finalRole);
+  const r = isGov ? "policymaker" : "citizen";
+  // Persist precise role so getCurrentUser() returns correct value (was ignoring mockUser before)
+  mockUser = { uid: cred.user.uid, displayName: cred.user.displayName || cred.user.email, role: finalRole as any, email: cred.user.email || undefined };
+  try { (cred.user as any).role = finalRole; } catch {}
+  try { (auth.currentUser as any).role = finalRole; } catch {}
   persistMock();
   return { role: r as any, uid: cred.user.uid };
 }
@@ -152,14 +219,14 @@ export async function signInWithGoogle(): Promise<{ role: "citizen" | "policymak
       const redirectRes: any = await (getRedirectResult as any)(auth).catch(() => null);
       if (redirectRes?.user) {
         const u = redirectRes.user;
-        const token = await u.getIdTokenResult().catch(() => null);
-        let role: string = token?.claims?.role;
-        if (!role && db) {
+        let token: any = null;
+        try { await u.getIdToken(true); token = await u.getIdTokenResult(true); } catch { token = await u.getIdTokenResult().catch(() => null); }
+        let role: string | undefined = token?.claims?.role;
+        if ((!role || role === "citizen") && db) {
           try {
             const { doc, getDoc } = await import("firebase/firestore");
             const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
             if (!snap?.exists?.()) {
-              // New Google user — create minimal profile doc as citizen
               try {
                 const { doc: doc2, setDoc, serverTimestamp } = await import("firebase/firestore");
                 await (setDoc as any)((doc2 as any)(db, "users", u.uid), {
@@ -174,12 +241,19 @@ export async function signInWithGoogle(): Promise<{ role: "citizen" | "policymak
               } catch {}
               role = "citizen";
             } else {
-              role = snap?.get?.("role") || "citizen";
+              const docRole = snap?.get?.("role");
+              if (docRole) role = docRole;
+              else role = role || "citizen";
             }
-          } catch { role = "citizen"; }
+          } catch { role = role || "citizen"; }
         }
-        const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
-        mockUser = { uid: u.uid, displayName: u.displayName || u.email, role: r, email: u.email || undefined };
+        if (!role) role = "citizen";
+        const allowed = ALLOWED_MOCK_ROLES as readonly string[];
+        const finalRole = allowed.includes(role) ? role : "citizen";
+        const isGov = ["policymaker","analyst","program_manager","admin","super_admin"].includes(finalRole);
+        const r = isGov ? "policymaker" : "citizen";
+        mockUser = { uid: u.uid, displayName: u.displayName || u.email, role: finalRole as any, email: u.email || undefined };
+        try { (u as any).role = finalRole; } catch {}
         persistMock();
         return { role: r as any, uid: u.uid };
       }
@@ -189,11 +263,8 @@ export async function signInWithGoogle(): Promise<{ role: "citizen" | "policymak
       cred = await (signInWithPopup as any)(auth, provider);
     } catch (e: any) {
       const code = String(e?.code || "");
-      // Popup blocked/closed → fallback to redirect (more reliable on mobile / strict browsers)
       if (code.includes("popup-blocked") || code.includes("popup-closed") || code.includes("cancelled-popup-request") || code.includes("popup-closed-by-user")) {
         await (signInWithRedirect as any)(auth, provider);
-        // Redirect will reload page; caller will handle via getRedirectResult on next load
-        // Throw a sentinel so UI can show "Redirecting…"
         const redirectErr: any = new Error("redirecting");
         redirectErr.code = "redirecting";
         throw redirectErr;
@@ -201,13 +272,13 @@ export async function signInWithGoogle(): Promise<{ role: "citizen" | "policymak
       throw e;
     }
     const u = cred.user;
-    // Create Firestore profile if new Google user
     let role: string | undefined;
     try {
-      const token = await u.getIdTokenResult();
-      role = (token.claims as any)?.role;
+      let t: any = null;
+      try { await u.getIdToken(true); t = await u.getIdTokenResult(true); } catch { t = await u.getIdTokenResult().catch(()=>null); }
+      role = (t?.claims as any)?.role;
     } catch {}
-    if (!role && db) {
+    if ((!role || role === "citizen") && db) {
       try {
         const { doc, getDoc } = await import("firebase/firestore");
         const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
@@ -226,16 +297,21 @@ export async function signInWithGoogle(): Promise<{ role: "citizen" | "policymak
           } catch {}
           role = "citizen";
         } else {
-          role = snap?.get?.("role") || "citizen";
+          const docRole = snap?.get?.("role");
+          if (docRole) role = docRole;
         }
-      } catch { role = "citizen"; }
+      } catch { role = role || "citizen"; }
     }
-    const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
-    mockUser = { uid: u.uid, displayName: u.displayName || u.email || u.email, role: r, email: u.email || undefined };
+    if (!role) role = "citizen";
+    const allowed2 = ALLOWED_MOCK_ROLES as readonly string[];
+    const finalRole2 = allowed2.includes(role) ? role : "citizen";
+    const isGov2 = ["policymaker","analyst","program_manager","admin","super_admin"].includes(finalRole2);
+    const r2 = isGov2 ? "policymaker" : "citizen";
+    mockUser = { uid: u.uid, displayName: u.displayName || u.email || u.email, role: finalRole2 as any, email: u.email || undefined };
+    try { (u as any).role = finalRole2; } catch {}
     persistMock();
-    return { role: r as any, uid: u.uid };
+    return { role: r2 as any, uid: u.uid };
   } catch (e: any) {
-    // Preserve mock fallback for known unrecoverable but still surface actionable message
     if (e?.code === "redirecting") throw e;
     throw e;
   }
@@ -251,18 +327,26 @@ export async function consumeGoogleRedirect(): Promise<{ role: "citizen" | "poli
     const u = res.user;
     let role: string = "citizen";
     try {
-      const token = await u.getIdTokenResult();
-      role = (token.claims as any)?.role || role;
+      let t: any = null;
+      try { await u.getIdToken(true); t = await u.getIdTokenResult(true); } catch { t = await u.getIdTokenResult().catch(()=>null); }
+      role = (t?.claims as any)?.role || role;
     } catch {}
-    if (role === "citizen" && db) {
+    if ((!role || role === "citizen") && db) {
       try {
         const { doc, getDoc } = await import("firebase/firestore");
         const snap: any = await (getDoc as any)((doc as any)(db, "users", u.uid));
-        if (snap?.exists?.()) role = snap?.get?.("role") || "citizen";
+        if (snap?.exists?.()) {
+          const docRole = snap?.get?.("role");
+          if (docRole) role = docRole;
+        }
       } catch {}
     }
-    const r = role === "policymaker" || role === "analyst" || role === "program_manager" || role === "admin" || role === "super_admin" ? "policymaker" : "citizen";
-    mockUser = { uid: u.uid, displayName: u.displayName || u.email, role: r, email: u.email || undefined };
+    const allowed = ALLOWED_MOCK_ROLES as readonly string[];
+    const finalRole = allowed.includes(role) ? role : "citizen";
+    const isGov = ["policymaker","analyst","program_manager","admin","super_admin"].includes(finalRole);
+    const r = isGov ? "policymaker" : "citizen";
+    mockUser = { uid: u.uid, displayName: u.displayName || u.email, role: finalRole as any, email: u.email || undefined };
+    try { (u as any).role = finalRole; } catch {}
     persistMock();
     return { role: r as any, uid: u.uid };
   } catch { return null; }

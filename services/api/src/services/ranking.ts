@@ -1,5 +1,6 @@
 import { calculatePriorityScore, urgencyToScore, type PriorityComponents } from "../lib/index.js";
 import { store } from "./store.js";
+import { districtFact } from "./govData.js";
 
 /**
  * Enrichment + Ranking Service
@@ -101,6 +102,12 @@ export function scoreCluster(clusterId: string) {
   };
 
   const result = calculatePriorityScore(components);
+
+  // Real-data evidence join: Census of India 2011 district population (public domain).
+  // Only appended when the district exists in the verified set — never estimated silently.
+  const census = districtFact(district);
+  const censusEvidence = census ? [`census2011:${census.district} pop ${census.population.toLocaleString("en-IN")}`] : [];
+
   const updated = store.updateCluster(clusterId, {
     demandScore: demand,
     infrastructureGapScore: infrastructure_gap,
@@ -114,7 +121,12 @@ export function scoreCluster(clusterId: string) {
     priorityBand: result.band,
     weightVersion: result.weightVersion,
     status: "scored",
-    evidenceRefs: [`demographics:${district}`, `infrastructure:${district}`, `investment:${district}`],
+    evidenceRefs: [
+      `demographics:${district}`,
+      `infrastructure:${district}`,
+      `investment:${district}`,
+      ...censusEvidence,
+    ],
   });
 
   // Also stamp priority onto member requests

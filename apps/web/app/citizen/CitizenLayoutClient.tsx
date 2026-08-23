@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Home, Mic, FileText, BarChart3, User } from "lucide-react";
-import { getCurrentUser } from "@/lib/firebase";
+import { getCurrentUser, getVerifiedUser, isFirebaseConfigured, auth } from "@/lib/firebase";
 
 const nav = [
   { href: "/citizen", label: "Home", icon: Home },
@@ -18,17 +18,32 @@ export default function CitizenLayoutClient({ children }: { children: React.Reac
   const router = useRouter();
   const [ready, setReady] = useState(false);
   useEffect(() => {
-    const u = getCurrentUser();
-    if (!u) {
-      router.replace("/login");
-      return;
-    }
-    if (u.role !== "citizen" && u.role !== "admin") {
-      if (u.role === "policymaker" || u.role === "super_admin") router.replace("/government");
-      else router.replace("/login");
-      return;
-    }
-    setReady(true);
+    let cancelled = false;
+    (async () => {
+      let u = getCurrentUser();
+      // FIX: gov UID XOdCkx09x2VoQqGssdpndNYSNAS2 landed here as citizen due to stale sync cache.
+      // If Firebase is configured and user appears citizen, verify server-authoritatively (fresh token + Firestore)
+      if (u && u.role === "citizen" && isFirebaseConfigured() && auth?.currentUser) {
+        try {
+          const v = await getVerifiedUser();
+          if (!cancelled && v) u = v;
+        } catch {}
+        if (cancelled) return;
+      }
+      if (!u) {
+        router.replace("/login");
+        return;
+      }
+      // Allow citizen and admin to stay in citizen portal; all other gov roles → government
+      if (u.role !== "citizen" && u.role !== "admin") {
+        const govRoles = ["policymaker", "analyst", "program_manager", "admin", "super_admin"];
+        if (govRoles.includes(u.role || "")) router.replace("/government");
+        else router.replace("/login");
+        return;
+      }
+      if (!cancelled) setReady(true);
+    })();
+    return () => { cancelled = true; };
   }, [pathname, router]);
   const hide = pathname?.includes("/voice") || pathname?.includes("/understanding") || pathname?.includes("/location") || pathname?.includes("/success");
   if (!ready)

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { LayoutDashboard, Map, Layers, Sparkles, LineChart, Wallet, BarChart3, Database, Settings, Shield, Search, Bell, ChevronDown, Building2, Menu, X, LogOut } from "lucide-react";
-import { getCurrentUser, signOutMock, setMockRole, isFirebaseConfigured, auth } from "@/lib/firebase";
+import { getCurrentUser, getVerifiedUser, signOutMock, setMockRole, isFirebaseConfigured, auth } from "@/lib/firebase";
 
 const nav = [
   { href: "/government", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -36,42 +36,49 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
   const [profileOpen, setProfileOpen] = useState(false);
   const [region, setRegion] = useState("Vadodara");
   useEffect(() => {
-    const u = getCurrentUser();
-    // C-14 fix: don't auto-elevate citizen to government in non-demo mode
-    // Only auto-mock when Firebase not configured (dev demo) and explicitly allow it
-    const isDemoMode = !isFirebaseConfigured();
-    if (!u) {
-      if (isDemoMode) {
-        // In demo (no Firebase), allow government view with mock policymaker
-        setMockRole("government");
-        setReady(true);
-        return;
+    let cancelled = false;
+    (async () => {
+      let u = getCurrentUser();
+      // FIX: gov UID XOdCkx09x2VoQqGssdpndNYSNAS2 was seen as citizen due to getCurrentUser ignoring mockUser.
+      // If we see citizen but Firebase auth present, verify server-authoritatively (fresh token + doc).
+      // This recovers stale "jansetu_mock_user" citizen entries after set-role.mjs upgrade.
+      if (u && u.role === "citizen" && isFirebaseConfigured() && auth?.currentUser) {
+        try {
+          const v = await getVerifiedUser();
+          if (!cancelled && v && v.role !== "citizen") u = v;
+        } catch {}
+        if (cancelled) return;
       }
-      router.replace("/login");
-      return;
-    }
-    // If Firebase configured, must have valid auth; don't trust localStorage citizen as government
-    if (u.role === "citizen") {
-      if (isDemoMode && !auth?.currentUser) {
-        // Demo: citizen seeing government page — redirect to citizen instead of auto-elevate
-        router.replace("/citizen");
-        return;
-      }
-      if (!isDemoMode && !auth?.currentUser) {
+      const isDemoMode = !isFirebaseConfigured();
+      if (!u) {
+        if (isDemoMode) {
+          setMockRole("government");
+          if (!cancelled) setReady(true);
+          return;
+        }
         router.replace("/login");
         return;
       }
-      // Firebase citizen should not access government
-      router.replace("/citizen");
-      return;
-    }
-    // Validate policymaker/admin roles — must be one of allowed
-    const allowedGov = ["policymaker", "analyst", "program_manager", "admin", "super_admin"];
-    if (!allowedGov.includes(u.role || "")) {
-      router.replace("/login");
-      return;
-    }
-    setReady(true);
+      if (u.role === "citizen") {
+        if (isDemoMode && !auth?.currentUser) {
+          router.replace("/citizen");
+          return;
+        }
+        if (!isDemoMode && !auth?.currentUser) {
+          router.replace("/login");
+          return;
+        }
+        router.replace("/citizen");
+        return;
+      }
+      const allowedGov = ["policymaker", "analyst", "program_manager", "admin", "super_admin"];
+      if (!allowedGov.includes(u.role || "")) {
+        router.replace("/login");
+        return;
+      }
+      if (!cancelled) setReady(true);
+    })();
+    return () => { cancelled = true; };
   }, [pathname, router]);
   const isActive = (href: string, exact?: boolean) => exact ? pathname===href : pathname?.startsWith(href);
   if (!ready) return <div className="min-h-[50vh] grid place-items-center p-6 text-sm text-[#5F6368]">Checking government access… <span className="ml-2 h-4 w-4 border-2 border-[#E5E7EB] border-t-[#174EA6] rounded-full animate-spin inline-block" /></div>;

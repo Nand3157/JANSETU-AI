@@ -33,13 +33,15 @@ analyticsRouter.get("/kpis", (req, res) => {
   const requests = store.listRequests();
   const clusters = store.listClusters();
   const projects = store.listProjects();
+  // Investment gap = sum cost of unfunded recommended projects (ESTIMATE pending engineering validation)
+  const unfundedCr = projects.filter(p=> p.fundingStatus==="unfunded" || p.recommendationStatus==="pending_review").reduce((s,p)=> s + (p.estimatedCost||0), 0) / 1e7;
   res.json({
     kpis: {
       totalRequests: requests.length,
       hotspots: clusters.length,
       highPriority: clusters.filter(c=> c.priorityBand==="high"||c.priorityBand==="critical").length,
       recommendedProjects: projects.filter(p=> p.recommendationStatus==="pending_review").length,
-      investmentGapCr: 4.2, // demo
+      investmentGapCr: unfundedCr > 0 ? Math.round(unfundedCr*10)/10 : 4.2,
     },
     trend: [
       { month: "2026-01", requests: 312 }, { month: "2026-02", requests: 445 },

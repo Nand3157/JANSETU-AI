@@ -1,6 +1,6 @@
 import { store } from "./store.js";
 
-export type Objective = "max_beneficiaries" | "max_priority" | "equity";
+export type Objective = "max_beneficiaries" | "max_priority" | "equity" | "infra_gap" | "balanced";
 export type RiskTolerance = "low" | "medium" | "high";
 
 export interface BudgetInput {
@@ -28,12 +28,24 @@ export function simulateBudget(input: BudgetInput) {
   } else if (input.objective==="max_priority") {
     sorted.sort((a,b)=> (b.priorityScore! / b.estimatedCost!) - (a.priorityScore! / a.estimatedCost!));
   } else if (input.objective==="equity") {
-    // prioritize high vulnerability clusters: vulnerability score proxy via investmentGap
     const vuln = new Map(clusters.map(c=> [c.clusterId, c.vulnerabilityScore||50]));
     sorted.sort((a,b)=> {
       const va=vuln.get(a.clusterId)||0, vb=vuln.get(b.clusterId)||0;
-      // composite: vulnerability * priority / cost
       return (vb*b.priorityScore!/b.estimatedCost! ) - (va*a.priorityScore!/a.estimatedCost!);
+    });
+  } else if (input.objective==="infra_gap") {
+    const gap = new Map(clusters.map(c=> [c.clusterId, c.infrastructureGapScore||0]));
+    sorted.sort((a,b)=> {
+      const ga=gap.get(a.clusterId)||0, gb=gap.get(b.clusterId)||0;
+      return (gb*b.priorityScore!/b.estimatedCost!) - (ga*a.priorityScore!/a.estimatedCost!);
+    });
+  } else if (input.objective==="balanced") {
+    const vuln = new Map(clusters.map(c=> [c.clusterId, c.vulnerabilityScore||50]));
+    const gap = new Map(clusters.map(c=> [c.clusterId, c.infrastructureGapScore||50]));
+    sorted.sort((a,b)=> {
+      const aS = (a.priorityScore!/100*0.35) + (a.estimatedBeneficiaries!/a.estimatedCost!*1e6*0.35) + ((vuln.get(a.clusterId)||50)/100*0.15) + ((gap.get(a.clusterId)||50)/100*0.15);
+      const bS = (b.priorityScore!/100*0.35) + (b.estimatedBeneficiaries!/b.estimatedCost!*1e6*0.35) + ((vuln.get(b.clusterId)||50)/100*0.15) + ((gap.get(b.clusterId)||50)/100*0.15);
+      return (bS / (b.estimatedCost!/1e7)) - (aS / (a.estimatedCost!/1e7));
     });
   }
 

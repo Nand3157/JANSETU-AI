@@ -1,16 +1,38 @@
 "use client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, AlertTriangle } from "lucide-react";
+import { MapPin, Navigation, AlertTriangle, BadgeCheck, Loader2 } from "lucide-react";
+import { api } from "@/lib/api";
 
 export function LocationPicker({ value, onChange }: { value: string; onChange: (v:string, lat?:number, lng?:number, source?:string)=>void }) {
   const [locating, setLocating] = useState(false);
   const [coords, setCoords] = useState<{lat:number,lng:number} | null>(null);
   const [source, setSource] = useState<string>("user_text");
+  const [pin, setPin] = useState("");
+  const [pinRes, setPinRes] = useState<any>(null);
+  const [pinChecking, setPinChecking] = useState(false);
+
+  async function verifyPin() {
+    const p = pin.replace(/\D/g,"").slice(0,6);
+    if (!/^\d{6}$/.test(p)) { setPinRes({ ok:false, note:"Enter 6 digits" }); return; }
+    setPinChecking(true); setPinRes(null);
+    try {
+      const r:any = await api(`/api/govdata/pin?pin=${p}`);
+      setPinRes(r);
+      if (r.ok) {
+        const district = r.district || "";
+        const state = r.state || "";
+        const pretty = `${district ? district + ", " : ""}${state}${p ? " — " + p : ""}`;
+        // Append verified district/state to location text and mark source
+        setSource("india_post_pin");
+        onChange(value ? `${value} · ${pretty}` : pretty, coords?.lat, coords?.lng, "india_post_pin");
+      }
+    } catch (e:any) { setPinRes({ ok:false, note: e.message }); }
+    finally { setPinChecking(false); }
+  }
 
   async function useDevice() {
     if (!navigator.geolocation) { alert("Geolocation not supported"); return; }
-    // M-09 fix: check secure context (https or localhost) for geolocation
     if (typeof window !== "undefined" && window.isSecureContext === false) {
       alert("Location requires HTTPS — please type location or use HTTPS.");
       return;
@@ -21,8 +43,6 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
         setSource("device");
-        // reverse geocode via Google Maps Geocoding API in prod
-        // mock: keep village text but attach coords
         onChange(value || "Village X, Vadodara", latitude, longitude, "device");
         setLocating(false);
       },
@@ -38,12 +58,23 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <label className="text-sm font-medium">Location <span className="text-muted font-normal">· never fabricate coordinates. Source: {source}</span></label>
       <div className="flex gap-2">
         <input value={value} onChange={e=> { onChange(e.target.value, coords?.lat, coords?.lng, source); }} placeholder="Village, district, state" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
         <Button variant="secondary" onClick={useDevice} className="gap-1.5 shrink-0"><Navigation className="h-4 w-4" /> {locating?"Locating…":"Use device"}</Button>
       </div>
+      <div className="flex gap-2">
+        <input value={pin} onChange={e=> setPin(e.target.value)} placeholder="PIN code (6 digits) — verifies district via India Post" maxLength={6} inputMode="numeric" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
+        <Button variant="secondary" onClick={verifyPin} disabled={pinChecking} className="gap-1.5 shrink-0">{pinChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />} Verify PIN</Button>
+      </div>
+      {pinRes && (
+        pinRes.ok ? (
+          <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-xs flex gap-2"><BadgeCheck className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" /><span><span className="font-semibold">Verified via India Post</span> — District: {pinRes.district}, State: {pinRes.state}{pinRes.block ? `, Block: ${pinRes.block}` : ""} · PIN {pinRes.pin}. Source: Department of Posts, GoI.</span></div>
+        ) : (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 p-2.5 text-xs text-amber-800">{pinRes.note || "PIN not found in India Post directory — please check the code."}</div>
+        )
+      )}
       {coords && <div className="text-xs text-muted inline-flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" /> Precise: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)} · Device — not exposed precisely without need</div>}
       <div className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl p-2 flex gap-1.5"><AlertTriangle className="h-3.5 w-3.5 mt-0.5" /> Record source: {source}. If unclear, we ask for confirmation — per AI governance.</div>
     </div>

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { store } from "../services/store.js";
 import { simulateBudget } from "../services/budget.js";
 import { generateBrief } from "../services/aiOrchestrator.js";
+import { districtFact, govSourcesStatus } from "../services/govData.js";
 
 export const copilotRouter = Router();
 
@@ -10,12 +11,12 @@ const copilotSchema = z.object({
   question: z.string().trim().max(2000).optional(),
   filters: z.record(z.any()).optional(),
   budget: z.union([z.string().max(64), z.number().finite()]).optional(),
-  objective: z.enum(["max_priority", "max_beneficiaries", "equity"]).optional(),
+  objective: z.enum(["max_priority", "max_beneficiaries", "equity", "infra_gap", "balanced"]).optional(),
   risk_tolerance: z.enum(["low", "medium", "high"]).optional(),
 });
 const simulateSchema = z.object({
   budget: z.union([z.string().max(64), z.number().finite()]),
-  objective: z.enum(["max_priority", "max_beneficiaries", "equity"]).optional().default("max_priority"),
+  objective: z.enum(["max_priority", "max_beneficiaries", "equity", "infra_gap", "balanced"]).optional().default("max_priority"),
   risk_tolerance: z.enum(["low", "medium", "high"]).optional().default("medium"),
 });
 
@@ -56,6 +57,10 @@ copilotRouter.post("/", async (req, res) => {
     const worst = [...clusters].sort((a,b)=>(a.infrastructureGapScore||0)-(b.infrastructureGapScore||0)).slice(0,2);
     answer = `Most underserved by infrastructure gap: ${worst.map(c=>`${c.districtId} gap ${c.infrastructureGapScore}/100`).join(", ")}. Evidence from infrastructure_indices.`;
     evidence.push("FACTS: infrastructure_indices road/health indices joined via district_id");
+    for (const w of worst) {
+      const f = districtFact(w.districtId);
+      if (f) evidence.push(`REAL: Census of India 2011 · ${f.district} pop ${f.population.toLocaleString("en-IN")} — ${f.verifyUrl}`);
+    }
   } else if (q.includes("budget") || q.includes("₹") || q.includes("cr")) {
     const parseRes = parseBudgetINR(question);
     if (parseRes.error) {
@@ -65,8 +70,10 @@ copilotRouter.post("/", async (req, res) => {
     const simulated = simulateBudget({ budget: numBudget, objective: "max_priority", risk_tolerance: "medium" });
     return res.json(simulated);
   } else if (q.includes("evidence") || q.includes("support")) {
-    answer = `Evidence: ${clusters.length} clusters from ${store.listRequests().length} citizen requests, joined with demographics + infrastructure_indices + investment_plans. Every priority score stores 6 components + weightVersion v1.`;
+    const sources = govSourcesStatus();
+    answer = `Evidence: ${clusters.length} clusters from ${store.listRequests().length} citizen requests, joined with demographics + infrastructure_indices + investment_plans. Every priority score stores 6 components + weightVersion v1. Real GoI sources: ${sources.filter(s=> s.mode!=="not_configured").map(s=> s.label).join(" · ")}.`;
     evidence.push("FACTS: citizen_requests, request_clusters, infrastructure_indices");
+    evidence.push(...sources.filter(s=> s.mode!=="not_configured").map(s=> `REAL: ${s.label} (${s.publisher})`));
     data_gaps = ["Missing live investment ledger for some districts"];
   } else if (q.includes("brief") || q.includes("policy")) {
     // Policy brief via Gemini (08_POLICY_BRIEF_PROMPT) — grounded
