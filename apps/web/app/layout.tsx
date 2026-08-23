@@ -33,6 +33,9 @@ export const metadata: Metadata = {
   authors: [{ name: "JANSETU AI" }],
   creator: "JANSETU AI",
   publisher: "JANSETU AI",
+  icons: {
+    icon: "/favicon.svg",
+  },
   alternates: {
     canonical: "/",
     languages: {

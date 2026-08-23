@@ -79,11 +79,11 @@ export default function GovernmentDashboard() {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {[
-          { label: "Requests", value: kpis?.kpis.totalRequests ?? "—", icon: Search, sub: "last 90 days" },
-          { label: "Hotspots", value: kpis?.kpis.hotspots ?? "—", icon: MapPinned, sub: "clusters" },
-          { label: "High-priority", value: kpis?.kpis.highPriority ?? "—", icon: TrendingUp, sub: "need action" },
-          { label: "Recommended", value: kpis?.kpis.recommendedProjects ?? "—", icon: Lightbulb, sub: "projects" },
-          { label: "Investment gap", value: kpis ? `₹${kpis.kpis.investmentGapCr} Cr` : "—", icon: Banknote, sub: "Vadodara roads" },
+          { label: "Requests", value: (kpis?.kpis?.totalRequests ?? kpis?.totalRequests ?? "—"), icon: Search, sub: "last 90 days" },
+          { label: "Hotspots", value: (kpis?.kpis?.hotspots ?? kpis?.totalClusters ?? "—"), icon: MapPinned, sub: "clusters" },
+          { label: "High-priority", value: (kpis?.kpis?.highPriority ?? kpis?.highPriorityHotspots ?? "—"), icon: TrendingUp, sub: "need action" },
+          { label: "Recommended", value: (kpis?.kpis?.recommendedProjects ?? kpis?.recommendedProjects ?? "—"), icon: Lightbulb, sub: "projects" },
+          { label: "Investment gap", value: (kpis?.kpis?.investmentGapCr != null ? `₹${kpis.kpis.investmentGapCr} Cr` : (kpis?.investmentGapCr != null ? `₹${kpis.investmentGapCr} Cr` : "—")), icon: Banknote, sub: "Vadodara roads" },
         ].map(card=> (
           <Card key={card.label} className="p-4">
             <div className="flex items-center justify-between">
@@ -281,13 +281,13 @@ export default function GovernmentDashboard() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const p:any = await api("/api/projects/recommended"); const pid = p.projects[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/impact`); setImpact(r); } catch(e:any){ alert(e.message); }
+                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/impact`); setImpact(r); } catch(e:any){ alert(e.message); }
               }}>Load Impact</Button>
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const p:any = await api("/api/projects/recommended"); const pid = p.projects[0]?.projectId; const r:any = await api(`/api/projects/${pid}/impact`, { method:"POST", body: JSON.stringify({ actual: 28, measurement_date: new Date().toISOString().slice(0,10), source: "Observed — post-implementation survey" }) }); setImpact(r); } catch(e:any){ alert(e.message); }
+                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/impact`, { method:"POST", body: JSON.stringify({ actual: 28, measurement_date: new Date().toISOString().slice(0,10), source: "Observed — post-implementation survey" }) }); setImpact(r); } catch(e:any){ alert(e.message); }
               }}>Record Actual 28min</Button>
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const p:any = await api("/api/projects/recommended"); const pid = p.projects[0]?.projectId; const r:any = await api(`/api/projects/${pid}/brief`); setBrief(r.brief); } catch(e:any){ alert(e.message); }
+                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/brief`); setBrief(r?.brief); } catch(e:any){ alert(e.message); }
               }}>Generate Policy Brief</Button>
             </div>
             {impact && <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-1"><div><span className="font-semibold">Observed:</span> {impact.observed_changes?.join(", ")||"none"} </div><div><span className="font-semibold">Estimated:</span> {impact.estimated_impact?.[0]?.metric} {impact.estimated_impact?.[0]?.estimated} — {impact.estimated_impact?.[0]?.note}</div><div className="text-muted">Limitations: {impact.limitations?.join(" · ")} · Quality: {impact.data_quality}</div></div>}

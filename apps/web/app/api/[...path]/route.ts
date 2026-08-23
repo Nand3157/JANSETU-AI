@@ -189,6 +189,19 @@ function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) {
   // Analytics KPIs
   if (normPath === "analytics/kpis") {
     return NextResponse.json({
+      kpis: {
+        totalRequests: 6893,
+        hotspots: FALLBACK_CLUSTERS.length,
+        highPriority: 3,
+        recommendedProjects: 4,
+        investmentGapCr: 18.4,
+        totalClusters: FALLBACK_CLUSTERS.length,
+        highPriorityHotspots: 3,
+        avgResolutionDays: 14.2,
+        topCategory: "roads",
+        equityIndex: 78.6,
+        humanReviewBacklog: 2,
+      },
       totalRequests: 6893,
       totalClusters: FALLBACK_CLUSTERS.length,
       highPriorityHotspots: 3,
@@ -196,6 +209,13 @@ function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) {
       topCategory: "roads",
       equityIndex: 78.6,
       humanReviewBacklog: 2,
+      trend: [
+        { month: "2026-01", requests: 312 },
+        { month: "2026-02", requests: 445 },
+        { month: "2026-03", requests: 612 },
+        { month: "2026-04", requests: 892 },
+        { month: "2026-05", requests: 1240 },
+      ],
     });
   }
 
