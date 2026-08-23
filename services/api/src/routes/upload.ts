@@ -1,6 +1,6 @@
 import { Router, json } from "express";
 import { randomBytes } from "crypto";
-import { parseMediaDataUrl } from "../lib/media.js";
+import { parseMediaDataUrl, MAX_UPLOAD_BYTES as SHARED_MAX_BYTES } from "../lib/media.js";
 
 export const uploadRouter = Router();
 
@@ -26,16 +26,22 @@ const ALLOWED = new Map([
   ["audio/wav", "wav"],
   ["audio/x-wav", "wav"],
 ]);
-const MAX_BYTES = Number(process.env.MAX_UPLOAD_BYTES || 5 * 1024 * 1024);
+const MAX_BYTES = SHARED_MAX_BYTES;
 
 const SB_URL = (process.env.SUPABASE_URL || "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const SB_BUCKET = process.env.SUPABASE_STORAGE_BUCKET || "citizen-media";
-const READ_TTL = Number(process.env.SUPABASE_SIGNED_READ_SECONDS || 60 * 60 * 24 * 7);
+// M-14 fix: reduce TTL from 7 days to 1 hour for PII; keep env configurable but default 1h
+const READ_TTL = Math.min(Number(process.env.SUPABASE_SIGNED_READ_SECONDS || 3600), 86400);
 
 uploadRouter.post("/", json({ limit: "8mb" }), async (req, res) => {
   const user = (req as any).user;
-  const parsed = parseMediaDataUrl(req.body?.dataUrl);
+  // C-13: Check Content-Length header early for DoS protection before parsing body
+  const contentLength = Number(req.headers["content-length"] || 0);
+  if (contentLength > 8 * 1024 * 1024) {
+    return res.status(413).json({ error: "file_too_large", maxBytes: MAX_BYTES });
+  }
+  const parsed = parseMediaDataUrl(req.body?.dataUrl, MAX_BYTES);
   if (!parsed || !ALLOWED.has(parsed.mimeType)) {
     return res.status(400).json({ error: "invalid_payload", detail: `Send { dataUrl: "data:image/jpeg;base64,..." } or audio/webm — jpeg/png/webp/webm/ogg/mp4/wav` });
   }
@@ -47,7 +53,10 @@ uploadRouter.post("/", json({ limit: "8mb" }), async (req, res) => {
   const ext = ALLOWED.get(contentType)!;
   const isAudio = contentType.startsWith("audio/");
   // Random name — user input never touches object paths (#20)
-  const objectPath = `citizen-media/${encodeURIComponent(user.uid)}/${randomBytes(16).toString("hex")}.${ext}`;
+  // C-08 fix: use raw uid without encodeURIComponent to match storage.rules {userId} (no encoding mismatch)
+  // Sanitize uid to allow only alphanumeric, -, _
+  const safeUid = String(user.uid).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+  const objectPath = `citizen-media/${safeUid}/${randomBytes(16).toString("hex")}.${ext}`;
 
   try {
     // ── 1) Supabase Storage ──

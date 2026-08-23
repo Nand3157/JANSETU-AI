@@ -21,12 +21,17 @@ const createRequestSchema = z.object({
   photoUrl: z.string().url().max(2048).nullable().optional(),
 });
 
-// GET /api/requests — citizen sees own requests; analysts see all
+// GET /api/requests — citizen sees own requests; analysts see all — with pagination (M-10 fix)
 requestsRouter.get("/", (req, res) => {
   const user = (req as any).user;
   const all = store.listRequests();
   const mine = ANALYST_ROLES.includes(user.role) ? all : all.filter(r => r.userId === user.uid);
-  res.json({ requests: mine.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt))) });
+  const sorted = mine.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  // Pagination: ?limit=20&offset=0 (defaults, max 100)
+  const limit = Math.min(Math.max(Number(req.query.limit || 20), 1), 100);
+  const offset = Math.max(Number(req.query.offset || 0), 0);
+  const paged = sorted.slice(offset, offset + limit);
+  res.json({ requests: paged, total: sorted.length, limit, offset });
 });
 
 // POST /api/requests — frontend submits voice/text/photo + location
@@ -148,8 +153,8 @@ requestsRouter.post("/:id/analyze", async (req, res) => {
     // keep as separate but note shared review
     clusterId = newCluster.clusterId;
   } else {
-    const target = store.getCluster(clusterId!);
-    if (target) store.updateCluster(clusterId!, { requestCount: (target.requestCount || 0) + 1 });
+    // H-04 fix: use atomic increment to avoid lost update on concurrent analyze
+    store.incrementClusterRequestCount(clusterId!);
   }
 
   store.updateRequest(r.requestId, { clusterId, status: "clustered" });

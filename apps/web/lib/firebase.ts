@@ -32,13 +32,31 @@ async function init() {
 if (firebaseConfig) init();
 
 // Mock auth for demo when Firebase not configured — public is unauthenticated, dashboards require login
+// C-14 fix: validate mock user from localStorage — only allow known roles, sanitize
+const ALLOWED_MOCK_ROLES = ["citizen", "policymaker", "analyst", "program_manager", "admin", "super_admin"] as const;
+function sanitizeMockUser(raw: any): User | null {
+  if (!raw || typeof raw !== "object") return null;
+  const role = String(raw.role || "citizen").trim().toLowerCase();
+  if (!(ALLOWED_MOCK_ROLES as readonly string[]).includes(role)) return null;
+  const uid = String(raw.uid || "").trim().slice(0, 64);
+  if (!uid) return null;
+  // Basic uid format check — must start with mock- or be firebase-like
+  if (!uid.startsWith("mock-") && !uid.startsWith("demo-") && uid.length < 6) return null;
+  return { uid, displayName: String(raw.displayName || "").slice(0, 100), role, email: raw.email ? String(raw.email).slice(0, 200) : undefined };
+}
+
 export type User = { uid: string; displayName?: string; role?: string; email?: string };
 let mockUser: User | null = null;
 // hydrate from localStorage if available (persists role after login)
 if (typeof window !== "undefined") {
   try {
     const saved = localStorage.getItem("jansetu_mock_user");
-    if (saved) mockUser = JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const sanitized = sanitizeMockUser(parsed);
+      if (sanitized) mockUser = sanitized;
+      else localStorage.removeItem("jansetu_mock_user");
+    }
   } catch {}
 }
 function persistMock() {
@@ -49,9 +67,17 @@ export function getCurrentUser(): User | null {
     const u: any = auth.currentUser;
     return { uid: u.uid, displayName: u.displayName || u.email, role: (u as any).role || "citizen", email: u.email };
   }
-  // re-hydrate on call in case localStorage was set after init
+  // re-hydrate on call in case localStorage was set after init — with validation
   if (!mockUser && typeof window !== "undefined") {
-    try { const s = localStorage.getItem("jansetu_mock_user"); if (s) mockUser = JSON.parse(s); } catch {}
+    try {
+      const s = localStorage.getItem("jansetu_mock_user");
+      if (s) {
+        const parsed = JSON.parse(s);
+        const sanitized = sanitizeMockUser(parsed);
+        if (sanitized) mockUser = sanitized;
+        else localStorage.removeItem("jansetu_mock_user");
+      }
+    } catch {}
   }
   return mockUser;
 }
@@ -60,6 +86,13 @@ export function setMockRole(role: "citizen" | "government") {
   mockUser = { uid: `mock-${r}-${Math.random().toString(36).slice(2,6)}`, displayName: r==="citizen" ? "Demo Citizen" : "Demo Policymaker", role: r, email: `${r}@jansetu.ai` };
   persistMock();
   return mockUser;
+}
+// Helper to get Firebase ID token when configured (for apiWithToken)
+export async function getIdToken(): Promise<string | null> {
+  if (auth?.currentUser) {
+    try { return await auth.currentUser.getIdToken(); } catch { return null; }
+  }
+  return null;
 }
 export async function signInAnonymouslyMock() {
   if (auth) {

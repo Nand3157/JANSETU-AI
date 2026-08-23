@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { store } from "../services/store.js";
+import { requireRoles } from "../middleware/auth.js";
 
 export const analyticsRouter = Router();
 
 analyticsRouter.get("/hotspots", (req, res) => {
+  // C-06 fix: hotspots are aggregate, but rate-limit and don't expose raw memberCount per request
+  // Keep centroid but note privacy: these are cluster centroids not individual locations
   const clusters = [...store.listClusters()].sort((a,b)=>(b.priorityScore||0)-(a.priorityScore||0));
   const geojson = {
     type: "FeatureCollection",
@@ -13,7 +16,7 @@ analyticsRouter.get("/hotspots", (req, res) => {
       properties: { clusterId: c.clusterId, title: c.title, priorityScore: c.priorityScore, category: c.category, requestCount: c.requestCount }
     }))
   };
-  res.json({ hotspots: clusters.slice(0,20), geojson });
+  res.json({ hotspots: clusters.slice(0,20), geojson, privacy_notice: "Cluster centroids only — not individual request locations" });
 });
 
 analyticsRouter.get("/investment-gaps", (req, res) => {

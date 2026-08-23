@@ -1,9 +1,23 @@
 import { Router } from "express";
+import { z } from "zod";
 import { store } from "../services/store.js";
 import { simulateBudget } from "../services/budget.js";
 import { generateBrief } from "../services/aiOrchestrator.js";
 
 export const copilotRouter = Router();
+
+const copilotSchema = z.object({
+  question: z.string().trim().max(2000).optional(),
+  filters: z.record(z.any()).optional(),
+  budget: z.union([z.string().max(64), z.number().finite()]).optional(),
+  objective: z.enum(["max_priority", "max_beneficiaries", "equity"]).optional(),
+  risk_tolerance: z.enum(["low", "medium", "high"]).optional(),
+});
+const simulateSchema = z.object({
+  budget: z.union([z.string().max(64), z.number().finite()]),
+  objective: z.enum(["max_priority", "max_beneficiaries", "equity"]).optional().default("max_priority"),
+  risk_tolerance: z.enum(["low", "medium", "high"]).optional().default("medium"),
+});
 
 /**
  * Policy Copilot — answers ONLY from supplied structured datasets.
@@ -11,10 +25,14 @@ export const copilotRouter = Router();
  */
 
 copilotRouter.post("/", async (req, res) => {
-  const { question, filters, budget, objective, risk_tolerance } = req.body;
+  const parsed = copilotSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "validation_failed", issues: parsed.error.issues });
+  const { question, filters, budget, objective, risk_tolerance } = parsed.data;
   // Structured budget simulator takes precedence if budget provided
   if (budget != null) {
-    const numBudget = typeof budget === "string" ? parseBudgetINR(budget) : Number(budget);
+    const parseRes = parseBudgetINR(typeof budget === "string" ? budget : String(budget));
+    if (parseRes.error) return res.status(400).json({ error: "validation_failed", detail: parseRes.error });
+    const numBudget = parseRes.value!;
     const obj = (objective as any) || "max_priority";
     const risk = (risk_tolerance as any) || "medium";
     const simulated = simulateBudget({ budget: numBudget, objective: obj, risk_tolerance: risk });
@@ -39,7 +57,11 @@ copilotRouter.post("/", async (req, res) => {
     answer = `Most underserved by infrastructure gap: ${worst.map(c=>`${c.districtId} gap ${c.infrastructureGapScore}/100`).join(", ")}. Evidence from infrastructure_indices.`;
     evidence.push("FACTS: infrastructure_indices road/health indices joined via district_id");
   } else if (q.includes("budget") || q.includes("₹") || q.includes("cr")) {
-    const numBudget = parseBudgetINR(question);
+    const parseRes = parseBudgetINR(question);
+    if (parseRes.error) {
+      return res.json({ answer: `Could not parse budget from question — ${parseRes.error}. Please specify like "₹10 Cr" or "25 lakh".`, evidence: [], data_gaps: ["Budget amount not recognized"], source: "Verified datasets — no fabrication", confidence: 0.5, human_review_notice: "This is an AI-assisted recommendation based on the available evidence. Final prioritization, funding, and implementation decisions remain with the authorized public authority." });
+    }
+    const numBudget = parseRes.value!;
     const simulated = simulateBudget({ budget: numBudget, objective: "max_priority", risk_tolerance: "medium" });
     return res.json(simulated);
   } else if (q.includes("evidence") || q.includes("support")) {
@@ -69,17 +91,45 @@ copilotRouter.post("/", async (req, res) => {
 
 // Dedicated budget simulate endpoint for Dashboard simulator (explicit)
 copilotRouter.post("/simulate", async (req,res)=> {
-  const { budget, objective="max_priority", risk_tolerance="medium" } = req.body;
-  if (budget==null) return res.status(400).json({ error:"budget required (INR or '10 Cr')" });
-  const numBudget = typeof budget === "string" ? parseBudgetINR(budget) : Number(budget);
+  const parsed = simulateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error:"validation_failed", issues: parsed.error.issues });
+  const { budget, objective, risk_tolerance } = parsed.data;
+  let numBudget: number;
+  if (typeof budget === "string") {
+    const pr = parseBudgetINR(budget);
+    if (pr.error) return res.status(400).json({ error: "validation_failed", detail: pr.error });
+    numBudget = pr.value!;
+  } else {
+    numBudget = Number(budget);
+    if (!Number.isFinite(numBudget) || numBudget <= 0) return res.status(400).json({ error: "validation_failed", detail: "budget must be a positive finite number" });
+  }
   const result = simulateBudget({ budget: numBudget, objective, risk_tolerance });
   res.json(result);
 });
 
-function parseBudgetINR(q: string): number {
+// H-07 fix: strict parsing — return error instead of silent 10Cr default
+function parseBudgetINR(q: string): { value: number | null; error: string | null } {
   const cr = q.match(/(\d+(?:\.\d+)?)\s*cr/i);
-  if (cr) return parseFloat(cr[1]) * 1e7;
+  if (cr) {
+    const v = parseFloat(cr[1]);
+    if (!Number.isFinite(v) || v <= 0) return { value: null, error: "budget Cr value must be positive" };
+    return { value: v * 1e7, error: null };
+  }
   const lakh = q.match(/(\d+(?:\.\d+)?)\s*lakh/i);
-  if (lakh) return parseFloat(lakh[1]) * 1e5;
-  return 100000000; // default 10Cr
+  if (lakh) {
+    const v = parseFloat(lakh[1]);
+    if (!Number.isFinite(v) || v <= 0) return { value: null, error: "budget lakh value must be positive" };
+    return { value: v * 1e5, error: null };
+  }
+  // If question contains rupee symbol/numbers but no unit, try plain number
+  const plain = q.match(/₹\s*(\d+(?:,\d+)*(?:\.\d+)?)/);
+  if (plain) {
+    const v = parseFloat(plain[1].replace(/,/g, ""));
+    if (Number.isFinite(v) && v > 0) return { value: v, error: null };
+  }
+  // No recognizable budget — return error instead of silent default
+  // Check if caller expected a budget parse (question mentions budget/cr/lakh/rupee)
+  const hasBudgetIntent = /budget|₹|cr|lakh|rupee/i.test(q);
+  if (hasBudgetIntent) return { value: null, error: `Could not parse budget amount from "${q.slice(0,80)}" — use format like "10 Cr", "25 lakh", or "₹10000000"` };
+  return { value: null, error: `No budget amount found in "${q.slice(0,80)}"` };
 }

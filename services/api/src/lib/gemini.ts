@@ -19,6 +19,11 @@ type GeminiOpts = {
 };
 
 function loadPrompt(name: string): string {
+  // L-07 fix: use import.meta.url relative resolution with fallback to cwd
+  try {
+    const urlBased = new URL(`../../../../docs/prompts/${name}`, import.meta.url);
+    if (existsSync(urlBased.pathname)) return readFileSync(urlBased.pathname, "utf8");
+  } catch {}
   const candidates = [
     join(process.cwd(), "..", "..", "docs", "prompts", name),
     join(process.cwd(), "docs", "prompts", name),
@@ -54,7 +59,13 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
     if (!GoogleGenerativeAI) return null;
     const genAI = new GoogleGenerativeAI(key);
-    const modelName = opts.model || process.env.GEMINI_MODEL || "gemini-3.5-flash";
+    // H-03 fix: valid model names only — fallback to gemini-2.0-flash, not hallucinated 3.5
+    const rawModel = opts.model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
+    const validModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
+    const modelName = validModels.includes(rawModel) ? rawModel : "gemini-2.0-flash";
+    if (rawModel !== modelName) {
+      console.warn(`Invalid GEMINI_MODEL "${rawModel}" — using ${modelName} instead`);
+    }
     const jsonMode = opts.jsonMode !== false;
     const model = genAI.getGenerativeModel({
       model: modelName,
@@ -73,9 +84,10 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
 
     const parts: any[] = [{ text: userPrompt }];
     if (opts.audioDataUrl) {
-      const parsed = parseMediaDataUrl(opts.audioDataUrl);
+      const { MAX_TRANSCRIBE_BYTES } = await import("./media.js");
+      const parsed = parseMediaDataUrl(opts.audioDataUrl, MAX_TRANSCRIBE_BYTES);
       if (!parsed || !parsed.mimeType.startsWith("audio/")) throw new Error("invalid audio dataUrl");
-      if (parsed.buffer.length > 8 * 1024 * 1024) throw new Error("audio too large");
+      if (parsed.buffer.length > MAX_TRANSCRIBE_BYTES) throw new Error("audio too large");
       parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.buffer.toString("base64") } });
     }
 

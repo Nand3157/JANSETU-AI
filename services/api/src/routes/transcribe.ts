@@ -1,14 +1,14 @@
 import { Router, json } from "express";
 import { transcribeAudio } from "../lib/gemini.js";
-import { parseMediaDataUrl } from "../lib/media.js";
+import { parseMediaDataUrl, MAX_TRANSCRIBE_BYTES } from "../lib/media.js";
 
 export const transcribeRouter = Router();
 
-const MAX_BYTES = 8 * 1024 * 1024;
+const MAX_BYTES = MAX_TRANSCRIBE_BYTES;
 
 transcribeRouter.post("/", json({ limit: "8mb" }), async (req, res) => {
   const dataUrl = String(req.body?.dataUrl || "");
-  const parsed = parseMediaDataUrl(dataUrl);
+  const parsed = parseMediaDataUrl(dataUrl, MAX_BYTES);
   if (!parsed || !parsed.mimeType.startsWith("audio/")) {
     return res.status(400).json({
       error: "invalid_payload",

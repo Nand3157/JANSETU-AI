@@ -1,5 +1,20 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "BRICS" };
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
+
+export const metadata: Metadata = {
+  title: "BRICS — India-First, BRICS-Ready Civic Infrastructure",
+  description:
+    "India-first, BRICS-ready: adapt JANSETU AI for Brazil, Russia, India, China, South Africa with local languages, admin hierarchies and datasets.",
+  alternates: { canonical: "/brics" },
+  openGraph: {
+    title: "BRICS — JANSETU AI Built for Diverse Communities",
+    description: "BRICS-ready configuration: languages, admin hierarchy, currency and datasets per country. India-first demo.",
+    url: `${SITE_URL}/brics`,
+    type: "website",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "BRICS — JANSETU AI" }],
+  },
+};
 export default function BricsPage() {
   return (
     <div className="mx-auto max-w-[880px] px-4 md:px-6 py-12">

@@ -1,5 +1,20 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "How It Works" };
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
+
+export const metadata: Metadata = {
+  title: "How It Works — Citizen Voice to Government Action",
+  description:
+    "Six steps: citizen voice (GU/HI/EN), AI understanding, data fusion, deterministic priority scoring, human review, impact tracking. See the JANSETU AI pipeline.",
+  alternates: { canonical: "/how-it-works" },
+  openGraph: {
+    title: "How JANSETU AI Works — 6 Steps to Measurable Impact",
+    description: "From voice to action: capture, AI understanding, data fusion, priority intelligence, government review, measured impact.",
+    url: `${SITE_URL}/how-it-works`,
+    type: "website",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "How JANSETU AI Works" }],
+  },
+};
 export default function HowItWorks() {
   return (
     <div className="mx-auto max-w-[880px] px-4 md:px-6 py-12">

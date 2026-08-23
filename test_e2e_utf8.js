@@ -33,10 +33,13 @@ async function run(){
   let cop = await res.json();
   console.log("\nCOPILOT (budget):", JSON.stringify(cop, null, 2).slice(0,2000));
 
-  // test project generate
+  // test project generate — now requires analyst role (C-05 fix)
   let targetCluster = cl.clusters.find(c=>c.clusterId==="cl_vadodara_roads_01") || cl.clusters[0];
   console.log("\nGenerating project for", targetCluster.clusterId);
-  res = await fetch(`${API}/api/projects/generate`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({clusterId: targetCluster.clusterId})});
+  // citizen should be blocked
+  let check = await fetch(`${API}/api/projects/generate`, { method:"POST", headers:{"Content-Type":"application/json", "x-role":"citizen"}, body: JSON.stringify({clusterId: targetCluster.clusterId})});
+  console.log("CITIZEN generate status (expect 403):", check.status);
+  res = await fetch(`${API}/api/projects/generate`, { method:"POST", headers:{"Content-Type":"application/json", "x-role":"policymaker"}, body: JSON.stringify({clusterId: targetCluster.clusterId})});
   let proj = await res.json();
   console.log("PROJECT:", JSON.stringify(proj, null,2));
 

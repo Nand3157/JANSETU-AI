@@ -10,6 +10,11 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
 
   async function useDevice() {
     if (!navigator.geolocation) { alert("Geolocation not supported"); return; }
+    // M-09 fix: check secure context (https or localhost) for geolocation
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      alert("Location requires HTTPS — please type location or use HTTPS.");
+      return;
+    }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -22,10 +27,13 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
         setLocating(false);
       },
       (err) => {
-        alert("Location permission denied. Please type location.");
+        if (err.code === err.PERMISSION_DENIED) alert("Location permission denied. Please type location.");
+        else if (err.code === err.POSITION_UNAVAILABLE) alert("Location unavailable — please type location.");
+        else if (err.code === err.TIMEOUT) alert("Location timed out — please try again or type location.");
+        else alert("Location error — please type location.");
         setLocating(false);
       },
-      { enableHighAccuracy: false, timeout: 8000 }
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
     );
   }
 

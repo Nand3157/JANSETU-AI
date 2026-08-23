@@ -115,8 +115,11 @@ export function VoiceRecorder({
     setState("transcribing");
     try { srRef.current?.stop(); } catch {}
     const rec = recRef.current;
+    // M-08 fix: properly await collectBlob without arbitrary 450ms — ensure dataavailable flushed
+    // Use a short flush: wait for final dataavailable event via 100ms, but resolve immediately if already inactive
     const blobPromise = collectBlob(rec);
-    await new Promise(r => setTimeout(r, 450));
+    // Small flush to allow trailing chunks, but not arbitrary large delay
+    await new Promise(r => setTimeout(r, 100));
     const blob = await blobPromise;
     rec?.stream?.getTracks().forEach((t: any) => t.stop());
 

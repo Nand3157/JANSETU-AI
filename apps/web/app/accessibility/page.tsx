@@ -1,6 +1,20 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Accessibility" };
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
+
+export const metadata: Metadata = {
+  title: "Accessibility — Voice-First, WCAG 2.1 AA",
+  description:
+    "JANSETU AI accessibility: voice-first GU/HI/EN input, WCAG 2.1 AA, 44px targets, reduced-motion, low-bandwidth support.",
+  alternates: { canonical: "/accessibility" },
+  openGraph: {
+    title: "Accessibility — JANSETU AI",
+    description: "Voice-first, WCAG 2.1 AA, low-bandwidth — every citizen can be heard on JANSETU AI.",
+    url: `${SITE_URL}/accessibility`,
+    type: "website",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Accessibility — JANSETU AI" }],
+  },
+};
 
 export default function AccessibilityPage() {
   return (

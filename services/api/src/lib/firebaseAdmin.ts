@@ -30,7 +30,21 @@ try {
   const apps = admin.apps || [];
   if (hasCreds && !apps.length) {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-      const svc = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      // H-13 fix: validate JSON before parse, give actionable error
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON.trim();
+      if (!raw.startsWith("{")) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON must be single-line JSON (not file path). Use GOOGLE_APPLICATION_CREDENTIALS for file path.");
+      }
+      let svc: any;
+      try {
+        svc = JSON.parse(raw);
+      } catch (e: any) {
+        throw new Error(`FIREBASE_SERVICE_ACCOUNT_JSON JSON parse failed: ${e.message} — check for truncated or single-quoted JSON`);
+      }
+      // Validate required fields
+      if (!svc.project_id || !svc.private_key || !svc.client_email) {
+        throw new Error("FIREBASE_SERVICE_ACCOUNT_JSON missing required fields: project_id, private_key, client_email");
+      }
       admin.initializeApp({ credential: certFn(svc), storageBucket: process.env.FIREBASE_STORAGE_BUCKET });
     } else {
       admin.initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || "jansetu-demo" });
@@ -55,7 +69,12 @@ try {
     console.log("✓ Firebase Admin initialized (project:", process.env.FIREBASE_PROJECT_ID || "jansetu-demo", ")");
   }
 } catch (e: any) {
-  console.log("ℹ Firebase Admin init failed — mock mode:", e.message);
+  // H-13: warn with actionable message but don't crash
+  if (process.env.NODE_ENV === "production") {
+    console.error("✗ Firebase Admin init failed in production — check FIREBASE_SERVICE_ACCOUNT_JSON:", e.message);
+  } else {
+    console.log("ℹ Firebase Admin init failed — mock mode:", e.message);
+  }
 }
 
 export { admin, firestore, storage, authAdmin, isConfigured };

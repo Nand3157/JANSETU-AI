@@ -11,8 +11,11 @@ import { transcribeRouter } from "./routes/transcribe.js";
 import { store } from "./services/store.js";
 import { scoreCluster } from "./services/ranking.js";
 
-// ── Demo seeding (Gujarati sample + synthetic) ───────────────────────────────
+// ── Demo seeding (Gujarati sample + synthetic) — idempotent (H-05 fix)
 function seed() {
+  // Idempotent: skip if seed cluster already exists (prevents duplicate on hot-reload / Cloud Run restart)
+  if (store.getCluster("cl_vadodara_roads_01")) return;
+
   // Main demo cluster — mirrors 09_SAMPLE_END_TO_END_INPUT.txt
   const cl = store.createCluster({
     clusterId: "cl_vadodara_roads_01",
@@ -35,7 +38,11 @@ function seed() {
     { districtId: "Surat", category: "flooding_drainage", requestCount: 1240, title: "Flooding in Low-Lying Wards — Surat" },
     { districtId: "Rajkot", category: "healthcare", requestCount: 543, title: "PHC Staffing Gap — Rajkot Rural" },
   ].forEach(d => {
+    // Idempotent: use deterministic IDs for demo clusters too
+    const demoId = `cl_demo_${d.districtId.toLowerCase()}_${d.category}`;
+    if (store.getCluster(demoId)) return;
     const c = store.createCluster({
+      clusterId: demoId,
       countryId: "IN", regionId: "Gujarat", districtId: d.districtId,
       category: d.category as any, title: d.title, summary: d.title,
       centroid: { lat: 21.5 + Math.random()*2, lng: 71.5 + Math.random()*2 },
@@ -44,9 +51,12 @@ function seed() {
     try { scoreCluster(c.clusterId); } catch {}
   });
 
-  // Synthetic requests for cluster
+  // Synthetic requests for cluster — idempotent via explicit IDs
   for (let i=0;i<5;i++) {
+    const reqId = `req_seed_${i}`;
+    if (store.getRequest(reqId)) continue;
     store.createRequest({
+      requestId: reqId,
       originalText: i===0 ? "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે." : `Road blocked in monsoon near village ${i}, children cannot reach school`,
       sourceLanguage: i===0? "gu":"en",
       districtId: "Vadodara", regionId: "Gujarat", countryId: "IN",
@@ -55,14 +65,18 @@ function seed() {
     });
   }
 
-  // Demo project for budget simulator
-  store.createProject({
-    clusterId: cl.clusterId, title: "All-Weather Rural Road Upgrade — Vadodara Cluster",
-    description: "Upgrade 4.2 km earthen road to paved all-weather with drainage — ESTIMATE pending survey",
-    countryId: "IN", regionId: "Gujarat", districtId: "Vadodara",
-    estimatedCost: 42000000, estimatedBeneficiaries: 12400, priorityScore: 78.5, currency: "INR",
-    recommendationStatus: "pending_review"
-  });
+  // Demo project for budget simulator — idempotent
+  const existingProj = store.listProjects().find(p => p.clusterId === cl.clusterId && p.title.includes("Vadodara Cluster"));
+  if (!existingProj) {
+    store.createProject({
+      projectId: "proj_vadodara_roads_01",
+      clusterId: cl.clusterId, title: "All-Weather Rural Road Upgrade — Vadodara Cluster",
+      description: "Upgrade 4.2 km earthen road to paved all-weather with drainage — ESTIMATE pending survey",
+      countryId: "IN", regionId: "Gujarat", districtId: "Vadodara",
+      estimatedCost: 42000000, estimatedBeneficiaries: 12400, priorityScore: 78.5, currency: "INR",
+      recommendationStatus: "pending_review"
+    });
+  }
 }
 
 const app = express();
@@ -86,11 +100,24 @@ const allowedOrigins = (process.env.CORS_ORIGINS || "")
   .split(",").map(s => s.trim()).filter(Boolean);
 app.use(cors({
   origin(origin, cb) {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    if (!allowedOrigins.length && process.env.NODE_ENV !== "production") return cb(null, true); // dev convenience only
+    // In production, require explicit origin and strict allowlist (C-07 fix)
+    // Block requests with no Origin (curl) in production unless explicitly allowed
+    if (!origin) {
+      if (process.env.NODE_ENV === "production") {
+        // In production, deny requests without Origin (prevents non-browser abuse)
+        // Allow health checks without Origin via direct IP — they hit /health not /api
+        return cb(new Error("origin_not_allowed"));
+      }
+      // In development, allow non-browser tools (curl, mobile) for DX
+      return cb(null, true);
+    }
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    // In dev, if CORS_ORIGINS empty, allow all for convenience (never in prod)
+    if (!allowedOrigins.length && process.env.NODE_ENV !== "production") return cb(null, true);
     cb(new Error("origin_not_allowed"));
   },
   methods: ["GET", "POST"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-role", "x-country", "X-Requested-With"],
   credentials: false, // auth is Bearer ID tokens, never cookies
 }));
 
@@ -126,11 +153,18 @@ if (process.env.SKIP_SEED !== "true") seed();
 app.use((req,res)=> res.status(404).json({ error: "not found", path: req.path }));
 
 // Errors — never leak stack traces or DB errors to clients in production (#17)
+// M-01 fix: only expose when SHOW_ERRORS explicitly true AND not production
 app.use((err:any,_req:any,res:any,_next:any)=> {
-  console.error(err);
-  const expose = process.env.SHOW_ERRORS === "true" || process.env.NODE_ENV !== "production";
-  if (err?.message === "origin_not_allowed") return res.status(403).json({ error: "forbidden" });
-  res.status(500).json({ error: "internal_error", ...(expose ? { detail: err?.message } : {}) });
+  // Structured logging: avoid dumping full stack in prod logs with PII
+  if (process.env.NODE_ENV === "production") {
+    console.error(JSON.stringify({ error: err?.message, path: _req?.path, stack: err?.stack?.split("\n")[0] }));
+  } else {
+    console.error(err);
+  }
+  const expose = process.env.SHOW_ERRORS === "true" && process.env.NODE_ENV !== "production";
+  if (err?.message === "origin_not_allowed" || err?.message === "origin_required") return res.status(403).json({ error: "forbidden" });
+  // Don't leak internal details in production
+  res.status(err?.status || 500).json({ error: "internal_error", ...(expose ? { detail: err?.message } : {}) });
 });
 
 const port = Number(process.env.PORT || 8080);

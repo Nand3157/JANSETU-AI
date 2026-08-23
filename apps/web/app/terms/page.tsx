@@ -1,6 +1,20 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Terms of Use" };
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
+
+export const metadata: Metadata = {
+  title: "Terms of Use — JANSETU AI",
+  description:
+    "Terms for JANSETU AI demo: advisory intelligence layer, fair use, demo data limits, and human-governed decisions. No guarantee of funding.",
+  alternates: { canonical: "/terms" },
+  openGraph: {
+    title: "Terms of Use — JANSETU AI",
+    description: "Advisory system, fair use, demo data and human-review guarantee for JANSETU AI.",
+    url: `${SITE_URL}/terms`,
+    type: "website",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Terms of Use — JANSETU AI" }],
+  },
+};
 
 export default function TermsPage() {
   return (

@@ -1,0 +1,55 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Vary",
+          "value": "Accept, Accept-Encoding"
+        },
+        {
+          "key": "X-Powered-By",
+          "value": "JANSETU AI"
+        }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [{ "key": "Content-Type", "value": "application/xml; charset=utf-8" }]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [{ "key": "Content-Type", "value": "text/plain; charset=utf-8" }]
+    },
+    {
+      "source": "/llms.txt",
+      "headers": [
+        { "key": "Content-Type", "value": "text/plain; charset=utf-8" },
+        { "key": "Vary", "value": "Accept, Accept-Encoding" }
+      ]
+    },
+    {
+      "source": "/openapi.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Vary", "value": "Accept, Accept-Encoding" }
+      ]
+    },
+    {
+      "source": "/.well-known/mcp",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Accept, Authorization, Mcp-Session-Id" },
+        { "key": "Vary", "value": "Accept, Accept-Encoding" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/.well-known/mcp",
+      "destination": "/.well-known/mcp"
+    }
+  ]
+}

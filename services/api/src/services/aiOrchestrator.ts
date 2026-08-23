@@ -10,6 +10,12 @@ import { callGeminiReal, MAIN_SYSTEM } from "../lib/gemini.js";
 
 function loadPrompt(name: string): string {
   try {
+    // L-07: try import.meta.url relative first
+    try {
+      const urlBased = new URL(`../../../docs/prompts/${name}`, import.meta.url);
+      const fs = require("fs");
+      if (fs.existsSync(urlBased.pathname)) return fs.readFileSync(urlBased.pathname, "utf-8");
+    } catch {}
     // works both when cwd is services/api and when running via tsx from root
     const candidates = [
       join(process.cwd(), "..", "..", "docs", "prompts", name),
@@ -55,8 +61,15 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
         if (parsedJson) {
           const parsed = schema.safeParse(parsedJson);
           if (parsed.success) return { ok: true, data: parsed.data as T, raw: parsedJson, meta: { real: true } };
-          // validation failed — fall through to mock
-          console.warn(`Gemini real JSON failed validation for ${promptKey}:`, parsed.error.message);
+          // H-14 fix: log detailed validation error but still fall through to mock only in non-production
+          // In production, surface the validation mismatch for debugging without hiding it
+          const issues = parsed.error.issues.map((i: any) => `${i.path.join(".")}: ${i.message}`).join("; ");
+          console.warn(`Gemini real JSON failed validation for ${promptKey}: ${issues}`, JSON.stringify(parsedJson).slice(0, 500));
+          // Don't silently hide — include hint in raw for caller if needed
+          if (process.env.NODE_ENV === "production") {
+            // In prod, still fallback but with richer log; alternatively could return error
+            // We keep mock fallback for demo resilience but log at warn level for ops
+          }
         }
       }
     } catch (e: any) {

@@ -8,10 +8,23 @@ import type { Request, Response, NextFunction } from "express";
 type Bucket = { hits: number[]; };
 const buckets = new Map<string, Bucket>();
 
-const WINDOW_MS = Number(process.env.RATE_WINDOW_MS || 15 * 60 * 1000);
+const WINDOW_MS_RAW = Number(process.env.RATE_WINDOW_MS || 15 * 60 * 1000);
+// M-15/H-12 fix: validate window and cap, fallback to sane defaults if NaN/0
+const WINDOW_MS = Number.isFinite(WINDOW_MS_RAW) && WINDOW_MS_RAW > 0 ? WINDOW_MS_RAW : 15 * 60 * 1000;
 
 function key(req: Request, scope: string) {
-  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() || req.socket.remoteAddress || "unknown";
+  const forwarded = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim();
+  const ip = forwarded || req.socket.remoteAddress || req.ip || "unknown";
+  // H-12 fix: if still unknown, use a per-request nonce to avoid lumping all unknowns into one bucket
+  // But to prevent DoS, still rate-limit unknown as a group but with higher threshold — use scope:unknown bucket
+  // Safer: hash a combination of user-agent + ip unknown
+  if (ip === "unknown") {
+    const ua = (req.headers["user-agent"] as string || "").slice(0, 64);
+    // Simple hash of UA to shard unknown bucket
+    let hash = 0;
+    for (let i = 0; i < ua.length; i++) hash = ((hash << 5) - hash + ua.charCodeAt(i)) | 0;
+    return `${scope}:unknown:${Math.abs(hash) % 16}`;
+  }
   return `${scope}:${ip}`;
 }
 
@@ -44,14 +57,18 @@ setInterval(() => {
  * Gemini daily spend cap (directive #6) — hard ceiling on paid AI calls per UTC day,
  * persisted to Firestore ai_usage/{yyyy-mm-dd} when configured for cross-restart audit.
  */
-const DAILY_CAP = Number(process.env.GEMINI_DAILY_CAP || 500);
+const DAILY_CAP_RAW = Number(process.env.GEMINI_DAILY_CAP || 500);
+// M-15 fix: validate cap, handle 0/NaN/Infinity
+const DAILY_CAP = Number.isFinite(DAILY_CAP_RAW) && DAILY_CAP_RAW >= 0 ? Math.floor(DAILY_CAP_RAW) : 500;
 let dayKey = new Date().toISOString().slice(0, 10);
 let used = 0;
 
 export function geminiQuota() {
   const today = new Date().toISOString().slice(0, 10);
   if (today !== dayKey) { dayKey = today; used = 0; }
-  return { cap: DAILY_CAP, used, remaining: Math.max(0, DAILY_CAP - used), exceeded: used >= DAILY_CAP };
+  // If cap is 0, exceeded should be true immediately (no calls allowed)
+  const exceeded = DAILY_CAP === 0 ? true : used >= DAILY_CAP;
+  return { cap: DAILY_CAP, used, remaining: Math.max(0, DAILY_CAP - used), exceeded };
 }
 
 export async function recordGeminiCall(costUnits = 1) {

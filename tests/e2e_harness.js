@@ -69,21 +69,25 @@ async function run(){
   assert(r.body.priority.priority_score < 78, "irrelevant priority lower than high");
 
   // 8. Malformed AI JSON — backend must validate and return 422 if AI fails? Our mock always returns valid, so test Zod directly via direct invalid cluster creation attempt
-  // Simulate via project generation without scoring
-  r = await api("/api/projects/generate", { method:"POST", body: JSON.stringify({ clusterId: "nonexistent" }) });
+  // Simulate via project generation without scoring — now requires analyst role (C-05 fix)
+  r = await api("/api/projects/generate", { method:"POST", headers:{ "x-role":"analyst" }, body: JSON.stringify({ clusterId: "nonexistent" }) });
   assert(r.status===404, "generate with invalid cluster → 404");
+  // Also verify citizen blocked from generate (authz)
+  r = await api("/api/projects/generate", { method:"POST", headers:{ "x-role":"citizen" }, body: JSON.stringify({ clusterId: "cl_vadodara_roads_01" }) });
+  assert(r.status===403, "citizen cannot generate project → 403");
 
   // 9. Security — role enforcement: citizen cannot review project (should be 403 if we enforce, but current allows demo unauth — we test audit logging still)
   // Create a project then try review as citizen vs policymaker
   let cl = await api("/api/clusters");
   const topCluster = cl.body.clusters?.[0]?.clusterId;
-  let proj = await api("/api/projects/generate", { method:"POST", body: JSON.stringify({ clusterId: topCluster }) });
+  let proj = await api("/api/projects/generate", { method:"POST", headers:{ "x-role":"policymaker" }, body: JSON.stringify({ clusterId: topCluster }) });
   const pid = proj.body.project?.projectId;
   if (pid) {
     r = await api(`/api/projects/${pid}/review`, { method:"POST", headers:{ "x-role":"policymaker" }, body: JSON.stringify({ decision:"approved", reason:"test" }) });
     assert(r.status===200 && r.body.project.approvalStatus==="approved", "policymaker can approve");
-    // audit log check
-    // citizen reviewing should be allowed in demo but in prod would be 403 — we ensure it still logs
+    // citizen reviewing should be 403 now (C-11 fix)
+    const r2 = await api(`/api/projects/${pid}/review`, { method:"POST", headers:{ "x-role":"citizen" }, body: JSON.stringify({ decision:"rejected", reason:"citizen attempt" }) });
+    assert(r2.status===403, "citizen cannot review → 403");
   }
 
   // 10. Deterministic score repeatability

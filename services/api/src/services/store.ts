@@ -61,9 +61,24 @@ export const store = {
   listRequests() { return [...requests.values()]; },
   updateRequest(id: string, patch: Partial<CitizenRequest>) {
     const cur = requests.get(id); if (!cur) return null;
-    const nxt = { ...cur, ...patch, updatedAt: new Date().toISOString() };
+    // H-17 fix: whitelist fields that can be updated — prevent createdAt/userId injection
+    const allowed: (keyof CitizenRequest)[] = ["sourceLanguage","translatedText","audioUrl","photoUrl","latitude","longitude","locationSource","districtId","regionId","countryId","category","subcategory","problemStatement","affectedServices","affectedGroups","urgencyScore","aiConfidence","clusterId","priorityScore","status"];
+    const safePatch: any = {};
+    for (const k of allowed) {
+      if (k in patch && (patch as any)[k] !== undefined) safePatch[k] = (patch as any)[k];
+    }
+    // Always preserve createdAt, requestId, userId, sourceChannel, originalText (immutable)
+    const nxt = { ...cur, ...safePatch, updatedAt: new Date().toISOString() };
     requests.set(id, nxt as CitizenRequest);
     persist("citizen_requests", id, nxt);
+    return nxt;
+  },
+  // H-04/H-05 fix: atomic increment for requestCount (avoid lost update on concurrent analyze)
+  incrementClusterRequestCount(clusterId: string): RequestCluster | null {
+    const cur = clusters.get(clusterId); if (!cur) return null;
+    const nxt = { ...cur, requestCount: (cur.requestCount || 0) + 1, updatedAt: new Date().toISOString() };
+    clusters.set(clusterId, nxt as RequestCluster);
+    persist("request_clusters", clusterId, nxt);
     return nxt;
   },
 
@@ -105,9 +120,15 @@ export const store = {
   },
   getCluster(id: string) { return clusters.get(id) || null; },
   listClusters() { return [...clusters.values()]; },
+  findProjectByCluster(clusterId: string): Project | null {
+    for (const p of projects.values()) if (p.clusterId === clusterId) return p;
+    return null;
+  },
   updateCluster(id: string, patch: Partial<RequestCluster>) {
     const cur = clusters.get(id); if (!cur) return null;
-    const nxt = { ...cur, ...patch, updatedAt: new Date().toISOString() };
+    // H-17: prevent overwriting createdAt/clusterId via patch
+    const { createdAt: _c, clusterId: _id, ...safePatch } = patch as any;
+    const nxt = { ...cur, ...safePatch, updatedAt: new Date().toISOString() };
     clusters.set(id, nxt as RequestCluster);
     persist("request_clusters", id, nxt);
     return nxt;
@@ -148,7 +169,13 @@ export const store = {
   listProjects() { return [...projects.values()]; },
   updateProject(id: string, patch: Partial<Project>) {
     const cur = projects.get(id); if (!cur) return null;
-    const nxt = { ...cur, ...patch, updatedAt: new Date().toISOString() };
+    // H-17: whitelist — prevent injecting recommendationStatus/approvalStatus via arbitrary patch
+    // Only allow known mutable fields; status transitions should go via dedicated routes with auth
+    const { createdAt: _c, projectId: _id, clusterId: _cl, ...rest } = patch as any;
+    const allowed: (keyof Project)[] = ["title","description","districtId","regionId","latitude","longitude","estimatedCost","currency","estimatedBeneficiaries","priorityScore","recommendationStatus","approvalStatus","fundingStatus","implementationStatus","startDate","targetDate","completedDate"];
+    const safe: any = {};
+    for (const k of allowed) if (k in rest) safe[k] = rest[k];
+    const nxt = { ...cur, ...safe, updatedAt: new Date().toISOString() };
     projects.set(id, nxt as Project);
     persist("projects", id, nxt);
     return nxt;

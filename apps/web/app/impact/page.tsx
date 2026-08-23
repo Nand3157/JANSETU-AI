@@ -1,5 +1,20 @@
 import type { Metadata } from "next";
-export const metadata: Metadata = { title: "Impact" };
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
+
+export const metadata: Metadata = {
+  title: "Impact — Baseline to Target to Actual",
+  description:
+    "Measure what changed: baseline, target and actual outcomes with observed vs modeled tracking. Evidence-first impact measurement by JANSETU AI.",
+  alternates: { canonical: "/impact" },
+  openGraph: {
+    title: "Impact — JANSETU AI Baseline → Target → Actual",
+    description: "Track every project from baseline to actual with observed vs modeled, audit-logged evidence.",
+    url: `${SITE_URL}/impact`,
+    type: "website",
+    images: [{ url: `${SITE_URL}/og-image.png`, width: 1200, height: 630, alt: "Impact — JANSETU AI" }],
+  },
+};
 export default function ImpactPage() {
   return (
     <div className="mx-auto max-w-[880px] px-4 md:px-6 py-12">

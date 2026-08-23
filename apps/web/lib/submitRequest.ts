@@ -21,8 +21,9 @@ export async function submitCitizenRequest(input: {
       originalText: input.text,
       category: input.category || "other",
       sourceLanguage: input.lang === "auto" ? undefined : input.lang,
-      latitude: input.lat ?? 22.3072,
-      longitude: input.lng ?? 73.1812,
+      // H-10 fix: don't send fake default coords when GPS denied — send null and let backend handle it
+      latitude: input.lat ?? null,
+      longitude: input.lng ?? null,
       locationSource: input.locSource,
       photoUrl,
       audioUrl: input.audioUrl || null,

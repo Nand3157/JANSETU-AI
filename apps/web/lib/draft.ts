@@ -16,8 +16,9 @@ const empty: CitizenDraft = {
   text: "",
   lang: "auto",
   locText: "Village X, Vadodara District, Gujarat",
-  lat: 22.3072,
-  lng: 73.1812,
+  // H-10 fix: default to null, not Vadodara centroid, to avoid skewing hotspots
+  lat: null,
+  lng: null,
   locSource: "user_text",
   audioUrl: null,
   photoUrl: null,
@@ -28,7 +29,19 @@ export function loadDraft(): CitizenDraft {
   try {
     const raw = sessionStorage.getItem(DRAFT_KEY);
     if (!raw) return { ...empty };
-    return { ...empty, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    // M-06 fix: validate parsed draft — reject injected script or invalid fields
+    if (typeof parsed !== "object" || parsed === null) return { ...empty };
+    const safe: any = {};
+    if (typeof parsed.text === "string") safe.text = parsed.text.slice(0, 5000);
+    if (typeof parsed.lang === "string" && ["auto","en","hi","gu"].includes(parsed.lang)) safe.lang = parsed.lang;
+    if (typeof parsed.locText === "string") safe.locText = parsed.locText.slice(0, 200);
+    if (parsed.lat === null || (typeof parsed.lat === "number" && Number.isFinite(parsed.lat) && parsed.lat >= -90 && parsed.lat <= 90)) safe.lat = parsed.lat;
+    if (parsed.lng === null || (typeof parsed.lng === "number" && Number.isFinite(parsed.lng) && parsed.lng >= -180 && parsed.lng <= 180)) safe.lng = parsed.lng;
+    if (typeof parsed.locSource === "string") safe.locSource = parsed.locSource.slice(0, 20);
+    if (parsed.audioUrl === null || (typeof parsed.audioUrl === "string" && parsed.audioUrl.startsWith("http"))) safe.audioUrl = parsed.audioUrl;
+    if (parsed.photoUrl === null || (typeof parsed.photoUrl === "string" && parsed.photoUrl.startsWith("http"))) safe.photoUrl = parsed.photoUrl;
+    return { ...empty, ...safe };
   } catch {
     return { ...empty };
   }
