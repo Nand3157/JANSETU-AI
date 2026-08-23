@@ -1,15 +1,4 @@
-const rawBase = process.env.NEXT_PUBLIC_API_URL || "";
-// Avoid baking localhost into production bundles: if NEXT_PUBLIC_API_URL is localhost but we're on a deployed host, use relative /api instead
-const BASE = (() => {
-  if (!rawBase) return "";
-  if (typeof window !== "undefined") {
-    const host = window.location.hostname;
-    const isDeployedHost = host !== "localhost" && host !== "127.0.0.1" && host !== "";
-    const isLocalhostUrl = rawBase.includes("localhost") || rawBase.includes("127.0.0.1");
-    if (isDeployedHost && isLocalhostUrl) return ""; // use Vercel rewrite / relative path
-  }
-  return rawBase.replace(/\/$/, "");
-})();
+const BASE = "";
 
 // Build auth headers from firebase/localStorage (C-14/H-18 fix)
 function getAuthHeaders(): Record<string, string> {

@@ -120,6 +120,11 @@ export function HotspotMap({
     });
 
     leafletInstanceRef.current = map;
+    setTimeout(() => {
+      try {
+        map.invalidateSize();
+      } catch {}
+    }, 150);
     setStatus("ready");
   }, [center.lat, center.lng, geojson, onSelect]);
 
