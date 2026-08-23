@@ -28,7 +28,8 @@ export default function SubmitPage() {
   const [otherCategory, setOtherCategory] = useState("");
   const [lang, setLang] = useState("gu");
   const [locText, setLocText] = useState("Village X, Vadodara District, Gujarat");
-  const [coords, setCoords] = useState<{lat:number,lng:number}|null>({ lat: 22.3072, lng: 73.1812 });
+  // FIX: H-10 — do NOT default to Vadodara centroid; start as null and only set when user provides/confirms location
+  const [coords, setCoords] = useState<{lat:number,lng:number}|null>(null);
   const [locSource, setLocSource] = useState<string>("user_text");
   const [photoFile, setPhotoFile] = useState<File|null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -42,9 +43,11 @@ export default function SubmitPage() {
   async function handleSubmit() {
     setLoading(true); setError(null); setResult(null);
     try {
+      if (!text.trim()) { setError("Please describe the issue in your language first."); setLoading(false); return; }
       if (!user) await signInAnonymouslyMock();
+      // FIX: don't send fake Vadodara coords when user hasn't provided location — send null so backend doesn't skew geoscoring
       const analyzed: any = await submitCitizenRequest({
-         text, category, lang, lat: coords?.lat ?? 22.3072, lng: coords?.lng ?? 73.1812,
+         text, category, lang, lat: coords?.lat ?? null, lng: coords?.lng ?? null,
         locSource, audioUrl, photoFile,
       });
       setResult(analyzed);
@@ -57,6 +60,17 @@ export default function SubmitPage() {
   const demoFill = () => {
     setText("અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.");
     setLang("gu"); setLocText("Village X, Vadodara District, Gujarat"); setCoords({ lat:22.3072,lng:73.1812}); setLocSource("user_text");
+  };
+  // Auto-select category based on text keywords (fix: previously category stayed stuck)
+  const inferCategory = (t: string) => {
+    const s = t.toLowerCase();
+    if (/રસ્તો|road|સડક|સड़क|sadak|monsoon|bridge|રોડ/i.test(s)) return "roads";
+    if (/પાણી|water|पानी|supply|leak|drainage/i.test(s)) return "water";
+    if (/વીજળી|electric|बिजली|light/i.test(s)) return "electricity";
+    if (/હોસ્પિટલ|hospital|स्वास्थ्य|દવા|clinic/i.test(s)) return "healthcare";
+    if (/શાળા|school|शाला|education|teacher/i.test(s)) return "education";
+    if (/સ્વચ્છ|sanitation|waste|कचरा/i.test(s)) return "sanitation";
+    return null;
   };
 
   return (

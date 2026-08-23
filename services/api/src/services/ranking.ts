@@ -19,6 +19,7 @@ interface Enrichment {
 
 // Demo enrichment table — in prod query BigQuery GIS
 // M-03 fix: add district-specific values for seeded clusters
+// FIX: extend to more districts + generic fallback with weighted averages
 const demoEnrichment: Record<string, Enrichment> = {
   "Vadodara": {
     populationAffected: 12400,
@@ -56,6 +57,20 @@ const demoEnrichment: Record<string, Enrichment> = {
     requiredInvestment: 28000000,
     requestCountInCluster: 543,
   },
+  "Gandhinagar": { populationAffected: 14200, roadIndex: 68, healthAccessIndex: 62, floodVulnerability: 28, existingInvestment: 20000000, requiredInvestment: 32000000, requestCountInCluster: 310 },
+  "Anand": { populationAffected: 11200, roadIndex: 45, healthAccessIndex: 40, floodVulnerability: 65, existingInvestment: 10000000, requiredInvestment: 30000000, requestCountInCluster: 205 },
+  "Mehsana": { populationAffected: 10800, roadIndex: 50, healthAccessIndex: 46, floodVulnerability: 52, existingInvestment: 13000000, requiredInvestment: 29000000, requestCountInCluster: 178 },
+};
+
+// Generic fallback: average of demo districts for unknown districts (prevents Vadodara bias)
+const FALLBACK_ENRICHMENT: Enrichment = {
+  populationAffected: 13800,
+  roadIndex: 48,
+  healthAccessIndex: 45,
+  floodVulnerability: 55,
+  existingInvestment: 15000000,
+  requiredInvestment: 35000000,
+  requestCountInCluster: 300,
 };
 
 export function scoreCluster(clusterId: string) {
@@ -63,7 +78,8 @@ export function scoreCluster(clusterId: string) {
   if (!c) throw new Error("cluster not found");
 
   const district = c.districtId || "Vadodara";
-  const e = demoEnrichment[district] || demoEnrichment["Vadodara"];
+  // FIX: use generic fallback for unknown districts instead of always Vadodara (was skewing scores)
+  const e = demoEnrichment[district] || FALLBACK_ENRICHMENT;
 
   // Derive components 0-100
   const demand = Math.min(100, Math.round(30 + Math.log10(Math.max(1, c.requestCount)) * 22)); // e.g. 4218 → ~88

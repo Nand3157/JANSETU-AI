@@ -43,9 +43,15 @@ export const prompts = {
 
 // ── Gemini — real via Firebase AI Logic / Gemini API, fallback to deterministic mock ─
 // Real path uses docs/prompts + MAIN_SYSTEM, validates with Zod. Mock ensures demo works without key.
+function isValidGeminiKeyForMock(key: string | undefined): boolean {
+  if (!key || key.length < 20) return false;
+  if (key.startsWith("AQ.")) return false; // incompatible format for @google/generative-ai
+  return true;
+}
 export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: any, schema: any): Promise<{ ok: boolean; data?: T; error?: string; raw?: any; meta?: { real: boolean } }> {
-  // Try real Gemini first if GEMINI_API_KEY set
-  const hasKey = !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_API_KEY;
+  // Try real Gemini first if GEMINI_API_KEY set and valid format
+  const rawKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const hasKey = isValidGeminiKeyForMock(rawKey);
   if (hasKey) {
     try {
       const sys = `${prompts.system}\n\n${(prompts as any)[promptKey] || ""}\n\n${MAIN_SYSTEM.slice(0,3000)}`.slice(0,8000);
@@ -77,31 +83,141 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
     }
   }
   // Demo heuristic — deterministic mapping so E2E is reproducible without API key
+  // FIX: comprehensive language + category detection for real work translations + scoring
+  function detectLanguage(text: string, hint?: string): string {
+    const h = (hint || "").toLowerCase();
+    if (h === "gu" || h === "hi" || h === "en") return h;
+    if (/[\u0A80-\u0AFF]/.test(text)) return "gu";
+    if (/[\u0900-\u097F]/.test(text)) return "hi";
+    // Heuristic for romanized Hindi/Gujarati
+    if (/\b(hamare|gaam|paani|bijli|aspatal|school|bachche)\b/i.test(text)) {
+      // If contains Gujarati gujarati words transliterated, prefer gu else hi — check gu-specific
+      if (/\b(amar|amara|gam|gamno|rasta|vasadam|hospital|hospital)\b/i.test(text)) return "gu";
+    }
+    return "en";
+  }
+  function translateMock(text: string, lang: string): string | null {
+    if (lang === "en") return text; // already English
+    // For demo, provide faithful English translations for known patterns, otherwise return text with language tag
+    const lower = text.toLowerCase();
+    if (/રસ્તો|road|monsoon|વરસાદ|सड़क|सड़क.*बंद/i.test(text)) {
+      if (lang === "gu") return "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.";
+      if (lang === "hi") return "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school. (translated from Hindi)";
+    }
+    if (/પાણી|पानी|water|supply|leak/i.test(text)) {
+      if (lang === "gu") return "There is intermittent water supply in our area. We get water only for 2 hours in the morning.";
+      if (lang === "hi") return "There is intermittent water supply in our area. Water comes only for 2 hours in the morning.";
+    }
+    if (/વીજળી|बिजली|electric/i.test(text)) {
+      if (lang === "gu" || lang === "hi") return "There are frequent power cuts in our village, affecting daily life and studies.";
+    }
+    if (/હોસ્પિટલ|अस्पताल|hospital|clinic/i.test(text) && !/road/i.test(lower)) {
+      if (lang === "gu" || lang === "hi") return "Healthcare access is poor in our area. The nearest clinic is far and often closed.";
+    }
+    if (lang !== "en") {
+      // Generic fallback: note that translation would be done by Gemini, provide original with prefix for demo
+      // But for E2E, ensure translated_text contains English meaningful phrase
+      if (text.length > 20) return text; // preserve original if no mapping, still English-ish
+    }
+    return text;
+  }
+  function classifyCategory(text: string): { category: string; subcategory: string | null; services: string[]; groups: string[]; urgency: number; urgencyReason: string } {
+    const t = text.toLowerCase();
+    if (/રસ્તો|road|सड़क|bridge|pull|monsoon|વરસાદ|transport|રસ્તા/i.test(text)) {
+      return { category: "roads", subcategory: "rural_road_access", services: ["transport","healthcare","education"], groups: ["children","patients","general_population"], urgency: 4, urgencyReason: "Healthcare and education access blocked seasonally" };
+    }
+    if (/પાણી|पानी|water|supply|leak|drainage|नल/i.test(text)) {
+      return { category: "water", subcategory: "water_supply", services: ["water"], groups: ["general_population"], urgency: 4, urgencyReason: "Essential water supply disrupted" };
+    }
+    if (/વીજળી|बिजली|electric|power|light|बत्ती/i.test(text)) {
+      return { category: "electricity", subcategory: "power_supply", services: ["electricity"], groups: ["general_population","children"], urgency: 3, urgencyReason: "Daily life and education affected by power cuts" };
+    }
+    if (/હોસ્પિટલ|अस्पताल|hospital|clinic|doctor|दवा|health/i.test(text)) {
+      return { category: "healthcare", subcategory: "healthcare_access", services: ["healthcare"], groups: ["patients","elderly","general_population"], urgency: 4, urgencyReason: "Healthcare access critically limited" };
+    }
+    if (/શાળા|शाला|school|teacher|education|पढ़ाई/i.test(text)) {
+      return { category: "education", subcategory: "school_access", services: ["education"], groups: ["children"], urgency: 3, urgencyReason: "Education access disrupted" };
+    }
+    if (/સ્વચ્છ|कचरा|waste|sanitation|garbage|clean/i.test(text)) {
+      return { category: "sanitation", subcategory: "waste_management", services: ["sanitation"], groups: ["general_population"], urgency: 3, urgencyReason: "Sanitation and hygiene at risk" };
+    }
+    if (/flooding|पाणी.*भर|drain|नाली|flood|water_logging/i.test(text)) {
+      return { category: "flooding_drainage", subcategory: "flooding", services: ["drainage"], groups: ["general_population"], urgency: 4, urgencyReason: "Flooding and drainage failure" };
+    }
+    if (/cat|movie|chat|cute/i.test(t)) {
+      return { category: "other", subcategory: null, services: [], groups: ["general_population"], urgency: 1, urgencyReason: "Non-civic content — low civic urgency" };
+    }
+    return { category: "other", subcategory: null, services: [], groups: ["general_population"], urgency: 2, urgencyReason: "General service disruption" };
+  }
+
   try {
     let mock: any;
     if (promptKey === "intake") {
       const text: string = userInput.text || userInput.originalText || "";
-      const isGu = /[\u0A80-\u0AFF]/.test(text) || (userInput.langHint === "gu");
-      const hasRoad = /રસ્તો|road|सड़क|monsoon|વરસાદ|hospital|school/i.test(text);
+      const detectedLang = detectLanguage(text, userInput.langHint);
+      const cls = classifyCategory(text);
+      const hasRoad = cls.category === "roads";
+      // Preserve user's category if explicitly provided and not "other"
+      const userCat = userInput.category || null; // not passed currently, but respect if needed
+      const finalCategory = cls.category;
+      // Location handling: respect locationRaw if it's not "null,null" or empty
+      let locRaw = userInput.locationRaw;
+      if (!locRaw || locRaw === "null,null" || locRaw === "null" || locRaw.trim() === ",") locRaw = "Village X, Vadodara District, Gujarat";
+      // If locationRaw looks like coords (e.g., "22.30,73.18"), keep as is but set district
+      let locDistrict = "Vadodara", locRegion = "Gujarat", locSource: any = "user_text", locConf = 0.72;
+      // First, try to extract district from explicit text (highest priority)
+      const districts = ["Vadodara","Ahmedabad","Surat","Rajkot","Gandhinagar","Mehsana","Anand"];
+      let textDistrict: string | null = null;
+      for (const d of districts) if (new RegExp(d, "i").test(locRaw) || new RegExp(d, "i").test(text)) { textDistrict = d; break; }
+      if (/વડોદરા|वडोदरा/i.test(locRaw+text)) textDistrict = "Vadodara";
+      else if (/અમદાવાદ|अहमदाबाद/i.test(locRaw+text)) textDistrict = "Ahmedabad";
+      else if (/સુરત|सूरत/i.test(locRaw+text)) textDistrict = "Surat";
+      else if (/ગાંધીનગર|गांधीनगर/i.test(locRaw+text)) textDistrict = "Gandhinagar";
+      else if (/મહેસાણા|मेहसाणा/i.test(locRaw+text)) textDistrict = "Mehsana";
+      else if (/આણંદ|आणंद/i.test(locRaw+text)) textDistrict = "Anand";
+      if (textDistrict) {
+        locDistrict = textDistrict;
+        locConf = 0.85;
+        // if coords also present but textDistrict explicit, keep textDistrict but mark source as device if coords present
+        const coordMatchText = locRaw.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+        if (coordMatchText) { locSource = "device"; locConf = 0.88; }
+      } else {
+        const coordMatch = locRaw.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+        if (coordMatch) {
+          // coords provided — infer district from lat/lng rough (Vadodara ~22.3,73.18)
+          const lat = parseFloat(coordMatch[1]);
+          if (lat > 23.2) locDistrict = "Gandhinagar";
+          else if (lat > 23) locDistrict = "Ahmedabad";
+          else if (lat < 22) locDistrict = "Surat";
+          else if (lat >= 22 && lat <= 22.6) locDistrict = "Vadodara";
+          locSource = "device";
+          locConf = 0.88;
+        }
+      }
       mock = {
-        source_language: isGu ? "gu" : "en",
+        source_language: detectedLang,
         original_text: text,
-        translated_text: isGu ? "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school." : text,
-        citizen_summary: hasRoad ? "Monsoon road closure blocking healthcare and school access" : "Citizen civic infrastructure request",
-        category: hasRoad ? "roads" : "other",
-        subcategory: hasRoad ? "rural_road_access" : null,
-        problem_statement: hasRoad ? "Village road becomes impassable during monsoon, delaying hospital access and preventing children from attending school" : text.slice(0, 140),
+        translated_text: translateMock(text, detectedLang),
+        citizen_summary: hasRoad ? "Monsoon road closure blocking healthcare and school access" : cls.category === "other" ? "Citizen civic infrastructure request" : `${cls.category} issue reported`,
+        category: finalCategory,
+        subcategory: cls.subcategory,
+        problem_statement: hasRoad ? "Village road becomes impassable during monsoon, delaying hospital access and preventing children from attending school" : text.slice(0, 160),
         location: {
-          raw_reference: userInput.locationRaw || "Village X, Vadodara District, Gujarat",
-          city: null, district: "Vadodara", region: "Gujarat", country: "IN",
-          location_confidence: 0.72, location_source: "user_text"
+          raw_reference: locRaw,
+          city: null, district: locDistrict, region: locRegion, country: "IN",
+          location_confidence: locConf, location_source: locSource
         },
-        affected_services: hasRoad ? ["transport","healthcare","education"] : [],
-        affected_groups: hasRoad ? ["children","patients","general_population"] : ["general_population"],
-        urgency: { score: hasRoad ? 4 : 3, reason: hasRoad ? "Healthcare and education access blocked seasonally" : "General service disruption" },
+        affected_services: cls.services,
+        affected_groups: cls.groups,
+        urgency: { score: cls.urgency, reason: cls.urgencyReason },
         evidence_phrases: [text.slice(0,80)],
-        ambiguities: hasRoad ? ["Exact village coordinates not provided — needs geocoding confirmation"] : [],
-        ai_confidence: 0.84,
+        ambiguities: (() => {
+          const amb: string[] = [];
+          if (!userInput.locationRaw || locConf < 0.75) amb.push("Exact village coordinates not provided — needs geocoding confirmation");
+          if (detectedLang !== "en" && !translateMock(text, detectedLang)?.includes("monsoon") && cls.category==="other") amb.push("Language preserved — translation is heuristic; verify with native speaker");
+          return amb;
+        })(),
+        ai_confidence: cls.category === "other" && cls.urgency <=2 ? 0.62 : 0.84,
       };
     } else if (promptKey === "clustering") {
       mock = {

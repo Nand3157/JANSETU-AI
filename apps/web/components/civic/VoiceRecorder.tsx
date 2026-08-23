@@ -8,14 +8,18 @@ import { api } from "@/lib/api";
  * Record audio, transcribe via Gemini (with live Web Speech as a preview/fallback),
  * and upload the clip so the request can store an audioUrl.
  */
-const LOCALE: Record<string, string> = {
-  gu: "gu-IN",
-  hi: "hi-IN",
-  en: "en-IN",
-  auto: typeof navigator !== "undefined" && navigator.language?.startsWith("gu") ? "gu-IN"
-      : typeof navigator !== "undefined" && navigator.language?.startsWith("hi") ? "hi-IN"
-      : "en-IN",
-};
+function getLocaleMap(): Record<string, string> {
+  let nav = "en-IN";
+  try {
+    if (typeof navigator !== "undefined" && navigator.language) {
+      const l = navigator.language.toLowerCase();
+      if (l.startsWith("gu")) nav = "gu-IN";
+      else if (l.startsWith("hi")) nav = "hi-IN";
+      else nav = "en-IN";
+    }
+  } catch {}
+  return { gu: "gu-IN", hi: "hi-IN", en: "en-IN", auto: nav };
+}
 
 type SRState = "idle" | "recording" | "transcribing";
 export type TranscriptMedia = { audioUrl?: string | null; source?: string };
@@ -45,14 +49,31 @@ export function VoiceRecorder({
 
   async function start() {
     setNote(null); setInterim(""); finals.current = [];
+    // Secure context check — localhost is secure, but http with IP is not
+    if (typeof window !== "undefined" && window.isSecureContext === false) {
+      setNote({ kind: "error", msg: "Voice requires HTTPS. Please use localhost or HTTPS, or type your need instead." });
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setNote({ kind: "error", msg: "Voice not supported in this browser. Please type your need instead." });
+      return;
+    }
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch {
-      setNote({ kind: "error", msg: "Microphone blocked. Allow mic access in your browser settings, or type your need instead." });
+    } catch (e: any) {
+      const name = e?.name || "";
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        setNote({ kind: "error", msg: "Microphone blocked. Allow mic access in your browser settings, or type your need instead." });
+      } else if (name === "NotFoundError") {
+        setNote({ kind: "error", msg: "No microphone found. Please type your need instead." });
+      } else {
+        setNote({ kind: "error", msg: "Cannot access microphone. Please type your need instead." });
+      }
       return;
     }
 
+    const LOCALE = getLocaleMap();
     const Ctor = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (Ctor) {
       const sr = new Ctor();
@@ -71,6 +92,8 @@ export function VoiceRecorder({
       };
       sr.onerror = (e: any) => {
         if (e.error === "not-allowed") setNote({ kind: "error", msg: "Microphone blocked by the browser." });
+        else if (e.error === "no-speech") setNote({ kind: "error", msg: "No speech detected. Please try again or type." });
+        else if (e.error === "network") setNote({ kind: "error", msg: "Speech service unavailable. Recording will still be transcribed server-side." });
       };
       try { sr.start(); } catch {}
     }
@@ -97,8 +120,23 @@ export function VoiceRecorder({
       return Promise.resolve(chunks.current.length ? new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }) : null);
     }
     return new Promise(resolve => {
-      rec.onstop = () => resolve(new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }));
-      try { rec.stop(); } catch { resolve(chunks.current.length ? new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }) : null); }
+      // Capture ondataavailable flush before resolving
+      const origOnStop = rec.onstop;
+      rec.onstop = () => {
+        // Give a tick for final dataavailable to flush
+        setTimeout(() => {
+          resolve(new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }));
+          if (typeof origOnStop === "function") try { (origOnStop as any).call(rec); } catch {}
+        }, 30);
+      };
+      rec.ondataavailable = e => { if (e.data && e.data.size) chunks.current.push(e.data); };
+      try {
+        // Request final data before stopping (ensures trailing chunk)
+        try { rec.requestData(); } catch {}
+        rec.stop();
+      } catch {
+        resolve(chunks.current.length ? new Blob(chunks.current, { type: rec.mimeType || "audio/webm" }) : null);
+      }
     });
   }
 
@@ -115,14 +153,11 @@ export function VoiceRecorder({
     setState("transcribing");
     try { srRef.current?.stop(); } catch {}
     const rec = recRef.current;
-    // M-08 fix: properly await collectBlob without arbitrary 450ms — ensure dataavailable flushed
-    // Use a short flush: wait for final dataavailable event via 100ms, but resolve immediately if already inactive
-    const blobPromise = collectBlob(rec);
-    // Small flush to allow trailing chunks, but not arbitrary large delay
-    await new Promise(r => setTimeout(r, 100));
-    const blob = await blobPromise;
+    const blob = await collectBlob(rec);
     rec?.stream?.getTracks().forEach((t: any) => t.stop());
+    recRef.current = null;
 
+    const LOCALE = getLocaleMap();
     const speechText = finals.current.join(" ").replace(/\s+/g, " ").trim();
     const speechLang = Object.entries(LOCALE).find(([, v]) => v === (srRef.current?.lang || ""))?.[0];
     let text = speechText;
@@ -130,7 +165,8 @@ export function VoiceRecorder({
     let audioUrl: string | null = null;
     let source = speechText ? "browser-speech" : "none";
 
-    if (blob && blob.size > 1500) {
+    // Lower threshold to 400 bytes to capture short utterances; previously 1500 dropped valid clips
+    if (blob && blob.size > 400) {
       try {
         const dataUrl = await blobToDataUrl(blob);
         const tr: any = await api("/api/transcribe", {

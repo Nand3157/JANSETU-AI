@@ -81,8 +81,15 @@ requestsRouter.post("/:id/analyze", async (req, res) => {
     return res.status(403).json({ error: "forbidden" });
   }
 
-  // 1) AI intake — pass langHint to preserve gu detection even if encoding edge
-  const intake = await analyzeCitizenIntake({ text: r.originalText, locationRaw: `${r.latitude},${r.longitude}`, langHint: r.sourceLanguage });
+  // 1) AI intake — pass langHint to preserve gu/hi detection; fix: don't send "null,null" when coords missing
+  let locationRaw: string | undefined;
+  if (r.latitude != null && r.longitude != null) {
+    locationRaw = `${r.latitude},${r.longitude}`;
+  } else {
+    // Try to use stored district/region or original text location hint
+    locationRaw = r.districtId ? `${r.districtId}, ${r.regionId || "Gujarat"}` : undefined;
+  }
+  const intake = await analyzeCitizenIntake({ text: r.originalText, locationRaw, langHint: r.sourceLanguage });
   if (!intake.ok) return res.status(422).json({ error: "ai intake failed", detail: intake.error, raw: intake.raw });
 
   const ai = intake.data!;
