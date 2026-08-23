@@ -37,7 +37,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci || npm install
 
       - name: Sync env (safe split)
         run: node scripts/sync-env.mjs || echo "no root .env — using CI env"
@@ -55,25 +55,29 @@ jobs:
         run: npm run build --workspace=services/api
 
       # Web build is verified via Vercel's own build, but we preflight here to catch errors early
+      # Use dummy public env for CI — real values are injected via Vercel dashboard
       - name: Build Web (preflight)
         run: npm run build --workspace=apps/web
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL || vars.NEXT_PUBLIC_API_URL || 'https://jansetu-api.example.com' }}
-          NEXT_PUBLIC_FIREBASE_CONFIG: ${{ secrets.NEXT_PUBLIC_FIREBASE_CONFIG || vars.NEXT_PUBLIC_FIREBASE_CONFIG || '' }}
-          NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY: ${{ secrets.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY || vars.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY || '' }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL || vars.NEXT_PUBLIC_SITE_URL || 'https://jansetu-ai-web-sooty.vercel.app' }}
+          NEXT_PUBLIC_API_URL: http://localhost:8080
+          NEXT_PUBLIC_SITE_URL: https://jansetu-ai-web-sooty.vercel.app
+          NEXT_PUBLIC_FIREBASE_CONFIG: '{"apiKey":"AIza-ci-dummy","authDomain":"dummy.firebaseapp.com","projectId":"dummy"}'
+          NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY: AIza-ci-dummy-key
+          SKIP_SEED: "true"
 
   deploy-web:
     name: Deploy Web to Vercel
     runs-on: ubuntu-latest
     needs: build-and-typecheck
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Only run if Vercel secrets are configured — otherwise skip gracefully (native Vercel Git integration handles deploy)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Deploy to Vercel (Production)
         uses: amondnet/vercel-action@v25
+        continue-on-error: false
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -86,11 +90,19 @@ jobs:
         if: success()
         run: echo "✅ Web deployed to Vercel production via auto-deploy workflow"
 
+  deploy-web-skip-notice:
+    name: Deploy Web skipped (native Vercel)
+    runs-on: ubuntu-latest
+    needs: build-and-typecheck
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (secrets.VERCEL_TOKEN == '' || secrets.VERCEL_ORG_ID == '' || secrets.VERCEL_PROJECT_ID == '')
+    steps:
+      - run: echo "ℹ️ Vercel deploy skipped — no VERCEL_TOKEN/ORG_ID/PROJECT_ID secrets. Native Vercel Git integration will auto-deploy apps/web. To enable workflow deploy, add secrets in GitHub → Settings → Secrets → Actions."
+
   deploy-preview:
     name: Deploy Preview to Vercel
     runs-on: ubuntu-latest
     needs: build-and-typecheck
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -104,11 +116,19 @@ jobs:
           working-directory: ./
           scope: ${{ secrets.VERCEL_ORG_ID }}
 
+  deploy-preview-skip:
+    name: Deploy Preview skipped (native Vercel)
+    runs-on: ubuntu-latest
+    needs: build-and-typecheck
+    if: github.event_name == 'pull_request' && (secrets.VERCEL_TOKEN == '' || secrets.VERCEL_ORG_ID == '' || secrets.VERCEL_PROJECT_ID == '')
+    steps:
+      - run: echo "ℹ️ Preview deploy skipped — no Vercel secrets. Create a Preview via Vercel's native GitHub PR integration."
+
   deploy-api-vercel:
     name: Deploy API to Vercel (optional)
     runs-on: ubuntu-latest
     needs: build-and-typecheck
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_API_TO_VERCEL == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_API_TO_VERCEL == 'true' && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_API_PROJECT_ID != ''
     steps:
       - name: Checkout
         uses: actions/checkout@v4
