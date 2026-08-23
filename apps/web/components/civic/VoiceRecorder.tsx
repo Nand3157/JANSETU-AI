@@ -92,8 +92,10 @@ export function VoiceRecorder({
       };
       sr.onerror = (e: any) => {
         if (e.error === "not-allowed") setNote({ kind: "error", msg: "Microphone blocked by the browser." });
-        else if (e.error === "no-speech") setNote({ kind: "error", msg: "No speech detected. Please try again or type." });
-        else if (e.error === "network") setNote({ kind: "error", msg: "Speech service unavailable. Recording will still be transcribed server-side." });
+        else if (e.error === "no-speech") setNote({ kind: "demo", msg: "No live preview — keep speaking. Your recording will be transcribed server-side when you stop." });
+        else if (e.error === "network") setNote({ kind: "demo", msg: "Live preview unavailable — recording continues. We'll transcribe server-side when you stop." });
+        else if (e.error === "audio-capture") setNote({ kind: "error", msg: "No microphone found. Please type your need instead." });
+        else if (e.error === "aborted") { /* ignore — stop() aborted it */ }
       };
       try { sr.start(); } catch {}
     }
@@ -165,8 +167,9 @@ export function VoiceRecorder({
     let audioUrl: string | null = null;
     let source = speechText ? "browser-speech" : "none";
 
-    // Lower threshold to 400 bytes to capture short utterances; previously 1500 dropped valid clips
-    if (blob && blob.size > 400) {
+    // Lower threshold to 100 bytes to capture very short utterances; previously 1500/400 dropped valid clips
+    // Always attempt server transcription for any non-empty blob — ensures mock fallback covers live-preview failures
+    if (blob && blob.size > 100) {
       try {
         const dataUrl = await blobToDataUrl(blob);
         const tr: any = await api("/api/transcribe", {
