@@ -26,6 +26,7 @@ export default function DemandMapPage() {
   }, []);
 
   const demoCluster = selected || clusters[0];
+  const mapCenter = (selected?.centroid ?? demoCluster?.centroid ?? null) as { lat: number; lng: number } | null;
 
   return (
     <div className="space-y-4">
@@ -53,7 +54,7 @@ export default function DemandMapPage() {
             <span className="text-xs text-[#5F6368]">{activeLayers.join(" · ")}</span>
           </div>
           <div className="p-3">
-            <HotspotMap geojson={geojson} onSelect={id=> setSelected(clusters.find((c:any)=> c.clusterId===id))} />
+            <HotspotMap geojson={geojson} center={mapCenter ?? undefined} onSelect={id=> setSelected(clusters.find((c:any)=> c.clusterId===id))} />
           </div>
           <div className="px-4 pb-4 flex gap-2 text-xs">
             <Badge tone="critical">Critical ≥80</Badge><Badge tone="high">High 65–79</Badge><Badge tone="moderate">Moderate 45–64</Badge>

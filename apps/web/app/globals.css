@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root { --background: 210 40% 98%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
-* { @apply border-border; }
+* { border-color: #E5E7EB; }
 html { scroll-behavior: smooth; }
 /* Kill horizontal scrolling / mobile overflow globally */
 html, body { overflow-x: hidden; }
