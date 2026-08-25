@@ -9,7 +9,7 @@ import { FadeIn, StaggerCard } from "@/components/home/HomeMotion";
 
 export default function Home() {
   return (
-    <div className="bg-[#FFFBF7] text-[#0C0A09]">
+    <div className="bg-[#F8FAFC] text-[#172033]">
       {/* HERO — CLEAN + VIVID — galaxy + blue glow, high visibility */}
       <section className="relative overflow-hidden bg-[#F8FAFC] border-b border-[#E5E7EB] galaxy-blur">
         <div className="absolute inset-0 pointer-events-none opacity-60" aria-hidden="true" />
@@ -38,7 +38,7 @@ export default function Home() {
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link href="/citizen/submit">
                   <Button size="lg" className="gap-2 rounded-full shadow-sm">
-                    🎤 Raise a Community Need <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    Raise a Community Need <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </Link>
                 <Link href="/how-it-works">
@@ -130,7 +130,7 @@ export default function Home() {
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="font-medium text-[#0B1F3A]">Vadodara · Gujarat · Priority Engine v1</span>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E8F0FE] text-[#174EA6] border border-[#D2E3FC] px-2.5 py-1 text-xs font-medium">
-                    <Activity className="h-3 w-3" aria-hidden="true" /> Live
+                    <Activity className="h-3 w-3" aria-hidden="true" /> Sample
                   </span>
                 </div>
               </div>
@@ -147,20 +147,20 @@ export default function Home() {
         <div className="flex items-end justify-between gap-4">
           <div>
             <h2 className="text-[22px] font-semibold tracking-tight">Citizen voice → Public action</h2>
-            <p className="text-sm text-[#78716C] mt-2">
+            <p className="text-sm text-[#5F6368] mt-2">
               Not a complaint portal. A public intelligence layer. <Link href="/how-it-works" className="text-[#174EA6] underline">Learn how it works</Link> ·{" "}
               <Link href="/docs" className="text-[#174EA6] underline">Developer docs</Link>
             </p>
           </div>
           <Link
             href="/how-it-works"
-            className="hidden md:inline-flex text-sm font-medium underline decoration-[#E7E5E4] underline-offset-4 hover:text-black"
+            className="hidden md:inline-flex text-sm font-medium underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033]"
           >
             How it works →
           </Link>
         </div>
         <div className="mt-8 relative">
-          <div className="hidden md:block absolute left-0 right-0 top-[18px] h-px bg-[#E7E5E4]" aria-hidden="true" />
+          <div className="hidden md:block absolute left-0 right-0 top-[18px] h-px bg-[#E5E7EB]" aria-hidden="true" />
           <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
             {[
               { n: "01", t: "Citizen Voice", d: "Speak / type / photo" },
@@ -172,13 +172,13 @@ export default function Home() {
             ].map((s) => (
               <div
                 key={s.n}
-                className="relative bg-white rounded-[20px] border border-[#E5E7EB] p-4 hover-lift hover-border cursor-pointer group"
+                className="relative bg-white rounded-[20px] border border-[#E5E7EB] p-4 hover-lift hover-border group"
               >
-                <div className="h-9 w-9 rounded-full bg-black text-white grid place-items-center text-xs font-semibold group-hover:bg-[#174EA6] group-hover:scale-105 transition-all">
+                <div className="h-9 w-9 rounded-full bg-[#0B1F3A] text-white grid place-items-center text-xs font-semibold group-hover:bg-[#174EA6] group-hover:scale-105 transition-all">
                   {s.n}
                 </div>
                 <div className="mt-3 font-medium text-sm leading-tight group-hover:text-[#174EA6] transition-colors">{s.t}</div>
-                <div className="text-xs text-[#78716C]">{s.d}</div>
+                <div className="text-xs text-[#5F6368]">{s.d}</div>
               </div>
             ))}
           </div>
@@ -211,13 +211,13 @@ export default function Home() {
             },
           ].map((c, i) => (
             <StaggerCard key={c.k} index={i}>
-              <div className="card-premium rounded-[20px] p-5 shimmer-border hover-lift cursor-pointer h-full">
-                <div className="h-9 w-9 rounded-xl bg-[#F5F5F4] border border-[#E5E7EB] grid place-items-center">
-                  <c.icon className="h-4 w-4 text-[#0C0A09]" aria-hidden="true" />
+              <div className="card-premium rounded-[20px] p-5 shimmer-border hover-lift h-full">
+                <div className="h-9 w-9 rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] grid place-items-center">
+                  <c.icon className="h-4 w-4 text-[#0B1F3A]" aria-hidden="true" />
                 </div>
-                <div className="mt-3 text-[11px] tracking-[0.12em] font-semibold text-[#78716C]">{c.k}</div>
+                <div className="mt-3 text-[11px] tracking-[0.12em] font-semibold text-[#5F6368]">{c.k}</div>
                 <div className="text-[15px] font-semibold mt-1 leading-tight">{c.t}</div>
-                <div className="text-sm leading-relaxed text-[#78716C] mt-1.5">{c.d}</div>
+                <div className="text-sm leading-relaxed text-[#5F6368] mt-1.5">{c.d}</div>
               </div>
             </StaggerCard>
           ))}
@@ -227,14 +227,14 @@ export default function Home() {
       {/* IMPACT — animated counters — hyperui + react-bits */}
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-10" aria-labelledby="impact-heading">
         <h2 id="impact-heading" className="sr-only">JANSETU AI Impact — Measurable outcomes</h2>
-        <div className="rounded-[24px] p-6 md:p-8 bg-[#0C0A09] text-white overflow-hidden relative border border-[#0C0A09]">
-          <div className="absolute inset-0 opacity-[0.06] pointer-events-none galaxy-blur" aria-hidden="true" />
-          <div className="relative grid md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-white/10">
+          <div className="rounded-[24px] p-6 md:p-8 bg-[#0B1F3A] text-white overflow-hidden relative border border-[#0B1F3A]">
+            <div className="absolute inset-0 opacity-[0.06] pointer-events-none galaxy-blur" aria-hidden="true" />
+            <div className="relative grid md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-white/10">
             {[
-              { v: 128000, s: "+", l: "Citizen Requests", sub: "last 12 months" },
-              { v: 284, l: "Demand Hotspots", sub: "BigQuery GIS" },
-              { v: 42, l: "Priority Projects", sub: "candidate" },
-              { v: 1800000, s: "", l: "People Potentially Impacted", sub: "estimated" },
+              { v: 128000, s: "+", l: "Citizen Requests", sub: "last 12 months · sample" },
+              { v: 284, l: "Demand Hotspots", sub: "BigQuery GIS · sample" },
+              { v: 42, l: "Priority Projects", sub: "candidate · sample" },
+              { v: 1800000, s: "", l: "People Potentially Impacted", sub: "estimated · sample" },
             ].map((x) => (
               <div key={x.l} className="py-4 md:py-0 md:px-6 first:pl-0">
                 <div className="text-3xl font-semibold tracking-tight">
@@ -321,7 +321,7 @@ export default function Home() {
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-10" aria-labelledby="brics-heading">
         <div className="max-w-[640px]">
           <h2 id="brics-heading" className="text-xl font-semibold tracking-tight">Built for diverse communities. Designed to scale across borders.</h2>
-          <p className="text-sm text-[#78716C] mt-2">
+          <p className="text-sm text-[#5F6368] mt-2">
             India-first, BRICS-ready — languages, admin hierarchy, currency, datasets per country.{" "}
             <Link href="/brics" className="text-[#174EA6] underline">Explore BRICS configuration →</Link>
           </p>
@@ -336,14 +336,14 @@ export default function Home() {
           ].map((b) => (
             <div
               key={b.c}
-              className="rounded-[20px] bg-white border border-[#E5E7EB] p-4 flex items-center gap-3 shimmer-border hover-lift hover-glow cursor-pointer"
+              className="rounded-[20px] bg-white border border-[#E5E7EB] p-4 flex items-center gap-3 shimmer-border hover-lift hover-glow"
             >
               <span className="h-9 w-9 rounded-xl grid place-items-center text-white text-xs font-bold hover-scale" style={{ background: b.col }} aria-hidden="true">
                 {b.c[0]}
               </span>
               <div>
                 <div className="text-sm font-medium leading-none">{b.c}</div>
-                <div className="text-xs text-[#78716C]">{b.l}</div>
+                <div className="text-xs text-[#5F6368]">{b.l}</div>
               </div>
             </div>
           ))}
@@ -390,10 +390,10 @@ export default function Home() {
 
       {/* FINAL CTA — minimal, not gradient spam */}
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 pb-16">
-        <div className="rounded-[28px] bg-white border border-[#E7E5E4] p-6 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="rounded-[28px] bg-white border border-[#E5E7EB] p-6 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">Turn public voice into measurable action.</h2>
-            <p className="text-sm text-[#78716C] mt-1">
+            <p className="text-sm text-[#5F6368] mt-1">
               Citizen PWA + Government dashboard · Evidence-led · Human-governed.{" "}
               <Link href="/about" className="text-[#174EA6] underline">About JANSETU</Link> ·{" "}
               <Link href="/privacy" className="text-[#174EA6] underline">Privacy</Link> ·{" "}

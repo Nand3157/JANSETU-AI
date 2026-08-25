@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "JANSETU AI turns citizen voice into evidence-backed development priorities for governments. Multilingual, deterministic, human-governed.",
     start_url: "/",
     display: "standalone",
-    background_color: "#FFFBF7",
+    background_color: "#F8FAFC",
     theme_color: "#174EA6",
     icons: [
       { src: "/og-image.png", sizes: "1200x630", type: "image/png", purpose: "any" },

@@ -54,7 +54,7 @@ export default function ContactPage() {
       </p>
 
       <div className="mt-8 grid gap-4">
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-6">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">CONTACT CHANNELS</div>
           <div className="mt-3 space-y-3 text-sm leading-relaxed text-[#172033]">
             <p>
@@ -77,7 +77,7 @@ export default function ContactPage() {
           </div>
         </div>
 
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-6">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">WHAT TO CONTACT US FOR</div>
           <ul className="mt-3 list-disc pl-5 space-y-2 text-sm leading-relaxed text-[#172033]">
             <li>

@@ -218,27 +218,20 @@ export function VoiceRecorder({
       } catch {}
     }
 
-    // 2. Intelligent demo fallback if silence was captured
+    // 2. No fabricated fallback: silence must never become a synthetic complaint
+    // attributed to the citizen. Surface an honest error instead.
     if (!text) {
-      const mockTranscripts: Record<string, string> = {
-        gu: "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.",
-        hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है। अस्पताल जाने में बहुत समय लगता है और बच्चों को स्कूल जाने में कठिनाई होती है।",
-        en: "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.",
-      };
-      text = mockTranscripts[selectedLang] || mockTranscripts.gu;
-      lang = selectedLang === "auto" ? "gu" : selectedLang;
-      source = "sample-template";
+      setNote({ kind: "error", msg: "No speech detected. Please speak clearly or type your request below." });
+      setInterim("");
+      setState("idle");
+      return;
     }
 
-    if (text) {
-      setNote({
-        kind: "success",
-        msg: `Transcribed (${lang.toUpperCase()}). You can review and edit the text below before submitting.`,
-      });
-      onTranscript(text, lang, { audioUrl, source });
-    } else {
-      setNote({ kind: "error", msg: "No speech detected. Please speak clearly or type your request below." });
-    }
+    setNote({
+      kind: "success",
+      msg: `Transcribed (${lang.toUpperCase()}). You can review and edit the text below before submitting.`,
+    });
+    onTranscript(text, lang, { audioUrl, source });
 
     setInterim("");
     setState("idle");
@@ -258,12 +251,13 @@ export function VoiceRecorder({
         )}
 
         {/* Language selector toggle */}
-        <div className="inline-flex items-center rounded-xl bg-slate-100 p-1 text-xs border border-slate-200">
-          <Globe className="h-3.5 w-3.5 text-slate-500 ml-1.5 mr-1" />
+        <div role="group" aria-label="Speech language" className="inline-flex items-center rounded-xl bg-slate-100 p-1 text-xs border border-slate-200">
+          <Globe className="h-3.5 w-3.5 text-slate-500 ml-1.5 mr-1" aria-hidden="true" />
           <button
             type="button"
             onClick={() => setSelectedLang("gu")}
-            className={`px-2 py-0.5 rounded-lg font-medium transition ${
+            aria-pressed={selectedLang === "gu"}
+            className={`min-h-[40px] px-3 rounded-lg font-medium transition ${
               selectedLang === "gu" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -272,7 +266,8 @@ export function VoiceRecorder({
           <button
             type="button"
             onClick={() => setSelectedLang("hi")}
-            className={`px-2 py-0.5 rounded-lg font-medium transition ${
+            aria-pressed={selectedLang === "hi"}
+            className={`min-h-[40px] px-3 rounded-lg font-medium transition ${
               selectedLang === "hi" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
             }`}
           >
@@ -281,7 +276,8 @@ export function VoiceRecorder({
           <button
             type="button"
             onClick={() => setSelectedLang("en")}
-            className={`px-2 py-0.5 rounded-lg font-medium transition ${
+            aria-pressed={selectedLang === "en"}
+            className={`min-h-[40px] px-3 rounded-lg font-medium transition ${
               selectedLang === "en" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
             }`}
           >

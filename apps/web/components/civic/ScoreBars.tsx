@@ -1,5 +1,6 @@
 "use client";
-import { motion } from "framer-motion";
+import { useInView } from "@/lib/useInView";
+
 const factors = [
   { key: "Citizen Demand", weight: "30%", color: "bg-civic-700" },
   { key: "Infrastructure Gap", weight: "20%", color: "bg-sky-600" },
@@ -10,6 +11,7 @@ const factors = [
 ] as const;
 
 export function ScoreBars({ components }: { components: Record<string, number> }) {
+  const { ref, inView } = useInView<HTMLDivElement>();
   // map component keys to display
   const values: Record<string, number> = {
     "Citizen Demand": components.demand ?? components["demand"] ?? 0,
@@ -20,9 +22,9 @@ export function ScoreBars({ components }: { components: Record<string, number> }
     "Feasibility": components.feasibility ?? 0,
   };
   return (
-    <div className="space-y-3">
-      {factors.map((f,i)=> {
-        const v = values[f.key]||0;
+    <div ref={ref} className="space-y-3">
+      {factors.map((f, i) => {
+        const v = values[f.key] || 0;
         return (
           <div key={f.key} className="space-y-1.5">
             <div className="flex items-center justify-between text-xs">
@@ -30,7 +32,14 @@ export function ScoreBars({ components }: { components: Record<string, number> }
               <span className="font-semibold text-ink">{v}</span>
             </div>
             <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <motion.div initial={{ width: 0 }} whileInView={{ width: `${v}%` }} viewport={{ once: true }} transition={{ duration: 0.9, delay: i*0.06, ease: "easeOut" }} className={`h-full rounded-full ${f.color}`} />
+              {/* transform-only fill animation (no layout thrash); reduced-motion users get instant bars */}
+              <div
+                className={`h-full w-full rounded-full origin-left ${f.color}`}
+                style={{
+                  transform: `scaleX(${(inView ? v : 0) / 100})`,
+                  transition: `transform 0.9s cubic-bezier(0.22,1,0.36,1) ${i * 0.06}s`,
+                }}
+              />
             </div>
           </div>
         );

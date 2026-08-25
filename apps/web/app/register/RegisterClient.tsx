@@ -72,13 +72,13 @@ export default function RegisterClient() {
 
   const err = (k: keyof Fields) => errors[k];
   const inputCls = (k: keyof Fields) =>
-    `mt-1.5 w-full rounded-full border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-black/10 ${err(k) ? "border-[#D93025] focus:border-[#D93025]" : "border-[#E7E5E4] focus:border-black"}`;
+    `mt-1.5 w-full rounded-full border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 ${err(k) ? "border-[#D93025] focus:border-[#D93025]" : "border-[#E5E7EB] focus:border-[#174EA6]"}`;
 
   return (
-    <div className="min-h-[calc(100vh-64px)] grid place-items-center bg-[#FFFBF7] p-4 md:p-6 overflow-x-hidden">
-      <div className="w-full max-w-[640px] rounded-[24px] bg-white border border-[#E7E5E4] shadow-card p-5 md:p-8">
+    <div className="min-h-[calc(100vh-64px)] grid place-items-center bg-[#F8FAFC] p-4 md:p-6 overflow-x-hidden">
+      <div className="w-full max-w-[640px] rounded-[24px] bg-white border border-[#E5E7EB] shadow-card p-5 md:p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Create your JANSETU account</h1>
-        <p className="text-sm text-[#78716C] mt-1">Join your community in shaping public action.</p>
+        <p className="text-sm text-[#5F6368] mt-1">Join your community in shaping public action.</p>
 
         {success && (
           <div role="status" aria-live="polite" className="mt-4 flex items-start gap-2 rounded-2xl border border-[#CEE6D0] bg-[#E6F4EA] px-4 py-3 text-sm text-[#188038]">
@@ -129,13 +129,13 @@ export default function RegisterClient() {
             {err("confirm") && <span className="mt-1 block text-xs text-[#C5221F]">{err("confirm")}</span>}
           </label>
           <label className="md:col-span-2 flex items-start gap-2 text-sm">
-            <input checked={consent} onChange={e=> setConsent(e.target.checked)} type="checkbox" className="mt-0.5 rounded border-[#E7E5E4]" />
-            <span>I agree to the <Link href="/privacy" className="underline decoration-[#E7E5E4] underline-offset-4 hover:text-black">Privacy Policy</Link> and <Link href="/terms" className="underline decoration-[#E7E5E4] underline-offset-4 hover:text-black">Terms of Use</Link></span>
+            <input checked={consent} onChange={e=> setConsent(e.target.checked)} type="checkbox" className="mt-0.5 rounded border-[#E5E7EB]" />
+            <span>I agree to the <Link href="/privacy" className="underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033]">Privacy Policy</Link> and <Link href="/terms" className="underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033]">Terms of Use</Link></span>
           </label>
           <Button type="submit" disabled={loading || success} className="md:col-span-2 w-full rounded-full h-11">
             {loading ? "Creating…" : success ? "Account Created" : "Create Account"} {!success && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
           </Button>
-          <div className="md:col-span-2 flex items-center gap-3 text-xs text-[#78716C]"><span className="h-px flex-1 bg-[#E7E5E4]" />OR<span className="h-px flex-1 bg-[#E7E5E4]" /></div>
+          <div className="md:col-span-2 flex items-center gap-3 text-xs text-[#5F6368]"><span className="h-px flex-1 bg-[#E5E7EB]" />OR<span className="h-px flex-1 bg-[#E5E7EB]" /></div>
           <button
             type="button"
             disabled={googleLoading || loading || success}
@@ -162,13 +162,13 @@ export default function RegisterClient() {
                 else setFormError(err?.message ? `Google sign-in failed: ${err.message}` : "Google sign-in failed. Try email instead.");
               } finally { setGoogleLoading(false); }
             }}
-            className="md:col-span-2 w-full h-11 rounded-full border border-[#E7E5E4] bg-white text-sm font-medium hover:bg-[#F5F5F4] disabled:opacity-60 flex items-center justify-center gap-2"
+            className="md:col-span-2 w-full h-11 rounded-full border border-[#E5E7EB] bg-white text-sm font-medium hover:bg-[#F8FAFC] disabled:opacity-60 flex items-center justify-center gap-2"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
             {googleLoading ? "Signing in with Google…" : "Continue with Google"}
           </button>
         </form>
-        <div className="text-sm text-center text-[#78716C] mt-4">Already have an account? <Link href="/login" className="font-medium text-black underline">Sign in</Link></div>
+        <div className="text-sm text-center text-[#5F6368] mt-4">Already have an account? <Link href="/login" className="font-medium text-[#172033] underline">Sign in</Link></div>
       </div>
     </div>
   );

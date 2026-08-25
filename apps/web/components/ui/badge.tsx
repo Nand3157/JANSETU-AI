@@ -10,5 +10,5 @@ const map: Record<string,string> = {
   navy: "bg-[#0B1F3A] text-white",
 };
 export function Badge({ tone="low", className, ...p }: React.HTMLAttributes<HTMLSpanElement> & { tone?: string }) {
-  return <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium tracking-wide transition-transform duration-150 hover:scale-[1.04] will-change-transform", map[tone]||map.low, className)} {...p} />;
+  return <span className={cn("inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium tracking-wide", map[tone]||map.low, className)} {...p} />;
 }

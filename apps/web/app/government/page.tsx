@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { ScoreBars } from "@/components/civic/ScoreBars";
 import { TrustLabels } from "@/components/civic/TrustLabels";
 import { HotspotMap } from "@/components/civic/HotspotMap";
 import { api } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 import { MapPinned, TrendingUp, Users, Banknote, Lightbulb, MessageCircle, BarChart3, Shield, Search, Filter } from "lucide-react";
 
 const DEMO_KPIS = { kpis: { totalRequests: 4218, hotspots: 12, highPriority: 4, recommendedProjects: 6, investmentGapCr: 18.4 } };
@@ -27,6 +27,10 @@ export default function GovernmentDashboard() {
   const [risk, setRisk] = useState<"low"|"medium"|"high">("medium");
   const [brief, setBrief] = useState<any>(null);
   const [impact, setImpact] = useState<any>(null);
+  const [demoMode, setDemoMode] = useState(false);
+  const [explain, setExplain] = useState<any>(null);
+  const [decision, setDecision] = useState<"approved"|"rejected"|null>(null);
+  const [decisionReason, setDecisionReason] = useState("");
 
   async function load() {
     try {
@@ -39,12 +43,15 @@ export default function GovernmentDashboard() {
       try { const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch {}
       try { const g:any = await api("/api/govdata"); setGovHint(g); } catch {}
     } catch {
-      // Keep the dashboard useful when the optional API is not running locally.
+      // Keep the dashboard usable when the optional API is not running locally —
+      // but label it honestly instead of passing sample data off as live figures.
+      setDemoMode(true);
       setKpis(DEMO_KPIS);
       setClusters(DEMO_CLUSTERS);
       if (!selected) setSelected(DEMO_CLUSTERS[0]);
     }
   }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(()=> { load(); }, []);
 
   async function askCopilot() {
@@ -75,6 +82,14 @@ export default function GovernmentDashboard() {
         ))}
         <span className="ml-auto hidden md:inline-flex items-center gap-1.5 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5"><Shield className="h-3.5 w-3.5" /> Role: policymaker · App Check + RBAC enforced on backend</span>
       </div>
+
+      {/* Demo-mode banner — sample data must never pass as live figures */}
+      {demoMode && (
+        <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
+          <Shield className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+          <span><b>Demo mode</b> — the API is not reachable, so the figures below are bundled sample data, not live numbers. Start it with `npm run dev:api`.</span>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -110,9 +125,9 @@ export default function GovernmentDashboard() {
         </div>
       )}
 
-      <Card className="p-0 overflow-hidden">
+          <Card className="p-0 overflow-hidden">
             <CardHeader className="p-5 pb-3">
-              <CardTitle className="flex items-center gap-2"><MapPinned className="h-4 w-4 text-civic-700" /> Demand Hotspot Map</CardTitle>
+              <CardTitle as="h2" className="flex items-center gap-2 text-base"><MapPinned className="h-4 w-4 text-civic-700" /> Demand Hotspot Map</CardTitle>
               <CardDescription>Google Maps · heatmap · hotspot markers · cluster centroids (GeoJSON via /api/analytics/hotspots)</CardDescription>
             </CardHeader>
             <div className="mx-5">
@@ -125,11 +140,11 @@ export default function GovernmentDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="p-0 pb-3"><CardTitle>Priority Queue</CardTitle><CardDescription>Deterministic — sorted by priority_score · human review before funding</CardDescription></CardHeader>
+            <CardHeader className="p-0 pb-3"><CardTitle as="h2" className="text-base">Priority Queue</CardTitle><CardDescription>Deterministic — sorted by priority_score · human review before funding</CardDescription></CardHeader>
             <div className="space-y-2">
               {clusters.length===0 && <div className="text-sm text-muted">No clusters — start the API (`npm run dev:api`) and submit a citizen request to populate.</div>}
               {clusters.map((c:any)=> (
-                <button key={c.clusterId} onClick={()=> setSelected(c)} className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition ${selected?.clusterId===c.clusterId?"bg-civic-50 border-civic-200 ring-1 ring-civic-200":"bg-white border-slate-200 hover:bg-slate-50"}`}>
+                <button key={c.clusterId} onClick={()=> { setSelected(c); setExplain(null); setDecision(null); }} aria-pressed={selected?.clusterId===c.clusterId} className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition ${selected?.clusterId===c.clusterId?"bg-civic-50 border-civic-300 ring-1 ring-civic-200":"bg-white border-slate-200 hover:bg-slate-50"}`}>
                   <span className={`h-10 w-10 rounded-xl grid place-items-center text-white font-black text-sm shrink-0 ${c.priorityBand==="critical"?"bg-red-500":c.priorityBand==="high"?"bg-amber-500":c.priorityBand==="moderate"?"bg-sky-600":"bg-slate-400"}`}>{Math.round(c.priorityScore||0)}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold truncate">{c.title}</div>
@@ -146,7 +161,7 @@ export default function GovernmentDashboard() {
         <div className="space-y-6">
           <Card>
             <CardHeader className="p-0 pb-3">
-              <CardTitle className="flex items-center gap-2">{selected ? selected.title : "Hotspot Detail"} {selected && <Badge tone={selected.priorityBand==="high"?"high":selected.priorityBand==="critical"?"critical":"moderate"}>{selected.priorityScore} · {selected.priorityBand}</Badge>}</CardTitle>
+              <CardTitle as="h2" className="flex items-center gap-2 text-base">{selected ? selected.title : "Hotspot Detail"} {selected && <Badge tone={selected.priorityBand==="high"?"high":selected.priorityBand==="critical"?"critical":"moderate"}>{selected.priorityScore} · {selected.priorityBand}</Badge>}</CardTitle>
               <CardDescription>Requests · population · category · infra gap · vulnerability · investment gap · priority score</CardDescription>
             </CardHeader>
             {selected ? (
@@ -167,12 +182,20 @@ export default function GovernmentDashboard() {
                 <TrustLabels />
                 <div className="flex gap-2">
                   <Button size="sm" onClick={async()=> {
-                    try { const r:any = await api("/api/projects/generate", { method:"POST", body: JSON.stringify({ clusterId: selected.clusterId }) }); alert(`Project drafted: ${r.project.title} — ₹${(r.project.estimatedCost/1e7).toFixed(1)}Cr · ${r.project.estimatedBeneficiaries} beneficiaries · Human review required`); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ alert(e.message); }
+                    try { const r:any = await api("/api/projects/generate", { method:"POST", body: JSON.stringify({ clusterId: selected.clusterId }) }); toast(`Project drafted: ${r.project.title} — ₹${(r.project.estimatedCost/1e7).toFixed(1)}Cr · ${r.project.estimatedBeneficiaries} beneficiaries · Human review required`, "success"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ toast(e.message, "error"); }
                   }}>Generate candidate project</Button>
                   <Button size="sm" variant="secondary" onClick={async()=> {
-                    try { const r:any = await api(`/api/clusters/${selected.clusterId}/explain`); alert(r.explanation + "\n\nEvidence: " + r.evidence_summary.join(" | ") + "\n\nGaps: " + (r.data_gaps.join(" | ")||"none")); } catch(e:any){ alert(e.message); }
+                    try { const r:any = await api(`/api/clusters/${selected.clusterId}/explain`); setExplain(r); } catch(e:any){ toast(e.message, "error"); }
                   }}>Explain score</Button>
                 </div>
+                {explain && (
+                  <div role="status" className="animate-fade-in rounded-xl border border-slate-200 bg-white p-3 space-y-1.5 text-xs leading-relaxed">
+                    <div className="font-semibold text-sm">Why this score</div>
+                    <div>{explain.explanation}</div>
+                    <div><span className="font-semibold">Evidence:</span> {explain.evidence_summary?.join(" | ") || "—"}</div>
+                    <div><span className="font-semibold">Data gaps:</span> {explain.data_gaps?.join(" | ") || "none"}</div>
+                  </div>
+                )}
                 {(() => {
                   const proj = projects.find((p:any)=> p.clusterId===selected.clusterId);
                   if (!proj) return <div className="text-xs text-muted">No project yet — generate candidate to start impact loop.</div>;
@@ -183,18 +206,38 @@ export default function GovernmentDashboard() {
                       <div className="flex flex-wrap gap-1.5">
                         {["reviewed","funded","in_progress","completed","impact_measured"].map(s=> (
                           <button key={s} onClick={async()=> {
-                            try { const r:any = await api(`/api/projects/${proj.projectId}/status`, { method:"POST", body: JSON.stringify({ status:s }) }); alert(`Status → ${s}`); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ alert(e.message); }
-                          }} className="text-xs rounded-full bg-white border border-slate-200 px-2.5 py-1 hover:bg-slate-100">{s}</button>
+                            try { await api(`/api/projects/${proj.projectId}/status`, { method:"POST", body: JSON.stringify({ status:s }) }); toast(`Status updated → ${s.replace("_", " ")}`, "success"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ toast(e.message, "error"); }
+                          }} aria-label={`Mark project status as ${s.replace("_", " ")}`} aria-pressed={proj.implementationStatus===s} className="min-h-[36px] text-xs rounded-full bg-white border border-slate-200 px-3 py-1.5 hover:bg-slate-100">{s}</button>
                         ))}
                       </div>
                       <div className="flex gap-1.5">
-                        <Button size="sm" variant="secondary" onClick={async()=> {
-                          try { const r:any = await api(`/api/projects/${proj.projectId}/review`, { method:"POST", body: JSON.stringify({ decision:"approved", reason:"Evidence reviewed, aligns with priorities" }) }); alert("Approved — audit logged"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]);} catch(e:any){alert(e.message)}
-                        }}>Approve (human)</Button>
-                        <Button size="sm" variant="secondary" onClick={async()=> {
-                          try { const r:any = await api(`/api/projects/${proj.projectId}/review`, { method:"POST", body: JSON.stringify({ decision:"rejected", reason:"Insufficient evidence — needs survey" }) }); alert("Rejected — audit logged"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]);} catch(e:any){alert(e.message)}
-                        }}>Reject</Button>
+                        <Button size="sm" variant="secondary" onClick={()=> { setDecision("approved"); setDecisionReason("Evidence reviewed, aligns with priorities"); }}>Approve (human)</Button>
+                        <Button size="sm" variant="secondary" className="text-[#C5221F]" onClick={()=> { setDecision("rejected"); setDecisionReason("Insufficient evidence — needs survey"); }}>Reject</Button>
                       </div>
+                      {decision && (
+                        <div className="animate-fade-in rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                          <label htmlFor="decision-reason" className="block text-xs font-semibold">Decision: {decision === "approved" ? "Approve" : "Reject"} — reason (recorded in the audit log)</label>
+                          <textarea
+                            id="decision-reason"
+                            value={decisionReason}
+                            onChange={(e)=> setDecisionReason(e.target.value)}
+                            rows={2}
+                            placeholder={decision === "approved" ? "Why this project is approved for funding review…" : "Why this project is being rejected…"}
+                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-civic-600 focus:ring-2 focus:ring-civic-200"
+                          />
+                          <div className="flex gap-2">
+                            <Button size="sm" disabled={!decisionReason.trim()} onClick={async()=> {
+                              try {
+                                await api(`/api/projects/${proj.projectId}/review`, { method:"POST", body: JSON.stringify({ decision, reason: decisionReason.trim() }) });
+                                toast(`${decision === "approved" ? "Approved" : "Rejected"} — decision and reason recorded in the audit log.`, "success");
+                                const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]);
+                              } catch(e:any){ toast(e.message, "error"); }
+                              setDecision(null); setDecisionReason("");
+                            }}>Confirm {decision === "approved" ? "approval" : "rejection"}</Button>
+                            <Button size="sm" variant="ghost" onClick={()=> { setDecision(null); setDecisionReason(""); }}>Cancel</Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -203,32 +246,32 @@ export default function GovernmentDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="p-0 pb-3"><CardTitle className="flex items-center gap-2"><MessageCircle className="h-4 w-4 text-violet-600" /> Policy Copilot</CardTitle><CardDescription>Grounded in verified datasets — never fabricates. Ranking · hotspots · district comparisons · budget scenarios.</CardDescription></CardHeader>
+            <CardHeader className="p-0 pb-3"><CardTitle as="h2" className="flex items-center gap-2 text-base"><MessageCircle className="h-4 w-4 text-violet-600" /> Policy Copilot</CardTitle><CardDescription>Grounded in verified datasets — never fabricates. Ranking · hotspots · district comparisons · budget scenarios.</CardDescription></CardHeader>
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 {["Which projects should we prioritize?","Why is Vadodara underserved?","What fits within ₹10 Cr?","What evidence supports this?","What changed this month?"].map(s=> (
-                  <button key={s} onClick={()=> setCopilotQ(s)} className={`text-xs rounded-full px-3 py-1.5 border ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"}`}>{s}</button>
+                  <button key={s} onClick={()=> setCopilotQ(s)} aria-pressed={copilotQ===s} className={`min-h-[36px] text-xs rounded-full px-3 py-1.5 border ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"}`}>{s}</button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="Ask a policy question..." />
+                <input value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} aria-label="Ask a policy question" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="Ask a policy question..." />
                 <Button onClick={askCopilot}>Ask</Button>
               </div>
               {copilotA && (
-                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div className="animate-fade-in rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
                   <div className="text-sm font-medium">Answer</div>
                   <div className="text-sm leading-relaxed whitespace-pre-wrap">{copilotA.answer || JSON.stringify(copilotA, null, 2)}</div>
                   {copilotA.evidence?.length ? <div className="text-xs"><span className="font-semibold">Evidence:</span> {copilotA.evidence.join(" · ")}</div> : null}
                   {copilotA.data_gaps?.length ? <div className="text-xs text-amber-700">Data gaps: {copilotA.data_gaps.join(" · ")}</div> : null}
                   {copilotA.trade_offs ? <div className="text-xs text-slate-700 bg-white border border-slate-200 rounded-xl p-2">Trade-offs: {copilotA.trade_offs}</div> : null}
                   <div className="text-[11px] text-muted">{copilotA.human_review_notice || "Evidence-led, human-governed."}</div>
-                </motion.div>
+                </div>
               )}
             </div>
           </Card>
 
           <Card>
-            <CardHeader className="p-0 pb-3"><CardTitle className="flex items-center gap-2"><Banknote className="h-4 w-4 text-emerald-600" /> Budget Simulator</CardTitle><CardDescription>Inputs: budget · objective · risk tolerance → portfolio · cost · beneficiaries · unfunded · trade-offs (08_POLICY_BRIEF flow)</CardDescription></CardHeader>
+            <CardHeader className="p-0 pb-3"><CardTitle as="h2" className="flex items-center gap-2 text-base"><Banknote className="h-4 w-4 text-emerald-600" /> Budget Simulator</CardTitle><CardDescription>Inputs: budget · objective · risk tolerance → portfolio · cost · beneficiaries · unfunded · trade-offs (08_POLICY_BRIEF flow)</CardDescription></CardHeader>
             <div className="grid grid-cols-2 gap-3">
               <label className="text-sm">Budget (₹ Cr) <input type="number" value={budget} onChange={e=> setBudget(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
               <label className="text-sm">Objective
@@ -244,10 +287,10 @@ export default function GovernmentDashboard() {
             </label>
             <div className="mt-3 flex gap-2">
               <Button size="sm" onClick={async()=> {
-                try { const r:any = await api("/api/copilot/simulate", { method:"POST", body: JSON.stringify({ budget: Number(budget)*1e7, objective, risk_tolerance: risk }) }); setCopilotA(r); } catch(e:any){ alert(e.message); }
+                try { const r:any = await api("/api/copilot/simulate", { method:"POST", body: JSON.stringify({ budget: Number(budget)*1e7, objective, risk_tolerance: risk }) }); setCopilotA(r); } catch(e:any){ toast(e.message, "error"); }
               }}>Simulate Portfolio</Button>
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const r:any = await api("/api/copilot", { method:"POST", body: JSON.stringify({ question: `What fits within ₹${budget} Cr with objective ${objective} risk ${risk}?` }) }); setCopilotA(r);} catch(e:any){alert(e.message)}
+                try { const r:any = await api("/api/copilot", { method:"POST", body: JSON.stringify({ question: `What fits within ₹${budget} Cr with objective ${objective} risk ${risk}?` }) }); setCopilotA(r);} catch(e:any){ toast(e.message, "error"); }
               }}>Via Copilot</Button>
             </div>
             {copilotA?.selected_projects && (
@@ -269,7 +312,7 @@ export default function GovernmentDashboard() {
           </Card>
 
           <Card>
-            <CardHeader className="p-0 pb-3"><CardTitle className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Impact Dashboard</CardTitle><CardDescription>Baseline → Target → Actual · observed vs modeled · measurement source & quality (07_IMPACT_REPORT)</CardDescription></CardHeader>
+            <CardHeader className="p-0 pb-3"><CardTitle as="h2" className="flex items-center gap-2 text-base"><BarChart3 className="h-4 w-4" /> Impact Dashboard</CardTitle><CardDescription>Baseline → Target → Actual · observed vs modeled · measurement source & quality (07_IMPACT_REPORT)</CardDescription></CardHeader>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
                 { k: impact?.baseline_metrics?.[0]?.baseline ? `${impact.baseline_metrics[0].baseline} min` : "45 min", l: "Baseline travel", sub: "observed · survey 2024" },
@@ -281,13 +324,13 @@ export default function GovernmentDashboard() {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/impact`); setImpact(r); } catch(e:any){ alert(e.message); }
+                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) { toast("No project yet — generate a candidate project first.", "info"); return; } const r:any = await api(`/api/projects/${pid}/impact`); setImpact(r); } catch(e:any){ toast(e.message, "error"); }
               }}>Load Impact</Button>
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/impact`, { method:"POST", body: JSON.stringify({ actual: 28, measurement_date: new Date().toISOString().slice(0,10), source: "Observed — post-implementation survey" }) }); setImpact(r); } catch(e:any){ alert(e.message); }
+                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) { toast("No project yet — generate a candidate project first.", "info"); return; } const r:any = await api(`/api/projects/${pid}/impact`, { method:"POST", body: JSON.stringify({ actual: 28, measurement_date: new Date().toISOString().slice(0,10), source: "Observed — post-implementation survey" }) }); setImpact(r); toast("Actual impact recorded: 28 min.", "success"); } catch(e:any){ toast(e.message, "error"); }
               }}>Record Actual 28min</Button>
               <Button size="sm" variant="secondary" onClick={async()=> {
-                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) return alert("No project"); const r:any = await api(`/api/projects/${pid}/brief`); setBrief(r?.brief); } catch(e:any){ alert(e.message); }
+                try { const p:any = await api("/api/projects/recommended"); const pid = p?.projects?.[0]?.projectId; if(!pid) { toast("No project yet — generate a candidate project first.", "info"); return; } const r:any = await api(`/api/projects/${pid}/brief`); setBrief(r?.brief); } catch(e:any){ toast(e.message, "error"); }
               }}>Generate Policy Brief</Button>
             </div>
             {impact && <div className="mt-3 rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs space-y-1"><div><span className="font-semibold">Observed:</span> {impact.observed_changes?.join(", ")||"none"} </div><div><span className="font-semibold">Estimated:</span> {impact.estimated_impact?.[0]?.metric} {impact.estimated_impact?.[0]?.estimated} — {impact.estimated_impact?.[0]?.note}</div><div className="text-muted">Limitations: {impact.limitations?.join(" · ")} · Quality: {impact.data_quality}</div></div>}

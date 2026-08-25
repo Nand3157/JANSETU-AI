@@ -1,18 +1,28 @@
 "use client";
-import { motion } from "framer-motion";
+import { useInView } from "@/lib/useInView";
 
 export function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const { ref, inView } = useInView<HTMLDivElement>();
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay, ease: "easeOut" }} className={className}>
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}s` }}
+      className={`${className} transition-[opacity,transform] duration-500 ease-out ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2.5"}`}
+    >
       {children}
-    </motion.div>
+    </div>
   );
 }
 
 export function StaggerCard({ children, index = 0 }: { children: React.ReactNode; index?: number }) {
+  const { ref, inView } = useInView<HTMLDivElement>();
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: index * 0.06 }} whileHover={{ y: -3 }}>
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${index * 0.06}s` }}
+      className={`h-full transition-[opacity,transform] duration-500 ease-out ${inView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}`}
+    >
       {children}
-    </motion.div>
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LayoutDashboard, Map, Layers, Sparkles, LineChart, Wallet, BarChart3, Database, Settings, Shield, Search, Bell, ChevronDown, Building2, Menu, X, LogOut } from "lucide-react";
 import { getCurrentUser, getVerifiedUser, signOutMock, setMockRole, isFirebaseConfigured, waitForAuth, auth } from "@/lib/firebase";
 
@@ -35,6 +35,23 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [region, setRegion] = useState("Vadodara");
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<HTMLDivElement>(null);
+  // Dismiss menus on Escape or outside click — keyboard + pointer parity
+  useEffect(() => {
+    if (!noticeOpen && !profileOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setNoticeOpen(false); setProfileOpen(false); } };
+    const onPointerDown = (e: PointerEvent) => {
+      if (noticeRef.current && !noticeRef.current.contains(e.target as Node)) setNoticeOpen(false);
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", onPointerDown);
+    };
+  }, [noticeOpen, profileOpen]);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -148,11 +165,11 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
               <Search className="h-4 w-4 text-[#5F6368]" aria-hidden="true" />
                <input aria-label="Search government dashboard" value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key === "Enter" && router.push(`/government/explorer?search=${encodeURIComponent(search)}`)} placeholder="Search requests, villages, projects..." className="bg-transparent outline-none placeholder:text-[#5F6368] w-[220px]" />
              </div>
-             <div className="relative">
+             <div className="relative" ref={noticeRef}>
              <button aria-label="Show notifications" aria-expanded={noticeOpen} onClick={()=>{setNoticeOpen(v=>!v);setProfileOpen(false)}} className="h-9 w-9 grid place-items-center rounded-full border border-[#E5E7EB] bg-white hover:bg-[#F8FAFC]"><Bell className="h-4 w-4" aria-hidden="true"/><span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-[#D93025]" /></button>
              {noticeOpen && <div className="absolute right-0 top-11 z-30 w-72 rounded-2xl border border-[#E5E7EB] bg-white p-4 shadow-xl"><div className="font-semibold text-sm">Notifications</div><p className="mt-2 text-xs text-[#5F6368]">3 high-priority clusters need human review in {region}.</p><Link href="/government/projects" onClick={()=>setNoticeOpen(false)} className="mt-3 block text-xs font-semibold text-[#174EA6]">Review priority projects →</Link></div>}
              </div>
-             <div className="relative">
+             <div className="relative" ref={profileRef}>
              <button aria-label="Open account menu" aria-expanded={profileOpen} onClick={()=>{setProfileOpen(v=>!v);setNoticeOpen(false)}} className="flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-white pl-1 pr-3 py-1 text-sm hover:bg-[#F8FAFC]">
                <span className="h-7 w-7 rounded-full bg-[#174EA6] text-white grid place-items-center text-xs font-semibold">PS</span> Policymaker <ChevronDown className="h-3 w-3 text-[#5F6368]" aria-hidden="true" />
              </button>

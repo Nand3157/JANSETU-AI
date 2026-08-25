@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Header as SiteHeader } from "@/components/site/Header";
 import { SiteFooter } from "@/components/site/Footer";
+import { ToastHost } from "@/components/ui/toast";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -268,6 +269,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1">{children}</main>
           <SiteFooter />
         </div>
+        <ToastHost />
       </body>
     </html>
   );

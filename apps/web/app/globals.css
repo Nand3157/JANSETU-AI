@@ -11,7 +11,15 @@ html, body { overflow-x: hidden; }
 img, svg, video, canvas { max-width: 100%; }
 body { @apply bg-[#F5F7FB] text-ink antialiased selection:bg-[#174EA6] selection:text-white; }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-:where(button,a,input,textarea,select):focus-visible { outline: 2px solid #174EA6; outline-offset: 2px; }
+/* Global focus fallback — element+pseudo-class specificity beats single-class
+   utilities like focus:outline-none, so keyboard focus is never invisible. */
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
+select:focus-visible, summary:focus-visible, [role="button"]:focus-visible,
+[role="radio"]:focus-visible, [role="checkbox"]:focus-visible, [role="tab"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #174EA6;
+  outline-offset: 2px;
+}
 
 .civic-gradient { background: linear-gradient(180deg, #F8FAFC 0%, #EFF3FA 100%); }
 .navbar-blur {
@@ -46,9 +54,9 @@ a:hover { text-decoration-color: #174EA6; }
 .shimmer-border:hover::after { opacity:1; }
 
 /* — Universal hover system — perf: transform + opacity only — */
-.hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; will-change: transform; }
+.hover-lift { transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
 .hover-lift:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(11,31,58,0.08); }
-.hover-scale { transition: transform 0.15s ease; will-change: transform; }
+.hover-scale { transition: transform 0.15s ease; }
 .hover-scale:hover { transform: scale(1.02); }
 .hover-glow:hover { box-shadow: 0 0 0 4px rgba(23,78,166,0.08); }
 .hover-border:hover { border-color: #174EA6 !important; }
@@ -76,13 +84,30 @@ div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*
   border-color: #D2D8E3;
 }
 @keyframes hotspot-pulse { 0%,100% { transform: scale(1); opacity:0.88 } 50% { transform: scale(1.07); opacity:1 } }
-.hotspot-pulse { animation: hotspot-pulse 2.6s ease-in-out infinite; will-change: transform; }
+.hotspot-pulse { animation: hotspot-pulse 2.6s ease-in-out infinite; }
 .hotspot-hover { transition: transform 0.2s, filter 0.2s; }
 .hotspot-hover:hover { transform: scale(1.08); filter: brightness(1.05); }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 8px; border: 2px solid #F8FAFC; }
 ::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
-.touch-target { min-height: 44px; min-width: 44px; }
+/* Reduced motion: stop decorative + looping movement, keep instant non-moving
+   state feedback (color/shadow/opacity). Spinners are exempt — they carry
+   loading state and have text equivalents beside them. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  html { scroll-behavior: auto; }
+  .hotspot-pulse, .shimmer-border::after, .animate-ping,
+  [class*="animate-pulse"]:not(.animate-spin) { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-property: opacity, background-color, border-color, color, box-shadow, fill, stroke !important;
+  }
+  .hover-lift, .hover-scale, .nav-pill, .badge-hover, .card-premium,
+  .hotspot-hover, table tbody tr,
+  div[class*="rounded-[20px]"].bg-white, div[class*="rounded-[20px]"][class*="border"],
+  div[class*="rounded-2xl"].bg-white {
+    transform: none !important;
+    filter: none !important;
+  }
 }

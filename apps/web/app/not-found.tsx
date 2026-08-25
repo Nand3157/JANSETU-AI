@@ -12,12 +12,12 @@ export default function NotFound() {
         404 — Not Found
       </div>
       <h1 className="text-3xl font-semibold tracking-tight mt-4">JANSETU AI — Page not found</h1>
-      <p className="text-[#78716C] mt-3 leading-relaxed">
+      <p className="text-[#5F6368] mt-3 leading-relaxed">
         The path you requested does not exist on <strong className="text-[#0B1F3A]">JANSETU AI</strong>. If you are an AI agent, use the markdown recovery links below.
       </p>
 
       {/* Markdown recovery block — visible to agents and humans */}
-      <div className="mt-8 rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+      <div className="mt-8 rounded-[20px] bg-white border border-[#E5E7EB] p-6">
         <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">RECOVERY MAP (AGENT-FRIENDLY MARKDOWN)</div>
         <pre className="mt-3 overflow-auto rounded-xl bg-[#0B1F3A] text-[#E8F0FE] p-4 text-xs leading-relaxed whitespace-pre-wrap">
 {`# 404 — Not found (JANSETU AI)

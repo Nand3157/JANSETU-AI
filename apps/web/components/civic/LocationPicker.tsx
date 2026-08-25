@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, AlertTriangle, BadgeCheck, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 
 export function LocationPicker({ value, onChange }: { value: string; onChange: (v:string, lat?:number, lng?:number, source?:string)=>void }) {
   const [locating, setLocating] = useState(false);
@@ -32,9 +33,9 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
   }
 
   async function useDevice() {
-    if (!navigator.geolocation) { alert("Geolocation not supported"); return; }
+    if (!navigator.geolocation) { toast("Geolocation is not supported in this browser — please type your location.", "error"); return; }
     if (typeof window !== "undefined" && window.isSecureContext === false) {
-      alert("Location requires HTTPS — please type location or use HTTPS.");
+      toast("Location requires HTTPS — please type your location or use HTTPS.", "error");
       return;
     }
     setLocating(true);
@@ -47,10 +48,10 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
         setLocating(false);
       },
       (err) => {
-        if (err.code === err.PERMISSION_DENIED) alert("Location permission denied. Please type location.");
-        else if (err.code === err.POSITION_UNAVAILABLE) alert("Location unavailable — please type location.");
-        else if (err.code === err.TIMEOUT) alert("Location timed out — please try again or type location.");
-        else alert("Location error — please type location.");
+        if (err.code === err.PERMISSION_DENIED) toast("Location permission denied. Please type your location.", "error");
+        else if (err.code === err.POSITION_UNAVAILABLE) toast("Location unavailable — please type your location.", "error");
+        else if (err.code === err.TIMEOUT) toast("Location timed out — please try again or type your location.", "error");
+        else toast("Location error — please type your location.", "error");
         setLocating(false);
       },
       { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }

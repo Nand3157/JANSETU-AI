@@ -15,7 +15,7 @@ export default function AuditPage() {
                 ["20 Aug 2026 18:30","policymaker@jansetu.in","Reviewed project","Rural Connectivity #94"],
                 ["20 Aug 2026 16:05","admin@jansetu.in","Changed project status","funded → in_progress"],
               ].map(([d,u,a,r])=> (
-                <tr key={d as string} className="hover:bg-[#F8FAFC] cursor-pointer"><td className="px-4 py-3 text-xs">{d as string}</td><td className="px-3 py-3 text-xs">{u as string}</td><td className="px-3 py-3 font-medium">{a as string}</td><td className="px-4 py-3 text-xs text-[#5F6368]">{r as string}</td></tr>
+                <tr key={d as string} className="hover:bg-[#F8FAFC]"><td className="px-4 py-3 text-xs">{d as string}</td><td className="px-3 py-3 text-xs">{u as string}</td><td className="px-3 py-3 font-medium">{a as string}</td><td className="px-4 py-3 text-xs text-[#5F6368]">{r as string}</td></tr>
               ))}
             </tbody>
           </table>

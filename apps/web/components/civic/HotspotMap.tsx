@@ -415,7 +415,8 @@ export function HotspotMap({
         <div className="flex rounded-lg bg-slate-100 p-0.5">
           <button
             onClick={() => setProvider("osm")}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition ${
+            aria-pressed={provider === "osm"}
+            className={`min-h-[40px] px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition ${
               provider === "osm" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -423,7 +424,8 @@ export function HotspotMap({
           </button>
           <button
             onClick={() => setProvider("google")}
-            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition ${
+            aria-pressed={provider === "google"}
+            className={`min-h-[40px] px-2.5 py-1.5 rounded-md text-[11px] font-semibold transition ${
               provider === "google" ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -470,8 +472,8 @@ export function HotspotMap({
         </div>
       )}
 
-      {/* Map Container */}
-      <div ref={mapContainerRef} className="h-[360px] w-full [&_div]:outline-none" />
+      {/* Map Container — Leaflet keeps its own focus outlines for keyboard users */}
+      <div ref={mapContainerRef} className="h-[360px] w-full" role="application" aria-label="Interactive demand hotspot map" />
 
       {/* Loading Overlay */}
       {status === "loading" && (

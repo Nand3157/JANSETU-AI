@@ -56,7 +56,7 @@ export default function ApiDocsPage() {
         <a href="/.well-known/mcp" className="rounded-full border border-[#E5E7EB] bg-white px-4 py-2 font-medium">MCP manifest</a>
       </div>
 
-      <div className="mt-8 rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+      <div className="mt-8 rounded-[20px] bg-white border border-[#E5E7EB] p-6">
         <h2 className="font-semibold">Authentication — JANSETU AI</h2>
         <p className="text-sm text-[#5F6368] mt-2 leading-relaxed">
           Production: Firebase ID token via <code>Authorization: Bearer &lt;idToken&gt;</code>. Demo: allow <code>x-role: citizen | analyst | policymaker</code> header when{" "}
@@ -67,7 +67,7 @@ export default function ApiDocsPage() {
 curl ${SITE_URL}/api/projects/recommended -H "Authorization: Bearer <FIREBASE_ID_TOKEN>"`}</pre>
       </div>
 
-      <div className="mt-6 rounded-[20px] bg-white border border-[#E7E5E4] overflow-hidden">
+      <div className="mt-6 rounded-[20px] bg-white border border-[#E5E7EB] overflow-hidden">
         <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
           <h2 className="font-semibold">Endpoints — JANSETU AI</h2>
           <span className="text-xs text-[#5F6368]">Deterministic scoring, audit-logged decisions</span>
@@ -97,14 +97,14 @@ curl ${SITE_URL}/api/projects/recommended -H "Authorization: Bearer <FIREBASE_ID
       </div>
 
       <div className="mt-6 grid md:grid-cols-2 gap-4">
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-6">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">PRIORITY ENGINE V1</div>
           <div className="font-mono text-xs mt-2 bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl p-3">
             priority = demand×0.30 + gap×0.20 + pop×0.15 + vuln×0.15 + urgency×0.10 + feas×0.10
           </div>
           <p className="text-xs text-[#5F6368] mt-2 leading-relaxed">Every component + weightVersion persisted. Band: critical ≥80 · high 65–79 · moderate 45–64 · low &lt;45. Gemini explains, not overrides.</p>
         </div>
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-6">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">WEBHOOKS & MCP</div>
           <p className="text-sm text-[#5F6368] mt-2 leading-relaxed">
             Webhooks fire on project review (approved/rejected) with audit_logs payload. MCP server exposes all API routes as tools via Streamable HTTP at{" "}

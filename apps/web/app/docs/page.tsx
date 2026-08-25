@@ -24,26 +24,26 @@ export default function DocsPage() {
         <span className="h-2 w-2 rounded-full bg-[#188038] animate-pulse" /> JANSETU AI Developer Resources
       </div>
       <h1 className="text-3xl font-semibold tracking-tight mt-4">JANSETU AI Developer Docs</h1>
-      <p className="text-[#78716C] mt-3 leading-relaxed">
+      <p className="text-[#5F6368] mt-3 leading-relaxed">
         Integrate <strong className="text-[#0B1F3A]">JANSETU AI</strong> civic intelligence into your apps. This Digital Public Good exposes every capability as a
         deterministic, auditable API — from Gujarati voice intake to BRICS-ready priority scoring. Start in minutes with our OpenAPI spec, then connect via the MCP
         server for Claude / ChatGPT native calls.
       </p>
 
       <div className="mt-8 grid md:grid-cols-2 gap-4">
-        <Link href="/docs/api" className="rounded-[20px] bg-white border border-[#E7E5E4] p-6 hover-lift hover-border block">
+        <Link href="/docs/api" className="rounded-[20px] bg-white border border-[#E5E7EB] p-6 hover-lift hover-border block">
           <div className="text-[11px] tracking-widest font-semibold text-[#174EA6]">API REFERENCE</div>
           <div className="font-semibold mt-1">JANSETU AI API Docs</div>
           <div className="text-sm text-[#5F6368] mt-1">Human-readable reference: requests, clusters, scoring, projects, copilot, analytics. With curl examples.</div>
           <div className="text-sm text-[#174EA6] mt-3 font-medium">/docs/api →</div>
         </Link>
-        <a href="/openapi.json" className="rounded-[20px] bg-white border border-[#E7E5E4] p-6 hover-lift hover-border block">
+        <a href="/openapi.json" className="rounded-[20px] bg-white border border-[#E5E7EB] p-6 hover-lift hover-border block">
           <div className="text-[11px] tracking-widest font-semibold text-[#188038]">MACHINE SPEC</div>
           <div className="font-semibold mt-1">OpenAPI 3.1 Spec</div>
           <div className="text-sm text-[#5F6368] mt-1">Import into Postman, code-gen SDKs, or feed to your AI agent. Predictable URL, CORS-ready.</div>
           <div className="text-sm text-[#188038] mt-3 font-medium">/openapi.json →</div>
         </a>
-        <a href="/llms.txt" className="rounded-[20px] bg-white border border-[#E7E5E4] p-6 hover-lift hover-border block">
+        <a href="/llms.txt" className="rounded-[20px] bg-white border border-[#E5E7EB] p-6 hover-lift hover-border block">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">AGENT INSTRUCTIONS</div>
           <div className="font-semibold mt-1">llms.txt — When to use JANSETU AI</div>
           <div className="text-sm text-[#5F6368] mt-1">Tells agents best-fit use cases and how to call you. Lists all developer resources.</div>
@@ -57,7 +57,7 @@ export default function DocsPage() {
         </a>
       </div>
 
-      <div className="mt-8 rounded-[20px] bg-white border border-[#E7E5E4] p-6">
+      <div className="mt-8 rounded-[20px] bg-white border border-[#E5E7EB] p-6">
         <h2 className="font-semibold">Quickstart — JANSETU AI in 3 calls</h2>
         <div className="mt-4 space-y-4 text-sm leading-relaxed">
           <div>
@@ -88,17 +88,17 @@ curl -X POST ${SITE_URL}/api/copilot -d '{"question":"What fits within ₹10 Cr?
       </div>
 
       <div className="mt-8 grid md:grid-cols-3 gap-4 text-sm">
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-5">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-5">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">AUTH</div>
           <div className="font-medium mt-1">Bearer + demo x-role</div>
           <p className="text-[#5F6368] mt-1 leading-relaxed">Firebase ID token via Bearer header; demo allows x-role: citizen/analyst/policymaker. CORS whitelist via CORS_ORIGINS.</p>
         </div>
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-5">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-5">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">WEBHOOKS</div>
           <div className="font-medium mt-1">Audit-logged reviews</div>
           <p className="text-[#5F6368] mt-1 leading-relaxed">Subscribe to project review events (approve/reject) — audit_logs collection drives webhooks. Contact us to enable.</p>
         </div>
-        <div className="rounded-[20px] bg-white border border-[#E7E5E4] p-5">
+        <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-5">
           <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">RATE LIMITS</div>
           <div className="font-medium mt-1">300 general / 30 AI</div>
           <p className="text-[#5F6368] mt-1 leading-relaxed">Per-IP window (15 min). Body cap 100kb (uploads 5 MB). See env: RATE_MAX_GENERAL, RATE_MAX_AI.</p>

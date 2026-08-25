@@ -1,11 +1,11 @@
 "use client";
-import { useRef, useEffect, useState } from "react";
-import { useInView } from "framer-motion";
+import { useEffect, useState } from "react";
+import { useInView } from "@/lib/useInView";
 
 export default function Counter({ value, suffix = "" }: { value: number; suffix?: string }) {
-  const ref = useRef(null);
-  const inView = useInView(ref, { once: true });
+  const { ref, inView } = useInView<HTMLSpanElement>();
   const [n, setN] = useState(0);
+
   useEffect(() => {
     if (!inView) return;
     let raf = 0,
@@ -20,5 +20,6 @@ export default function Counter({ value, suffix = "" }: { value: number; suffix?
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   }, [inView, value]);
+
   return <span ref={ref}>{n.toLocaleString("en-IN")}{suffix}</span>;
 }

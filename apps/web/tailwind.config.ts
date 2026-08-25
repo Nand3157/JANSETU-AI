@@ -7,7 +7,11 @@ const config: Config = {
       colors: {
         // Spec palette — premium Google civic
         brand: { blue: "#174EA6", navy: "#0B1F3A", light: "#E8F0FE" },
-        civic: { 900: "#0B1F3A", 800: "#174EA6", 700: "#1A5ED6", 600: "#2D6AE0", 50: "#E8F0FE" },
+        civic: {
+          900: "#0B1F3A", 800: "#174EA6", 700: "#1A5ED6", 600: "#2D6AE0",
+          500: "#4A82DC", 400: "#6E9BE4", 300: "#96B9EE", 200: "#BCD2F8",
+          100: "#D2E3FC", 50: "#E8F0FE",
+        },
         ink: "#172033",
         muted: "#5F6368",
         success: "#188038",
