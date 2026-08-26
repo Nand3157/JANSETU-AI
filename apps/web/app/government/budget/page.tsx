@@ -37,12 +37,12 @@ export default function BudgetPage() {
     setErr(null); setLoading(true); setRes(null);
     try {
       const r:any = await api("/api/copilot/simulate", { method:"POST", body: JSON.stringify({ budget: budget*1e7, objective, risk_tolerance: risk }) });
+      // Honest labeling: fallback store is demo-synthetic but reflects live citizen submissions (FALLBACK_REQUESTS length)
       setRes(r);
     } catch (e:any) {
       const msg = String(e.message || "Failed to fetch");
-      const isOffline = msg.toLowerCase().includes("failed to fetch") || msg.includes("timed out") || msg.includes("NetworkError");
-      if (isOffline) setRes(demoSimulate());
-      else setErr(msg);
+      // No offline silent fake — show error honestly; fallback already handled by Next proxy, so raw fetches rarely throw
+      setErr(msg);
     }
     finally { setLoading(false); }
   }
@@ -50,7 +50,7 @@ export default function BudgetPage() {
     <div className="space-y-4 max-w-[960px]">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Build the highest-impact portfolio</h1>
-        <p className="text-sm text-[#5F6368]">Large budget slider · optimization · trade-offs</p>
+        <p className="text-sm text-[#5F6368]">Large budget slider · optimization · trade-offs · <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs text-amber-800">Demo synthetic projects — live citizen requests grow this pool</span></p>
       </div>
       <Card className="p-6 space-y-5">
         <div>

@@ -64,10 +64,10 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
     if (!GoogleGenerativeAI) return null;
     const genAI = new GoogleGenerativeAI(key);
-    // H-03 fix: valid model names only — fallback to gemini-2.0-flash, not hallucinated 3.5
-    const rawModel = opts.model || process.env.GEMINI_MODEL || "gemini-2.0-flash";
-    const validModels = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash-exp"];
-    const modelName = validModels.includes(rawModel) ? rawModel : "gemini-2.0-flash";
+    // H-03 fix: valid model names only — updated to live 3.6+ models (2.0 is now 404)
+    const rawModel = opts.model || process.env.GEMINI_MODEL || "gemini-3.6-flash";
+    const validModels = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
+    const modelName = validModels.includes(rawModel) ? rawModel : "gemini-3.6-flash";
     if (rawModel !== modelName) {
       console.warn(`Invalid GEMINI_MODEL "${rawModel}" — using ${modelName} instead`);
     }
