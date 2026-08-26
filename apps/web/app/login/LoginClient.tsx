@@ -89,8 +89,8 @@ export default function LoginClient() {
           <p className="text-sm text-[#5F6368] mt-1">Sign in to continue to JANSETU AI</p>
 
           {error && (
-            <div role="alert" aria-live="assertive" className="mt-4 flex items-start gap-2 rounded-2xl border border-[#FADBD8] bg-[#FCE8E6] px-4 py-3 text-sm text-[#C5221F]">
-              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" /> {error}
+            <div id="login-error" role="alert" aria-live="assertive" className="mt-4 flex items-start gap-2 rounded-2xl border border-[#FADBD8] bg-[#FCE8E6] px-4 py-3 text-sm text-[#C5221F]">
+              <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" /> {error}
             </div>
           )}
           {notice && !error && (
@@ -102,21 +102,21 @@ export default function LoginClient() {
           <form onSubmit={submit} noValidate className="mt-6 space-y-4">
             <label className="block">
               <span className="text-sm font-medium">Email / Phone</span>
-              <input value={email} onChange={e=>setEmail(e.target.value)} inputMode="email" autoComplete="username" placeholder="Enter email or phone" className="mt-1.5 w-full rounded-full border border-[#E5E7EB] bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 focus:border-[#174EA6]" />
+              <input value={email} onChange={e=>setEmail(e.target.value)} name="username" inputMode="email" autoComplete="username" spellCheck={false} autoCapitalize="off" placeholder="you@example.com or 98XXXXXXXX…" className="mt-1.5 w-full rounded-full border border-[#E5E7EB] bg-white text-[#172033] px-4 py-3 text-[16px] md:text-sm focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 focus:border-[#174EA6]" aria-invalid={!!error} aria-describedby={error ? "login-error" : undefined} />
             </label>
             <label className="block">
               <span className="text-sm font-medium">Password</span>
               <div className="mt-1.5 relative">
-                <input type={show?"text":"password"} value={pass} onChange={e=>setPass(e.target.value)} autoComplete="current-password" placeholder="Enter password" className="w-full rounded-full border border-[#E5E7EB] bg-white px-4 py-3 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 focus:border-[#174EA6]" />
-                <button type="button" onClick={()=> setShow(v=>!v)} aria-label={show?"Hide password":"Show password"} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-8 w-8 grid place-items-center rounded-full hover:bg-[#F8FAFC]">{show?<EyeOff className="h-4 w-4" aria-hidden="true"/>:<Eye className="h-4 w-4" aria-hidden="true"/>}</button>
+                <input type={show?"text":"password"} value={pass} onChange={e=>setPass(e.target.value)} name="password" autoComplete="current-password" spellCheck={false} placeholder="Enter your password…" className="w-full rounded-full border border-[#E5E7EB] bg-white text-[#172033] px-4 py-3 pr-11 text-[16px] md:text-sm focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 focus:border-[#174EA6]" aria-invalid={!!error} aria-describedby={error ? "login-error" : undefined} />
+                <button type="button" onClick={()=> setShow(v=>!v)} aria-label={show?"Hide password":"Show password"} className="absolute right-1.5 top-1/2 -translate-y-1/2 h-10 w-10 grid place-items-center rounded-full hover:bg-[#F8FAFC] touch-manipulation">{show?<EyeOff className="h-4 w-4" aria-hidden="true"/>:<Eye className="h-4 w-4" aria-hidden="true"/>}</button>
               </div>
             </label>
             <div className="flex items-center justify-between text-sm">
-              <label className="flex items-center gap-2"><input type="checkbox" className="rounded border-[#E5E7EB]" /> Remember me</label>
-              <Link href="/reset-password" className="font-medium underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033]">Forgot password?</Link>
+              <label className="flex items-center gap-2 cursor-pointer min-h-11 py-1"><input type="checkbox" className="rounded border-[#E5E7EB] h-5 w-5 accent-[#174EA6]" /> Remember me</label>
+              <Link href="/reset-password" className="font-medium underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033] min-h-11 inline-flex items-center">Forgot password?</Link>
             </div>
-            <Button type="submit" disabled={loading} className="w-full rounded-full h-11">
-              {loading ? "Signing in…" : `Sign In as ${role==="citizen" ? "Citizen" : "Government"}`} <ArrowRight className="h-4 w-4 opacity-60" aria-hidden="true" />
+            <Button type="submit" disabled={loading} aria-busy={loading} className="w-full rounded-full h-11 gap-2">
+              <span>Sign In as {role==="citizen" ? "Citizen" : "Government"}</span>{loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden="true" /> : <ArrowRight className="h-4 w-4 opacity-60 shrink-0" aria-hidden="true" />}
             </Button>
             <div className="flex items-center gap-3 text-xs text-[#5F6368]"><span className="h-px flex-1 bg-[#E5E7EB]" />OR<span className="h-px flex-1 bg-[#E5E7EB]" /></div>
             <button

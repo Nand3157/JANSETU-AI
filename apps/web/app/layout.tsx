@@ -239,9 +239,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={inter.variable} style={{ colorScheme: "light" }}>
       <head>
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://maps.googleapis.com" />
+        <meta name="theme-color" content="#F8FAFC" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
@@ -264,9 +266,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-screen">
+        <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-full focus:bg-[#0B1F3A] focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-white focus:shadow-lg focus:outline-none">
+          Skip to content
+        </a>
         <div className="min-h-screen flex flex-col">
           <SiteHeader />
-          <main className="flex-1">{children}</main>
+          <main id="main-content" tabIndex={-1} className="flex-1 focus:outline-none">{children}</main>
           <SiteFooter />
         </div>
         <ToastHost />

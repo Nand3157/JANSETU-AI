@@ -72,7 +72,7 @@ export default function RegisterClient() {
 
   const err = (k: keyof Fields) => errors[k];
   const inputCls = (k: keyof Fields) =>
-    `mt-1.5 w-full rounded-full border bg-white px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 ${err(k) ? "border-[#D93025] focus:border-[#D93025]" : "border-[#E5E7EB] focus:border-[#174EA6]"}`;
+    `mt-1.5 w-full rounded-full border bg-white text-[#172033] px-4 py-3 text-[16px] md:text-sm min-h-11 focus:outline-none focus:ring-2 focus:ring-[#174EA6]/15 ${err(k) ? "border-[#D93025] focus:border-[#D93025]" : "border-[#E5E7EB] focus:border-[#174EA6]"}`;
 
   return (
     <div className="min-h-[calc(100vh-64px)] grid place-items-center bg-[#F8FAFC] p-4 md:p-6 overflow-x-hidden">
@@ -94,46 +94,46 @@ export default function RegisterClient() {
         <form onSubmit={submit} noValidate className="mt-6 grid md:grid-cols-2 gap-4">
           <label className="block">
             <span className="text-sm font-medium">Full Name</span>
-            <input value={f.name} onChange={set("name")} autoComplete="name" placeholder="Enter your name" className={inputCls("name")} />
-            {err("name") && <span className="mt-1 block text-xs text-[#C5221F]">{err("name")}</span>}
+            <input value={f.name} onChange={set("name")} name="name" autoComplete="name" spellCheck={false} placeholder="Enter your full name…" className={inputCls("name")} aria-invalid={!!err("name")} aria-describedby={err("name") ? "err-name" : undefined} />
+            {err("name") && <span id="err-name" className="mt-1 block text-xs text-[#C5221F]" role="alert">{err("name")}</span>}
           </label>
           <label className="block">
             <span className="text-sm font-medium">Mobile Number</span>
-            <input value={f.mobile} onChange={set("mobile")} inputMode="tel" autoComplete="tel" placeholder="98XXXXXXXX" className={inputCls("mobile")} />
-            {err("mobile") && <span className="mt-1 block text-xs text-[#C5221F]">{err("mobile")}</span>}
+            <input value={f.mobile} onChange={set("mobile")} name="mobile" inputMode="tel" autoComplete="tel" spellCheck={false} placeholder="98XXXXXXXX…" className={inputCls("mobile")} aria-invalid={!!err("mobile")} aria-describedby={err("mobile") ? "err-mobile" : undefined} />
+            {err("mobile") && <span id="err-mobile" className="mt-1 block text-xs text-[#C5221F]" role="alert">{err("mobile")}</span>}
           </label>
           <label className="block">
             <span className="text-sm font-medium">Email</span>
-            <input value={f.email} onChange={set("email")} type="email" inputMode="email" autoComplete="email" placeholder="you@example.com" className={inputCls("email")} />
-            {err("email") && <span className="mt-1 block text-xs text-[#C5221F]">{err("email")}</span>}
+            <input value={f.email} onChange={set("email")} name="email" type="email" inputMode="email" autoComplete="email" spellCheck={false} placeholder="you@example.com…" className={inputCls("email")} aria-invalid={!!err("email")} aria-describedby={err("email") ? "err-email" : undefined} />
+            {err("email") && <span id="err-email" className="mt-1 block text-xs text-[#C5221F]" role="alert">{err("email")}</span>}
           </label>
           <label className="block">
             <span className="text-sm font-medium">Preferred Language</span>
-            <select value={f.language} onChange={set("language")} className={`${inputCls("language")} appearance-none`}>
+            <select value={f.language} onChange={set("language")} name="language" autoComplete="language" className={`${inputCls("language")} appearance-none min-h-11`}>
               <option>English</option><option>हिन्दी</option><option>ગુજરાતી</option>
             </select>
           </label>
           <label className="block md:col-span-1">
             <span className="text-sm font-medium">City / District</span>
-            <input value={f.city} onChange={set("city")} autoComplete="address-level2" placeholder="Vadodara, Gujarat" className={inputCls("city")} />
-            {err("city") && <span className="mt-1 block text-xs text-[#C5221F]">{err("city")}</span>}
+            <input value={f.city} onChange={set("city")} name="city" autoComplete="address-level2" spellCheck={false} placeholder="Vadodara, Gujarat…" className={inputCls("city")} aria-invalid={!!err("city")} aria-describedby={err("city") ? "err-city" : undefined} />
+            {err("city") && <span id="err-city" className="mt-1 block text-xs text-[#C5221F]" role="alert">{err("city")}</span>}
           </label>
           <label className="block">
             <span className="text-sm font-medium">Password</span>
-            <input value={f.password} onChange={set("password")} type="password" autoComplete="new-password" placeholder="Min 8 chars · letter + number" className={inputCls("password")} />
-            {err("password") && <span className="mt-1 block text-xs text-[#C5221F]">{err("password")}</span>}
+            <input value={f.password} onChange={set("password")} name="newPassword" type="password" autoComplete="new-password" spellCheck={false} placeholder="Min 8 chars · letter + number…" className={inputCls("password")} aria-invalid={!!err("password")} aria-describedby={err("password") ? "err-password" : undefined} />
+            {err("password") && <span id="err-password" className="mt-1 block text-xs text-[#C5221F]" role="alert">{err("password")}</span>}
           </label>
           <label className="block">
             <span className="text-sm font-medium">Confirm Password</span>
-            <input value={f.confirm} onChange={set("confirm")} type="password" autoComplete="new-password" placeholder="Re-enter password" className={inputCls("confirm")} />
-            {err("confirm") && <span className="mt-1 block text-xs text-[#C5221F]">{err("confirm")}</span>}
+            <input value={f.confirm} onChange={set("confirm")} name="confirmPassword" type="password" autoComplete="new-password" spellCheck={false} placeholder="Re-enter password…" className={inputCls("confirm")} aria-invalid={!!err("confirm")} aria-describedby={err("confirm") ? "err-confirm" : undefined} />
+            {err("confirm") && <span id="err-confirm" className="mt-1 block text-xs text-[#C5221F]" role="alert">{err("confirm")}</span>}
           </label>
-          <label className="md:col-span-2 flex items-start gap-2 text-sm">
-            <input checked={consent} onChange={e=> setConsent(e.target.checked)} type="checkbox" className="mt-0.5 rounded border-[#E5E7EB]" />
+          <label className="md:col-span-2 flex items-start gap-2 text-sm min-h-11 py-1 cursor-pointer">
+            <input checked={consent} onChange={e=> setConsent(e.target.checked)} type="checkbox" name="consent" className="mt-0.5 rounded border-[#E5E7EB] h-5 w-5 accent-[#174EA6] shrink-0" />
             <span>I agree to the <Link href="/privacy" className="underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033]">Privacy Policy</Link> and <Link href="/terms" className="underline decoration-[#E5E7EB] underline-offset-4 hover:text-[#172033]">Terms of Use</Link></span>
           </label>
-          <Button type="submit" disabled={loading || success} className="md:col-span-2 w-full rounded-full h-11">
-            {loading ? "Creating…" : success ? "Account Created" : "Create Account"} {!success && <ArrowRight className="h-4 w-4" aria-hidden="true" />}
+          <Button type="submit" disabled={loading || success} aria-busy={loading} className="md:col-span-2 w-full rounded-full h-11 gap-2">
+            <span>{loading ? "Creating account…" : success ? "Account Created" : "Create Account"}</span>{loading ? <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" /> : !success ? <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
           </Button>
           <div className="md:col-span-2 flex items-center gap-3 text-xs text-[#5F6368]"><span className="h-px flex-1 bg-[#E5E7EB]" />OR<span className="h-px flex-1 bg-[#E5E7EB]" /></div>
           <button

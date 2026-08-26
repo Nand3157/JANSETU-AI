@@ -5,6 +5,14 @@
 :root { --background: 210 40% 98%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
 * { border-color: #E5E7EB; }
 html { scroll-behavior: smooth; }
+/* Vercel: skip-to-content anchor offset + sticky header clearance */
+[id] { scroll-margin-top: 72px; }
+/* touch-optimizations per Vercel */
+button, a, [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+input, textarea, select { font-size: 16px; }
+@media (min-width: 768px) {
+  input, textarea, select { font-size: 14px; }
+}
 /* Kill horizontal scrolling / mobile overflow globally */
 html, body { overflow-x: hidden; }
 @supports (overflow-x: clip) { html, body { overflow-x: clip; } }

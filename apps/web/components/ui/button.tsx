@@ -13,5 +13,5 @@ const sizeClasses: Record<Size,string> = {
   sm: "h-9 px-3.5 text-[13px]", md: "h-10 px-5 text-sm", lg: "h-[44px] px-7 text-[15px]", icon: "h-11 w-11 p-0"
 };
 export function Button({ variant="primary", size="md", className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: Size }) {
-  return <button className={cn("inline-flex items-center justify-center rounded-full tracking-[-0.01em] transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174EA6]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white", variantClasses[variant], sizeClasses[size], className)} {...props} />;
+  return <button style={{ WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }} className={cn("inline-flex items-center justify-center rounded-full tracking-[-0.01em] transition-[background-color,border-color,color,box-shadow,transform,opacity] duration-200 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174EA6]/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white", variantClasses[variant], sizeClasses[size], className)} {...props} />;
 }

@@ -83,33 +83,46 @@ export default function GovernmentDashboard() {
         <span className="ml-auto hidden md:inline-flex items-center gap-1.5 text-xs rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5"><Shield className="h-3.5 w-3.5" /> Role: policymaker · App Check + RBAC enforced on backend</span>
       </div>
 
-      {/* Demo-mode banner — sample data must never pass as live figures */}
+          <h1 className="sr-only">Government Dashboard — Priority Intelligence</h1>
+          {/* Demo-mode banner — sample data must never pass as live figures */}
       {demoMode && (
-        <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
+        <div role="status" aria-live="polite" className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 flex items-start gap-2">
           <Shield className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
           <span><b>Demo mode</b> — the API is not reachable, so the figures below are bundled sample data, not live numbers. Start it with `npm run dev:api`.</span>
         </div>
       )}
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {[
-          { label: "Requests", value: (kpis?.kpis?.totalRequests ?? kpis?.totalRequests ?? "—"), icon: Search, sub: "last 90 days" },
-          { label: "Hotspots", value: (kpis?.kpis?.hotspots ?? kpis?.totalClusters ?? "—"), icon: MapPinned, sub: "clusters" },
-          { label: "High-priority", value: (kpis?.kpis?.highPriority ?? kpis?.highPriorityHotspots ?? "—"), icon: TrendingUp, sub: "need action" },
-          { label: "Recommended", value: (kpis?.kpis?.recommendedProjects ?? kpis?.recommendedProjects ?? "—"), icon: Lightbulb, sub: "projects" },
-          { label: "Investment gap", value: (kpis?.kpis?.investmentGapCr != null ? `₹${kpis.kpis.investmentGapCr} Cr` : (kpis?.investmentGapCr != null ? `₹${kpis.investmentGapCr} Cr` : "—")), icon: Banknote, sub: "Vadodara roads" },
-        ].map(card=> (
-          <Card key={card.label} className="p-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted">{card.label}</span>
-              <card.icon className="h-4 w-4 text-muted" />
-            </div>
-            <div className="mt-1 text-2xl font-black tracking-tight text-ink">{String(card.value)}</div>
-            <div className="text-xs text-muted">{card.sub}</div>
-          </Card>
-        ))}
-      </div>
+      {/* KPIs — skeleton mirrors final card layout to avoid layout shift per Vercel */}
+      {!kpis ? (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3" aria-busy="true" aria-label="Loading KPIs">
+          {[1,2,3,4,5].map(i=> (
+            <Card key={i} className="p-4 animate-pulse">
+              <div className="h-3 w-16 bg-slate-200 rounded" />
+              <div className="mt-3 h-7 w-20 bg-slate-200 rounded" />
+              <div className="mt-2 h-3 w-24 bg-slate-100 rounded" />
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            { label: "Requests", value: (kpis?.kpis?.totalRequests ?? kpis?.totalRequests ?? "—"), icon: Search, sub: "last 90 days" },
+            { label: "Hotspots", value: (kpis?.kpis?.hotspots ?? kpis?.totalClusters ?? "—"), icon: MapPinned, sub: "clusters" },
+            { label: "High-priority", value: (kpis?.kpis?.highPriority ?? kpis?.highPriorityHotspots ?? "—"), icon: TrendingUp, sub: "need action" },
+            { label: "Recommended", value: (kpis?.kpis?.recommendedProjects ?? kpis?.recommendedProjects ?? "—"), icon: Lightbulb, sub: "projects" },
+            { label: "Investment gap", value: (kpis?.kpis?.investmentGapCr != null ? `₹${kpis.kpis.investmentGapCr}\u00A0Cr` : (kpis?.investmentGapCr != null ? `₹${kpis.investmentGapCr}\u00A0Cr` : "—")), icon: Banknote, sub: "Vadodara roads" },
+          ].map(card=> (
+            <Card key={card.label} className="p-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted">{card.label}</span>
+                <card.icon className="h-4 w-4 text-muted" aria-hidden="true" />
+              </div>
+              <div className="mt-1 text-2xl font-black tracking-tight text-ink tabular-nums">{String(card.value)}</div>
+              <div className="text-xs text-muted">{card.sub}</div>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-[1.35fr_0.85fr] gap-6">
         {/* Map + Priority Queue */}
@@ -144,7 +157,7 @@ export default function GovernmentDashboard() {
             <div className="space-y-2">
               {clusters.length===0 && <div className="text-sm text-muted">No clusters — start the API (`npm run dev:api`) and submit a citizen request to populate.</div>}
               {clusters.map((c:any)=> (
-                <button key={c.clusterId} onClick={()=> { setSelected(c); setExplain(null); setDecision(null); }} aria-pressed={selected?.clusterId===c.clusterId} className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 transition ${selected?.clusterId===c.clusterId?"bg-civic-50 border-civic-300 ring-1 ring-civic-200":"bg-white border-slate-200 hover:bg-slate-50"}`}>
+                <button key={c.clusterId} onClick={()=> { setSelected(c); setExplain(null); setDecision(null); }} aria-pressed={selected?.clusterId===c.clusterId} className={`w-full text-left rounded-2xl border p-3 flex items-center gap-3 min-h-[64px] touch-manipulation transition-[background-color,border-color,box-shadow] ${selected?.clusterId===c.clusterId?"bg-civic-50 border-civic-300 ring-1 ring-civic-200":"bg-white border-slate-200 hover:bg-slate-50"}`}>
                   <span className={`h-10 w-10 rounded-xl grid place-items-center text-white font-black text-sm shrink-0 ${c.priorityBand==="critical"?"bg-red-500":c.priorityBand==="high"?"bg-amber-500":c.priorityBand==="moderate"?"bg-sky-600":"bg-slate-400"}`}>{Math.round(c.priorityScore||0)}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold truncate">{c.title}</div>
@@ -167,9 +180,9 @@ export default function GovernmentDashboard() {
             {selected ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black">{selected.requestCount}</div><div className="text-xs text-muted">requests</div></div>
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black">{selected.populationAffected||"—"}</div><div className="text-xs text-muted">pop. affected</div></div>
-                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black">{selected.investmentGapScore ?? "—"}</div><div className="text-xs text-muted">invest. gap</div></div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black tabular-nums">{selected.requestCount}</div><div className="text-xs text-muted">requests</div></div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black tabular-nums">{selected.populationAffected||"—"}</div><div className="text-xs text-muted">pop. affected</div></div>
+                  <div className="rounded-xl bg-slate-50 border border-slate-200 p-3"><div className="text-lg font-black tabular-nums">{selected.investmentGapScore ?? "—"}</div><div className="text-xs text-muted">invest. gap</div></div>
                 </div>
                 <ScoreBars components={{
                   demand: selected.demandScore, infrastructure_gap: selected.infrastructureGapScore,
@@ -205,9 +218,9 @@ export default function GovernmentDashboard() {
                       <div className="text-xs text-muted">Status: {proj.implementationStatus||"proposed"} → Reviewed → Funded → In Progress → Completed → Impact</div>
                       <div className="flex flex-wrap gap-1.5">
                         {["reviewed","funded","in_progress","completed","impact_measured"].map(s=> (
-                          <button key={s} onClick={async()=> {
+                          <button key={s} type="button" onClick={async()=> {
                             try { await api(`/api/projects/${proj.projectId}/status`, { method:"POST", body: JSON.stringify({ status:s }) }); toast(`Status updated → ${s.replace("_", " ")}`, "success"); const pr:any = await api("/api/projects/recommended"); setProjects(pr.projects||[]); } catch(e:any){ toast(e.message, "error"); }
-                          }} aria-label={`Mark project status as ${s.replace("_", " ")}`} aria-pressed={proj.implementationStatus===s} className="min-h-[36px] text-xs rounded-full bg-white border border-slate-200 px-3 py-1.5 hover:bg-slate-100">{s}</button>
+                          }} aria-label={`Mark project status as ${s.replace("_", " ")}`} aria-pressed={proj.implementationStatus===s} className="min-h-11 text-xs rounded-full bg-white border border-slate-200 px-3 py-1.5 hover:bg-slate-100 touch-manipulation transition-[background-color]">{s}</button>
                         ))}
                       </div>
                       <div className="flex gap-1.5">
@@ -222,8 +235,10 @@ export default function GovernmentDashboard() {
                             value={decisionReason}
                             onChange={(e)=> setDecisionReason(e.target.value)}
                             rows={2}
+                            name="decisionReason"
+                            autoComplete="off"
                             placeholder={decision === "approved" ? "Why this project is approved for funding review…" : "Why this project is being rejected…"}
-                            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:border-civic-600 focus:ring-2 focus:ring-civic-200"
+                            className="w-full rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11 focus:border-civic-600 focus:ring-2 focus:ring-civic-200"
                           />
                           <div className="flex gap-2">
                             <Button size="sm" disabled={!decisionReason.trim()} onClick={async()=> {
@@ -250,12 +265,12 @@ export default function GovernmentDashboard() {
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 {["Which projects should we prioritize?","Why is Vadodara underserved?","What fits within ₹10 Cr?","What evidence supports this?","What changed this month?"].map(s=> (
-                  <button key={s} onClick={()=> setCopilotQ(s)} aria-pressed={copilotQ===s} className={`min-h-[36px] text-xs rounded-full px-3 py-1.5 border ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"}`}>{s}</button>
+                  <button key={s} type="button" onClick={()=> setCopilotQ(s)} aria-pressed={copilotQ===s} className={`min-h-11 text-xs rounded-full px-3 py-1.5 border touch-manipulation transition-[background-color,border-color,color] ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"}`}>{s}</button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} aria-label="Ask a policy question" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" placeholder="Ask a policy question..." />
-                <Button onClick={askCopilot}>Ask</Button>
+                <input value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} aria-label="Ask a policy question" name="copilotQuestion" autoComplete="off" spellCheck={true} className="flex-1 rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" placeholder="Ask a policy question…" />
+                <Button onClick={askCopilot} className="min-h-11">Ask</Button>
               </div>
               {copilotA && (
                 <div className="animate-fade-in rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
@@ -273,15 +288,15 @@ export default function GovernmentDashboard() {
           <Card>
             <CardHeader className="p-0 pb-3"><CardTitle as="h2" className="flex items-center gap-2 text-base"><Banknote className="h-4 w-4 text-emerald-600" /> Budget Simulator</CardTitle><CardDescription>Inputs: budget · objective · risk tolerance → portfolio · cost · beneficiaries · unfunded · trade-offs (08_POLICY_BRIEF flow)</CardDescription></CardHeader>
             <div className="grid grid-cols-2 gap-3">
-              <label className="text-sm">Budget (₹ Cr) <input type="number" value={budget} onChange={e=> setBudget(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" /></label>
+              <label className="text-sm">Budget (₹&nbsp;Cr) <input type="number" inputMode="decimal" value={budget} onChange={e=> setBudget(e.target.value)} name="budget" autoComplete="off" className="mt-1 w-full rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" placeholder="10…" /></label>
               <label className="text-sm">Objective
-                <select value={objective} onChange={e=> setObjective(e.target.value as any)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                <select value={objective} onChange={e=> setObjective(e.target.value as any)} name="objective" className="mt-1 w-full rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11">
                   <option value="max_priority">Max priority / cost</option><option value="max_beneficiaries">Max beneficiaries</option><option value="equity">Equity (vuln-weighted)</option><option value="infra_gap">Infrastructure Gap Reduction</option><option value="balanced">Balanced Development</option>
                 </select>
               </label>
             </div>
             <label className="text-sm mt-3 block">Risk tolerance
-              <select value={risk} onChange={e=> setRisk(e.target.value as any)} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+              <select value={risk} onChange={e=> setRisk(e.target.value as any)} name="risk" className="mt-1 w-full rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11">
                 <option value="low">Low — feasibility ≥70</option><option value="medium">Medium — ≥55</option><option value="high">High — all projects</option>
               </select>
             </label>

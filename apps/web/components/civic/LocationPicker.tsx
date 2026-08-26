@@ -60,14 +60,14 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
 
   return (
     <div className="space-y-3">
-      <label className="text-sm font-medium">Location <span className="text-muted font-normal">· never fabricate coordinates. Source: {source}</span></label>
+      <label htmlFor="location-input" className="text-sm font-medium">Location <span className="text-muted font-normal">· never fabricate coordinates. Source: {source}</span></label>
       <div className="flex gap-2">
-        <input value={value} onChange={e=> { onChange(e.target.value, coords?.lat, coords?.lng, source); }} placeholder="Village, district, state" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
-        <Button variant="secondary" onClick={useDevice} className="gap-1.5 shrink-0"><Navigation className="h-4 w-4" /> {locating?"Locating…":"Use device"}</Button>
+        <input id="location-input" value={value} onChange={e=> { onChange(e.target.value, coords?.lat, coords?.lng, source); }} name="location" autoComplete="address-level2" placeholder="Village, district, state…" className="flex-1 rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" />
+        <Button variant="secondary" onClick={useDevice} aria-busy={locating} className="gap-1.5 shrink-0 min-h-11">{locating ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Navigation className="h-4 w-4" aria-hidden="true" />} {locating?"Locating…":"Use device"}</Button>
       </div>
       <div className="flex gap-2">
-        <input value={pin} onChange={e=> setPin(e.target.value)} placeholder="PIN code (6 digits) — verifies district via India Post" maxLength={6} inputMode="numeric" className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
-        <Button variant="secondary" onClick={verifyPin} disabled={pinChecking} className="gap-1.5 shrink-0">{pinChecking ? <Loader2 className="h-4 w-4 animate-spin" /> : <BadgeCheck className="h-4 w-4" />} Verify PIN</Button>
+        <input value={pin} onChange={e=> setPin(e.target.value)} placeholder="PIN code (6 digits) — verifies district via India Post…" maxLength={6} inputMode="numeric" autoComplete="postal-code" name="postalCode" className="flex-1 rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" aria-label="PIN code" />
+        <Button variant="secondary" onClick={verifyPin} disabled={pinChecking} aria-busy={pinChecking} className="gap-1.5 shrink-0 min-h-11">{pinChecking ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <BadgeCheck className="h-4 w-4" aria-hidden="true" />} Verify PIN</Button>
       </div>
       {pinRes && (
         pinRes.ok ? (

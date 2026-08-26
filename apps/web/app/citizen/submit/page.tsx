@@ -88,27 +88,31 @@ export default function SubmitPage() {
       <Card className="mt-7 space-y-7">
         {/* Language + Voice */}
         <div className="flex flex-wrap items-center gap-3">
-          <select value={lang} onChange={e=> setLang(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-            <option value="auto">Auto-detect</option><option value="gu">ગુજરાતી (GU)</option><option value="hi">हिन्दी (HI)</option><option value="en">English (EN)</option>
-          </select>
-          <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-3 py-2"><Languages className="h-3.5 w-3.5" /> Gemini will detect & preserve intent — never change meaning</span>
-          <button onClick={demoFill} className="ml-auto text-xs rounded-full bg-white border border-slate-200 px-3 py-1.5 hover:bg-slate-50">Fill Gujarati demo</button>
+          <label className="inline-flex items-center gap-2 text-sm font-medium">
+            <span className="sr-only">Input language</span>
+            <select value={lang} onChange={e=> setLang(e.target.value)} aria-label="Input language" name="language" autoComplete="language" className="rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11">
+              <option value="auto">Auto-detect</option><option value="gu">ગુજરાતી (GU)</option><option value="hi">हिन्दी (HI)</option><option value="en">English (EN)</option>
+            </select>
+          </label>
+          <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-violet-50 text-violet-700 border border-violet-200 px-3 py-2"><Languages className="h-3.5 w-3.5" aria-hidden="true" /> Gemini will detect & preserve intent — never change meaning</span>
+          <button type="button" onClick={demoFill} className="ml-auto text-xs rounded-full bg-white border border-slate-200 px-3 py-2 min-h-11 hover:bg-slate-50 touch-manipulation" style={{ WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>Fill Gujarati demo</button>
         </div>
 
         <section className="space-y-3 border-t border-slate-200 pt-6">
           <div><h2 className="text-base font-semibold">What is the issue about?</h2><p className="mt-1 text-sm text-muted">Choose the closest category. You can still describe the issue in your own words.</p></div>
-          <div role="radiogroup" aria-label="Issue category" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {categories.map(item=><button type="button" role="radio" aria-checked={category===item.value} key={item.value} onClick={()=>setCategory(item.value)} className={`min-h-[76px] rounded-2xl border p-3 text-left transition ${category===item.value ? "border-[#174EA6] bg-[#E8F0FE] ring-1 ring-[#174EA6]/30" : "border-slate-200 bg-white hover:border-[#CBD5E1]"}`}><div className="text-sm font-semibold">{item.label}</div><div className="mt-1 text-xs text-muted leading-snug">{item.hint}</div></button>)}
+            <div role="radiogroup" aria-label="Issue category" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {categories.map(item=><button type="button" role="radio" aria-checked={category===item.value} key={item.value} onClick={()=>setCategory(item.value)} className={`min-h-[76px] rounded-2xl border p-3 text-left transition-[background-color,border-color,box-shadow,transform] ${category===item.value ? "border-[#174EA6] bg-[#E8F0FE] ring-1 ring-[#174EA6]/30" : "border-slate-200 bg-white hover:border-[#CBD5E1]"}`} style={{ touchAction: "manipulation" }}><div className="text-sm font-semibold">{item.label}</div><div className="mt-1 text-xs text-muted leading-snug">{item.hint}</div></button>)}
           </div>
-          {category === "other" && <label className="block max-w-xl"><span className="text-sm font-medium">Tell us the category</span><input value={otherCategory} onChange={e=>setOtherCategory(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" placeholder="For example: public space, animal care..." /></label>}
+          {category === "other" && <label className="block max-w-xl"><span className="text-sm font-medium">Tell us the category</span><input value={otherCategory} onChange={e=>setOtherCategory(e.target.value)} name="otherCategory" autoComplete="off" spellCheck={true} className="mt-2 w-full rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" placeholder="For example: public space, animal care…" /></label>}
         </section>
 
         <div className="grid md:grid-cols-[1.15fr_0.85fr] gap-8 border-t border-slate-200 pt-6">
           <div className="space-y-4">
             <div className="space-y-3">
-              <label className="text-sm font-medium">Voice / Text <span className="text-muted font-normal">· choose one</span></label>
+              <label htmlFor="citizen-text" className="text-sm font-medium">Voice / Text <span className="text-muted font-normal">· choose one</span></label>
               <VoiceRecorder langHint={lang} onTranscript={(t,l,media)=> { setText(t); if(l) setLang(l); setAudioUrl(media?.audioUrl || null); saveDraft({ text: t, lang: l || lang, audioUrl: media?.audioUrl || null }); }} />
-              <textarea value={text} onChange={e=> setText(e.target.value)} rows={5} aria-label="Describe the problem in your own words" className="w-full rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-relaxed focus:border-civic-600 focus:ring-2 focus:ring-civic-200" placeholder="Describe the problem in your language..." />
+              <textarea id="citizen-text" value={text} onChange={e=> setText(e.target.value)} rows={5} aria-label="Describe the problem in your own words" name="citizenText" autoComplete="off" spellCheck={true} className="w-full rounded-2xl border border-slate-200 bg-white text-[#172033] p-4 text-[16px] md:text-sm leading-relaxed focus:border-civic-600 focus:ring-2 focus:ring-civic-200" placeholder="Describe the problem in your language…" aria-describedby="citizen-text-help" aria-invalid={!!error && !text.trim()} />
+              <div id="citizen-text-help" className="text-[11px] text-muted sr-only">Describe the issue in Gujarati, Hindi, or English — original text is preserved verbatim.</div>
               <div className="text-[11px] text-muted">Original text is immutable per spec. Translated_text is shown in confirmation but original is preserved.</div>
             </div>
             <PhotoUploader onFile={(f)=> setPhotoFile(f)} />
@@ -128,14 +132,15 @@ export default function SubmitPage() {
           </div>
         </div>
 
-        <div className="flex gap-3 pt-2 border-t border-slate-200">
-          <Button onClick={handleSubmit} disabled={loading || !text.trim()} className="gap-2">
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit & Analyze
+        <div className="flex flex-wrap gap-3 pt-2 border-t border-slate-200 items-center">
+          <Button onClick={handleSubmit} disabled={loading} aria-busy={loading} aria-describedby="submit-help" className="gap-2 min-h-11">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden="true" /> : <Send className="h-4 w-4 shrink-0" aria-hidden="true" />} Submit & Analyze
           </Button>
-          <span className="text-xs text-muted py-2">Creates request → Gemini → clustering → scoring. Never claims approval.</span>
+          <span id="submit-help" className="text-xs text-muted py-2">Creates request → Gemini → clustering → scoring. Never claims approval.</span>
+          {error && <span className="sr-only" role="alert">{error}</span>}
         </div>
 
-        {error && <div role="alert" className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700">{error} — Is the API running? `npm run dev:api` (8080).</div>}
+        {error && <div role="alert" aria-live="assertive" className="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700 flex gap-2 items-start"><AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" /><span>{error} — Is the API running? `npm run dev:api` (8080).</span></div>}
 
         {result && (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-4 animate-fade-in">

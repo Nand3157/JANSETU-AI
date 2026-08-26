@@ -241,12 +241,12 @@ export function VoiceRecorder({
     <div className="space-y-2.5">
       <div className="flex items-center gap-2 flex-wrap">
         {state !== "recording" ? (
-          <Button onClick={start} disabled={state === "transcribing"} className="gap-2 bg-civic-700 hover:bg-civic-800 text-white shadow-xs">
-            <Mic className="h-4 w-4" /> Tap to speak
+          <Button onClick={start} disabled={state === "transcribing"} aria-busy={state === "transcribing"} className="gap-2 bg-civic-700 hover:bg-civic-800 text-white shadow-xs min-h-11">
+            {state === "transcribing" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Mic className="h-4 w-4" aria-hidden="true" />} {state === "transcribing" ? "Processing…" : "Tap to speak"}
           </Button>
         ) : (
-          <Button variant="secondary" onClick={stop} className="gap-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 animate-pulse">
-            <Square className="h-4 w-4 fill-current" /> Stop &amp; Transcribe
+          <Button variant="secondary" onClick={stop} className="gap-2 border-red-300 bg-red-50 text-red-700 hover:bg-red-100 min-h-11">
+            <Square className="h-4 w-4 fill-current" aria-hidden="true" /> Stop &amp; Transcribe
           </Button>
         )}
 
@@ -257,9 +257,10 @@ export function VoiceRecorder({
             type="button"
             onClick={() => setSelectedLang("gu")}
             aria-pressed={selectedLang === "gu"}
-            className={`min-h-[40px] px-3 rounded-lg font-medium transition ${
+            className={`min-h-[44px] px-3 rounded-lg font-medium transition-[background-color,box-shadow,color] ${
               selectedLang === "gu" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
             }`}
+            style={{ touchAction: "manipulation" }}
           >
             ગુજરાતી
           </button>
@@ -267,9 +268,10 @@ export function VoiceRecorder({
             type="button"
             onClick={() => setSelectedLang("hi")}
             aria-pressed={selectedLang === "hi"}
-            className={`min-h-[40px] px-3 rounded-lg font-medium transition ${
+            className={`min-h-[44px] px-3 rounded-lg font-medium transition-[background-color,box-shadow,color] ${
               selectedLang === "hi" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
             }`}
+            style={{ touchAction: "manipulation" }}
           >
             हिन्दी
           </button>
@@ -277,9 +279,10 @@ export function VoiceRecorder({
             type="button"
             onClick={() => setSelectedLang("en")}
             aria-pressed={selectedLang === "en"}
-            className={`min-h-[40px] px-3 rounded-lg font-medium transition ${
+            className={`min-h-[44px] px-3 rounded-lg font-medium transition-[background-color,box-shadow,color] ${
               selectedLang === "en" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
             }`}
+            style={{ touchAction: "manipulation" }}
           >
             English
           </button>

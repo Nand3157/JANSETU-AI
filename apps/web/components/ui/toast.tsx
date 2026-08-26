@@ -54,7 +54,7 @@ export function ToastHost() {
   if (list.length === 0) return null;
 
   return (
-    <div aria-live="polite" className="fixed bottom-4 right-4 left-4 sm:left-auto z-[200] flex flex-col gap-2 max-w-[380px]">
+    <div aria-live="polite" aria-atomic="false" className="fixed bottom-4 right-4 left-4 sm:left-auto z-[200] flex flex-col gap-2 max-w-[380px] pb-[env(safe-area-inset-bottom)]">
       {list.map((t) => {
         const Icon = icons[t.kind];
         return (
@@ -69,7 +69,8 @@ export function ToastHost() {
               type="button"
               onClick={() => dismissToast(t.id)}
               aria-label="Dismiss notification"
-              className="shrink-0 rounded-full p-1.5 hover:bg-black/5"
+              className="shrink-0 rounded-full p-2 min-h-11 min-w-11 grid place-items-center hover:bg-black/5 touch-manipulation"
+              style={{ touchAction: "manipulation" }}
             >
               <X className="h-3.5 w-3.5" aria-hidden="true" />
             </button>

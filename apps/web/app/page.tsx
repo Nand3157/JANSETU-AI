@@ -74,7 +74,7 @@ export default function Home() {
                     className="rounded-2xl bg-white border border-[#E5E7EB] p-3 shadow-sm hover-lift hover-glow hover-border cursor-default"
                   >
                     <div className="text-[11px] tracking-widest font-semibold text-[#5F6368]">{c.l.toUpperCase()}</div>
-                    <div className="text-lg font-bold mt-1 text-[#0B1F3A]">{c.k}</div>
+                    <div className="text-lg font-bold mt-1 text-[#0B1F3A] tabular-nums">{c.k}</div>
                     <div className="text-xs text-[#5F6368]">{c.sub}</div>
                   </div>
                 ))}
@@ -174,10 +174,10 @@ export default function Home() {
                 key={s.n}
                 className="relative bg-white rounded-[20px] border border-[#E5E7EB] p-4 hover-lift hover-border group"
               >
-                <div className="h-9 w-9 rounded-full bg-[#0B1F3A] text-white grid place-items-center text-xs font-semibold group-hover:bg-[#174EA6] group-hover:scale-105 transition-all">
+                <div className="h-9 w-9 rounded-full bg-[#0B1F3A] text-white grid place-items-center text-xs font-semibold group-hover:bg-[#174EA6] group-hover:scale-105 transition-[background-color,transform]">
                   {s.n}
                 </div>
-                <div className="mt-3 font-medium text-sm leading-tight group-hover:text-[#174EA6] transition-colors">{s.t}</div>
+                <div className="mt-3 font-medium text-sm leading-tight group-hover:text-[#174EA6] transition-[color]">{s.t}</div>
                 <div className="text-xs text-[#5F6368]">{s.d}</div>
               </div>
             ))}
@@ -338,7 +338,7 @@ export default function Home() {
               key={b.c}
               className="rounded-[20px] bg-white border border-[#E5E7EB] p-4 flex items-center gap-3 shimmer-border hover-lift hover-glow"
             >
-              <span className="h-9 w-9 rounded-xl grid place-items-center text-white text-xs font-bold hover-scale" style={{ background: b.col }} aria-hidden="true">
+                <span className="h-9 w-9 rounded-xl grid place-items-center text-white text-xs font-bold" style={{ background: b.col }} aria-hidden="true">
                 {b.c[0]}
               </span>
               <div>
