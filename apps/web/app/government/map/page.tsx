@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { HotspotMap } from "@/components/civic/HotspotMap";
 import { api } from "@/lib/api";
@@ -24,6 +25,7 @@ export default function DemandMapPage() {
     api("/api/analytics/hotspots").then((h:any)=> setGeojson(h.geojson)).catch(()=>{});
     api("/api/clusters").then((c:any)=> setClusters(c.clusters||[])).catch(()=>{});
   }, []);
+  // activeLayers currently toggles UI only — future: filter geojson features by activeLayers
 
   const demoCluster = selected || clusters[0];
   const mapCenter = (selected?.centroid ?? demoCluster?.centroid ?? null) as { lat: number; lng: number } | null;
@@ -80,7 +82,12 @@ export default function DemandMapPage() {
               <div><div className="text-xs text-[#92400E]">Investment Gap</div><div className="font-semibold">{demoCluster.investmentGapScore != null ? `${demoCluster.investmentGapScore}/100` : "—"}</div></div>
               <MapPin className="h-4 w-4 text-[#92400E]" />
             </div>
-            <Button className="w-full mt-4 rounded-full">View Analysis</Button>
+            {demoCluster?.clusterId ? (
+              <Link href={`/government/projects?cluster=${demoCluster.clusterId}`} className="block w-full mt-4"><Button className="w-full rounded-full">View Analysis</Button></Link>
+            ) : <Button className="w-full mt-4 rounded-full" disabled>View Analysis</Button>}
+            {demoCluster?.clusterId && (
+              <Link href={`/government/clusters`} className="block w-full mt-2 text-center text-xs text-[#174EA6] underline">View in Issue Clusters →</Link>
+            )}
             <div className="text-[11px] text-[#5F6368] mt-2">Evidence: {demoCluster.evidenceRefs?.join(" · ") || "—"} · GeoJSON via /api/analytics/hotspots</div>
           </div>
         ) : (

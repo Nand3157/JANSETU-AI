@@ -44,8 +44,8 @@ export const prompts = {
 // ── Gemini — real via Firebase AI Logic / Gemini API, fallback to deterministic mock ─
 // Real path uses docs/prompts + MAIN_SYSTEM, validates with Zod. Mock ensures demo works without key.
 function isValidGeminiKeyForMock(key: string | undefined): boolean {
-  if (!key || key.length < 20) return false;
-  if (key.startsWith("AQ.")) return false; // incompatible format for @google/generative-ai
+  if (!key || key.length < 10) return false;
+  // AQ. keys are Google AI Studio compatible via REST — allow them; callGeminiReal will handle fallback if SDK rejects them
   return true;
 }
 export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: any, schema: any): Promise<{ ok: boolean; data?: T; error?: string; raw?: any; meta?: { real: boolean } }> {

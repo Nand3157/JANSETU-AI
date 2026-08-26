@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScoreBars } from "@/components/civic/ScoreBars";
 import { api } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
 import { MapPin, Users, TrendingUp, CheckCircle, FileText, AlertTriangle, ArrowLeft, RefreshCw } from "lucide-react";
 
 export default function ProjectIntelligencePage() {
@@ -151,15 +152,17 @@ export default function ProjectIntelligencePage() {
           </div>
           <div className="p-5">
             <h3 className="font-semibold">Why this project?</h3>
-            <p className="text-sm text-[#5F6368] mt-1 leading-relaxed">Monsoon road closure isolates 12,400 residents from hospital and school. 4,218 citizen requests clustered with high vulnerability (82/100) and infrastructure gap (90/100). AI explanation is evidence-led and auditable — weights unchanged v1.</p>
+            <p className="text-sm text-[#5F6368] mt-1 leading-relaxed">
+              {c?.summary || p.description || `Monsoon road closure isolates ${c?.populationAffected || p.estimatedBeneficiaries || 12400} residents from hospital and school.`} {c?.requestCount ? ` ${Number(c.requestCount).toLocaleString("en-IN")} citizen requests clustered` : ""} {c?.vulnerabilityScore ? `with vulnerability ${c.vulnerabilityScore}/100` : ""} {c?.infrastructureGapScore ? `and infrastructure gap ${c.infrastructureGapScore}/100` : ""}. AI explanation is evidence-led — weights v1.
+            </p>
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-lg font-semibold">4,218</div><div className="text-xs text-[#5F6368]">citizen requests</div></div>
-              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-lg font-semibold">12,400</div><div className="text-xs text-[#5F6368]">people affected</div></div>
-              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-lg font-semibold">₹1.2 Cr</div><div className="text-xs text-[#5F6368]">current investment</div></div>
+              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-lg font-semibold tabular-nums">{Number(c?.requestCount || 0).toLocaleString("en-IN")}</div><div className="text-xs text-[#5F6368]">citizen requests</div></div>
+              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-lg font-semibold tabular-nums">{Number(c?.populationAffected || p.estimatedBeneficiaries || 0).toLocaleString("en-IN")}</div><div className="text-xs text-[#5F6368]">people affected</div></div>
+              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-lg font-semibold tabular-nums">₹{p.estimatedCost != null ? (p.estimatedCost/1e7).toFixed(1) : "—"} Cr</div><div className="text-xs text-[#5F6368]">est. cost</div></div>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
-              <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-[#174EA6]" /> Road Index 38/100</div>
-              <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 flex items-center gap-2"><Users className="h-4 w-4 text-[#174EA6]" /> Flood Vuln 82/100</div>
+              <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 flex items-center gap-2"><TrendingUp className="h-4 w-4 text-[#174EA6]" /> Road Index {c?.infrastructureGapScore != null ? c.infrastructureGapScore : 38}/100</div>
+              <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 flex items-center gap-2"><Users className="h-4 w-4 text-[#174EA6]" /> Flood Vuln {c?.vulnerabilityScore ?? 82}/100</div>
               <div className="rounded-xl bg-white border border-[#E5E7EB] p-3 flex items-center gap-2"><CheckCircle className="h-4 w-4 text-[#188038]" /> Verified Data</div>
             </div>
           </div>
@@ -170,16 +173,23 @@ export default function ProjectIntelligencePage() {
             <h3 className="font-semibold">Priority Breakdown</h3>
             <p className="text-xs text-[#5F6368]">Elegant horizontal bars · deterministic v1</p>
             <div className="mt-4">
-              <ScoreBars components={{ demand:96, infrastructure_gap:90, population_impact:87, vulnerability:88, urgency:94, feasibility:82 }} />
+              <ScoreBars components={{
+                demand: c?.demandScore ?? 82,
+                infrastructure_gap: c?.infrastructureGapScore ?? 72,
+                population_impact: c?.populationImpactScore ?? 70,
+                vulnerability: c?.vulnerabilityScore ?? 68,
+                urgency: c?.urgencyScore ?? 80,
+                feasibility: c?.feasibilityScore ?? 65,
+              }} />
             </div>
           </div>
 
           <div className="rounded-[20px] bg-white border border-[#E5E7EB] p-5">
             <h3 className="font-semibold">Recommended Intervention</h3>
-            <p className="text-sm mt-2 p-3 rounded-xl bg-[#F8FAFC] border border-[#E5E7EB]">“Upgrade 8.4 km of rural road and drainage infrastructure.”</p>
+            <p className="text-sm mt-2 p-3 rounded-xl bg-[#F8FAFC] border border-[#E5E7EB]">“{p.description || "Upgrade rural road and drainage infrastructure."}”</p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-xs text-[#5F6368]">Estimated cost</div><div className="font-semibold">₹4.2 Cr <span className="text-xs font-normal text-[#5F6368]">Estimate</span></div></div>
-              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-xs text-[#5F6368]">Estimated beneficiaries</div><div className="font-semibold">12,400</div></div>
+              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-xs text-[#5F6368]">Estimated cost</div><div className="font-semibold tabular-nums">₹{p.estimatedCost != null ? (p.estimatedCost/1e7).toFixed(1) : "—"} Cr <span className="text-xs font-normal text-[#5F6368]">Estimate</span></div></div>
+              <div className="rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] p-3"><div className="text-xs text-[#5F6368]">Estimated beneficiaries</div><div className="font-semibold tabular-nums">{Number(p.estimatedBeneficiaries || c?.populationAffected || 0).toLocaleString("en-IN")}</div></div>
             </div>
             <div className="mt-3">
               <div className="text-xs font-medium">Expected outcomes</div>
@@ -190,7 +200,12 @@ export default function ProjectIntelligencePage() {
               </ul>
             </div>
             <div className="mt-3 flex gap-2">
-              <Button size="sm" className="rounded-full" onClick={() => router.push("/government")}>Approve</Button><Button size="sm" variant="secondary" className="rounded-full" onClick={() => router.push("/government/explorer")}>Request survey</Button>
+              <Button size="sm" className="rounded-full" onClick={async()=> {
+                try { await api(`/api/projects/${encodeURIComponent(String(id))}/review`, { method:"POST", body: JSON.stringify({ decision:"approved", reason:"Approved via project intelligence review" }) }); toast("Approved — recorded in audit log.", "success"); } catch(e:any){ toast(e.message,"error"); }
+              }}>Approve</Button>
+              <Button size="sm" variant="secondary" className="rounded-full" onClick={async()=> {
+                try { await api(`/api/projects/${encodeURIComponent(String(id))}/status`, { method:"POST", body: JSON.stringify({ status:"survey_requested" }) }); toast("Survey requested — status updated.", "success"); } catch(e:any){ toast(e.message,"error"); }
+              }}>Request survey</Button>
             </div>
           </div>
 

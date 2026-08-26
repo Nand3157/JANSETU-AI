@@ -15,7 +15,7 @@ const LAST_KEY = "jansetu_last_request_id";
 const empty: CitizenDraft = {
   text: "",
   lang: "auto",
-  locText: "Village X, Vadodara District, Gujarat",
+  locText: "",
   // H-10 fix: default to null, not Vadodara centroid, to avoid skewing hotspots
   lat: null,
   lng: null,
