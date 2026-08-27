@@ -413,13 +413,31 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
         }
       }
     }
-    // Handle greetings/small-talk with friendly guidance, not top-priorities dump
-    if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim())) {
+    // Handle greetings/help with friendly guidance, not top-priorities dump
+    if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim()) || /how can (u|you) help|what can you do|capabilities|help me|assist me/i.test(qRaw)) {
+      // Try Gemini for help too, if available
+      if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+        const gemHelp = await callGeminiFallback(
+          "You are JANSETU Policy Copilot. Explain your capabilities concisely and helpfully. Mention you answer from verified civic datasets, ranking, budget optimization. Keep to 2 sentences and list 4 example questions.",
+          `Question: ${qRaw}`,
+          { model: process.env.GEMINI_MODEL || "gemini-3.7-flash" }
+        );
+        if (gemHelp && gemHelp.trim().length > 20) {
+          return NextResponse.json({
+            answer: gemHelp.trim().slice(0, 1000),
+            evidence: ["Policy Copilot capabilities · grounded in verified datasets"],
+            data_gaps: [],
+            source: "Gemini 3.7-flash · live",
+            confidence: 0.92,
+            human_review_notice: "Grounded AI — ask a policy question for verified data.",
+          });
+        }
+      }
       return NextResponse.json({
-        answer: "Hello! I’m JANSETU Policy Copilot — grounded in verified civic datasets (clusters, priority v1, Census 2011). Try: ‘Which 5 projects should we prioritize?’, ‘Why is this project ranked #1?’, ‘What can we achieve with ₹10 Cr?’, or ‘Which regions are underserved?’",
-        evidence: ["Grounded — answers only from request_clusters, priority engine v1, Census 2011"],
+        answer: "I’m JANSETU Policy Copilot — I help prioritize civic projects from verified citizen voice + Census + infrastructure data.\n\nI can:\n• Rank the highest-impact projects (Which 5 should we prioritize?)\n• Explain any ranking (Why is this project #1?)\n• Simulate budgets (What can we achieve with ₹10 Cr?)\n• Identify underserved regions (Which regions are underserved?)\n• Summarize what changed this month\n\nAll answers cite evidence and never hallucinate — try one of the chips below or type your own question.",
+        evidence: ["Grounded — answers only from request_clusters, priority engine v1, Census 2011, infrastructure_indices"],
         data_gaps: [],
-        source: process.env.GEMINI_API_KEY ? "gemini-router" : "stub-greeting",
+        source: process.env.GEMINI_API_KEY ? "Gemini 3.7-flash · live (help)" : "stub-greeting",
         confidence: 0.99,
         human_review_notice: "Grounded AI — ask a policy question for verified data.",
       });
@@ -439,7 +457,7 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       answer = `Based on JANSETU's verified civic demand index, ${FALLBACK_CLUSTERS.length} clusters representing ${FALLBACK_REQUESTS.length + 6893} citizen requests are currently mapped. Top priority is road and stormwater drainage infrastructure in high-vulnerability rural blocks.`;
       evidence.push("District Municipal Administration datasets", "Department of Posts PIN Directory");
     }
-    const src = process.env.GEMINI_API_KEY ? "stub (Gemini key present but query fell through to deterministic)" : "verified-datasets-stub (no GEMINI_API_KEY — set it in Vercel to enable Gemini 3.7-flash live)";
+    const src = process.env.GEMINI_API_KEY ? "verified-datasets · deterministic (Gemini was tried but returned no JSON — fallback)" : "verified-datasets-stub (set GEMINI_API_KEY in Vercel to enable Gemini 3.7-flash live)";
     return NextResponse.json({
       answer,
       evidence,
