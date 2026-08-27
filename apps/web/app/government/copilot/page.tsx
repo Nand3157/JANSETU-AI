@@ -63,9 +63,19 @@ export default function CopilotPage() {
     setLoading(true); setAns(null); setErr(null);
     try { const r:any = await api("/api/copilot", { method:"POST", body: JSON.stringify({ question: text }) }); setAns(r); } catch(e:any){
       const msg = String(e.message || "Failed to fetch");
+      // No silent demo — show error honestly so demo vs Gemini is obvious. Proxy fallback already handles offline with honest stub.
+      // Keep a tiny client-side guard only if proxy itself is unreachable (e.g. Vercel cold start)
       const isOffline = msg.toLowerCase().includes("failed to fetch") || msg.includes("timed out") || msg.includes("NetworkError");
-      if (isOffline) setAns(demoFallback(text));
-      else setErr(msg);
+      if (isOffline) {
+        // Try one more time via proxy fallback path explicitly, else show error with setup hint
+        try {
+          const r2:any = await fetch(`/api/copilot`, { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ question: text }) }).then(r=> r.json());
+          setAns(r2);
+        } catch {
+          setErr(`API unreachable — ${msg}. For real Gemini: set GEMINI_API_KEY in Vercel → Settings → Environment Variables ( GEMINI_MODEL=gemini-3.7-flash , GEMINI_TRANSCRIBE_MODEL=gemini-3.5-transcribe ) and redeploy, or run npm run dev:api locally. Showing demo fallback: ` + JSON.stringify(demoFallback(text).answer).slice(0,120));
+          setAns(demoFallback(text));
+        }
+      } else setErr(msg);
     }
     finally { setLoading(false); }
   }

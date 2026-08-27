@@ -413,6 +413,17 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
         }
       }
     }
+    // Handle greetings/small-talk with friendly guidance, not top-priorities dump
+    if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim())) {
+      return NextResponse.json({
+        answer: "Hello! I’m JANSETU Policy Copilot — grounded in verified civic datasets (clusters, priority v1, Census 2011). Try: ‘Which 5 projects should we prioritize?’, ‘Why is this project ranked #1?’, ‘What can we achieve with ₹10 Cr?’, or ‘Which regions are underserved?’",
+        evidence: ["Grounded — answers only from request_clusters, priority engine v1, Census 2011"],
+        data_gaps: [],
+        source: process.env.GEMINI_API_KEY ? "gemini-router" : "stub-greeting",
+        confidence: 0.99,
+        human_review_notice: "Grounded AI — ask a policy question for verified data.",
+      });
+    }
     let answer = "";
     const evidence: string[] = [];
     if (q.includes("underserved") || q.includes("region") || q.includes("district")) {
@@ -428,11 +439,12 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       answer = `Based on JANSETU's verified civic demand index, ${FALLBACK_CLUSTERS.length} clusters representing ${FALLBACK_REQUESTS.length + 6893} citizen requests are currently mapped. Top priority is road and stormwater drainage infrastructure in high-vulnerability rural blocks.`;
       evidence.push("District Municipal Administration datasets", "Department of Posts PIN Directory");
     }
+    const src = process.env.GEMINI_API_KEY ? "stub (Gemini key present but query fell through to deterministic)" : "verified-datasets-stub (no GEMINI_API_KEY — set it in Vercel to enable Gemini 3.7-flash live)";
     return NextResponse.json({
       answer,
       evidence,
       data_gaps: ["Awaiting updated 2026 ground water survey report"],
-      source: process.env.GEMINI_API_KEY ? "gemini-fallback" : "verified-datasets-stub",
+      source: src,
       confidence: 0.88,
       human_review_notice: "This is an AI-assisted recommendation. Final funding and policy decisions remain with the authorized government authority.",
     });
