@@ -34,29 +34,56 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
 
   async function useDevice() {
     if (!navigator.geolocation) { toast("Geolocation is not supported in this browser — please type your location.", "error"); return; }
-    if (typeof window !== "undefined" && window.isSecureContext === false) {
+    if (typeof window !== "undefined" && window.isSecureContext === false && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
       toast("Location requires HTTPS — please type your location or use HTTPS.", "error");
       return;
     }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
+    const tryGeo = (opts: PositionOptions): Promise<GeolocationPosition> =>
+      new Promise((resolve, reject) => navigator.geolocation.getCurrentPosition(resolve, reject, opts));
+    try {
+      let pos: GeolocationPosition | null = null;
+      try {
+        pos = await tryGeo({ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 });
+      } catch {
+        pos = await tryGeo({ enableHighAccuracy: false, timeout: 12000, maximumAge: 0 }).catch(()=> null);
+      }
+      if (pos) {
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
         setSource("device");
         const pretty = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-        onChange(value || pretty, latitude, longitude, "device");
-        setLocating(false);
-      },
-      (err) => {
-        if (err.code === err.PERMISSION_DENIED) toast("Location permission denied. Please type your location.", "error");
-        else if (err.code === err.POSITION_UNAVAILABLE) toast("Location unavailable — please type your location.", "error");
-        else if (err.code === err.TIMEOUT) toast("Location timed out — please try again or type your location.", "error");
-        else toast("Location error — please type your location.", "error");
-        setLocating(false);
-      },
-      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
-    );
+        onChange(value ? `${value} · ${pretty}` : pretty, latitude, longitude, "device");
+        toast("Location captured from device.", "success");
+        return;
+      }
+      throw new Error("POSITION_UNAVAILABLE");
+    } catch (err: any) {
+      // Fallback to IP approx when GPS times out/unavailable — still better than nothing and not fake Village X
+      try {
+        const ctrl = new AbortController(); const t = setTimeout(()=> ctrl.abort(), 5000);
+        const r = await fetch("https://ipapi.co/json/", { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) {
+          const j: any = await r.json();
+          const lat = Number(j.latitude), lng = Number(j.longitude);
+          if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            setCoords({ lat, lng });
+            setSource("ip_approx");
+            const city = j.city || j.region || "";
+            const pretty = city ? `${city} · ${lat.toFixed(4)},${lng.toFixed(4)}` : `${lat.toFixed(4)},${lng.toFixed(4)}`;
+            onChange(value ? `${value} · ${pretty}` : pretty, lat, lng, "ip_approx");
+            toast(`GPS timed out — using approximate city location (${city || "IP"}), you can edit.`, "info");
+            return;
+          }
+        }
+      } catch {}
+      const code = err?.code;
+      if (code === 1) toast("Location permission denied — allow it in the lock icon and reload.", "error");
+      else if (code === 2) toast("Location unavailable — GPS may be off, using IP fallback failed. Please type your village and district.", "error");
+      else if (code === 3 || String(err?.message||"").includes("TIMEOUT") || String(err?.message||"").includes("POSITION_UNAVAILABLE")) toast("GPS timed out too — IP fallback also failed. Please type your village and district.", "error");
+      else toast("Location timed out — please try again or type your location.", "error");
+    } finally { setLocating(false); }
   }
 
   return (

@@ -613,9 +613,38 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
     // already handled above
   }
 
-  // GovData PIN
+  // GovData PIN — real India Post via postalpincode.in, fallback to static map
   if (normPath === "govdata/pin") {
-    const pin = req.nextUrl.searchParams.get("pin") || "390001";
+    const pin = (req.nextUrl.searchParams.get("pin") || "390001").replace(/\D/g,"").slice(0,6);
+    if (!/^\d{6}$/.test(pin)) return NextResponse.json({ ok:false, pin, note:"Enter 6 digits" }, { status: 400 });
+    // Try live India Post
+    try {
+      const ctrl = new AbortController(); const t = setTimeout(()=> ctrl.abort(), 5000);
+      const r = await fetch(`https://api.postalpincode.in/pincode/${pin}`, { signal: ctrl.signal, headers: { "Accept":"application/json" } });
+      clearTimeout(t);
+      if (r.ok) {
+        const j: any = await r.json();
+        const entry = Array.isArray(j) ? j[0] : null;
+        if (entry?.Status === "Success" && Array.isArray(entry.PostOffice) && entry.PostOffice.length) {
+          const po: any = entry.PostOffice[0];
+          // 389330 -> Panch Mahals / Gujarat / Kalol — not Vadodara fallback
+          return NextResponse.json({
+            ok: true, pin,
+            district: po.District || po.district || "Unknown",
+            state: po.State || po.state || "Unknown",
+            block: po.Block || po.Division || po.block || "",
+            region: po.Region || po.region || "",
+            circle: po.Circle || "",
+            source: "api.postalpincode.in · Department of Posts, GoI",
+            rawCount: entry.PostOffice.length,
+          });
+        }
+        if (entry?.Status === "Error") {
+          return NextResponse.json({ ok:false, pin, note: entry.Message || "PIN not found" }, { status: 404 });
+        }
+      }
+    } catch {}
+    // Fallback static (covers offline)
     const PIN_MAP: Record<string, { district: string; state: string; block: string }> = {
       "390001": { district: "Vadodara", state: "Gujarat", block: "Vadodara City" },
       "390002": { district: "Vadodara", state: "Gujarat", block: "Vadodara East" },
@@ -624,8 +653,9 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       "360001": { district: "Rajkot", state: "Gujarat", block: "Rajkot City" },
       "110001": { district: "New Delhi", state: "Delhi", block: "Connaught Place" },
     };
-    const info = PIN_MAP[pin] || { district: "Vadodara", state: "Gujarat", block: "Rural Block" };
-    return NextResponse.json({ ok: true, pin, ...info, source: "Department of Posts, GoI" });
+    const info = PIN_MAP[pin] || { district: "Unknown", state: "Unknown", block: "" };
+    const isFallback = !PIN_MAP[pin];
+    return NextResponse.json({ ok: !isFallback, pin, ...info, source: isFallback ? "fallback (postalpincode.in unreachable)" : "Department of Posts, GoI (fallback)", note: isFallback ? "Live PIN lookup failed — showing fallback" : undefined });
   }
 
   // Requests: GET list + GET by id + POST creation (persisted in-memory so citizen flow shows real data)
