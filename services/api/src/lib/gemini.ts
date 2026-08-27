@@ -64,10 +64,10 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
     if (!GoogleGenerativeAI) return null;
     const genAI = new GoogleGenerativeAI(key);
-    // H-03 fix: valid model names only — updated to live 3.6+ models (2.0 is now 404)
-    const rawModel = opts.model || process.env.GEMINI_MODEL || "gemini-3.6-flash";
-    const validModels = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
-    const modelName = validModels.includes(rawModel) ? rawModel : "gemini-3.6-flash";
+    // H-03 fix: valid model names only — 2.0/2.5 now 404, use 3.7/3.6 stable + 3.5-audio for transcribe
+    const rawModel = opts.model || process.env.GEMINI_MODEL || "gemini-3.7-flash";
+    const validModels = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-transcribe", "gemini-3.5-audio", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
+    const modelName = validModels.includes(rawModel) ? rawModel : "gemini-3.7-flash";
     if (rawModel !== modelName) {
       console.warn(`Invalid GEMINI_MODEL "${rawModel}" — using ${modelName} instead`);
     }
@@ -116,7 +116,9 @@ export async function transcribeAudio(
 ): Promise<{ transcript: string; language: string; source: "gemini" | "mock" }> {
   const sys = "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language and meaning. Never invent civic facts that were not spoken.";
   const user = `Transcribe the attached audio. langHint=${langHint}. Return ONLY JSON with keys transcript (string) and language (gu|hi|en|und).`;
-  const real = await callGeminiReal({ systemPrompt: sys, userPrompt: user, audioDataUrl, jsonMode: true });
+  // Use 3.5-audio transcribe model for best Gujarati/Hindi WER
+  const transcribeModel = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
+  const real = await callGeminiReal({ systemPrompt: sys, userPrompt: user, audioDataUrl, jsonMode: true, model: transcribeModel });
   if (real?.text) {
     try {
       let parsed: any;

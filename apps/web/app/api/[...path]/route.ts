@@ -164,11 +164,11 @@ async function tryProxy(req: NextRequest, pathStr: string, bodyText?: string) {
   return null;
 }
 
-async function callGeminiFallback(system: string, user: string): Promise<string | null> {
+async function callGeminiFallback(system: string, user: string, opts?: { model?: string }): Promise<string | null> {
   const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
   if (!key || key.length < 10) return null;
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+    const model = opts?.model || process.env.GEMINI_MODEL || "gemini-3.7-flash";
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
     const res = await fetch(url, {
       method: "POST",
@@ -382,11 +382,12 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
   if (normPath === "copilot") {
     const qRaw = String(jsonBody?.question || "");
     const q = qRaw.toLowerCase();
-    // Try Gemini for richer answer when key is configured (backend does this too; this is fallback when backend offline)
+    // Try Gemini 3.7-flash for richer answer when key is configured (backend does this too; this is fallback when backend offline)
     if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
       const gem = await callGeminiFallback(
         "You are JANSETU Policy Copilot. Answer ONLY from verified civic datasets: clusters, priority engine v1, Census 2011. Cite evidence, list data gaps, never hallucinate. End with human_review_notice.",
-        `Question: ${qRaw}\nClusters: ${JSON.stringify(FALLBACK_CLUSTERS.map(c=> ({id:c.clusterId, title:c.title, score:c.priorityScore, req:c.requestCount})))}`
+        `Question: ${qRaw}\nClusters: ${JSON.stringify(FALLBACK_CLUSTERS.map(c=> ({id:c.clusterId, title:c.title, score:c.priorityScore, req:c.requestCount})))}`,
+        { model: process.env.GEMINI_MODEL || "gemini-3.7-flash" }
       );
       if (gem) {
         try {
@@ -445,9 +446,10 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है। अस्पताल जाने में बहुत समय लगता है और बच्चों को स्कूल जाने में कठिनाई होती है।",
       en: "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.",
     };
-    // If audioDataUrl present and Gemini key available, try real transcription via Gemini
+    // If audioDataUrl present and Gemini key available, try real transcription via 3.5-audio
     if (jsonBody?.dataUrl && (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)) {
-      const gem = await callGeminiFallback("You transcribe civic citizen voice notes. Preserve language and meaning. Return JSON {transcript, language}.", `Transcribe langHint=${hint}. Return JSON.`);
+      const tModel = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
+      const gem = await callGeminiFallback("You transcribe civic citizen voice notes. Preserve language and meaning. Return JSON {transcript, language}.", `Transcribe langHint=${hint}. Return JSON.`, { model: tModel });
       if (gem) {
         try {
           const p = JSON.parse(gem.match(/\{[\s\S]*\}/)?.[0] || gem);
