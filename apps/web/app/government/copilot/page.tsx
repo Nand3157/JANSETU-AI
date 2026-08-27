@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
@@ -18,6 +18,7 @@ export default function CopilotPage() {
   const [ans, setAns] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const inputRef = React.useRef<HTMLInputElement>(null);
   function demoFallback(q: string) {
     const t = q.toLowerCase();
     const isBudget = t.includes("₹") || t.includes("cr") || t.includes("budget") || t.includes("10");
@@ -76,12 +77,12 @@ export default function CopilotPage() {
       </div>
       <Card className="p-4">
         <div className="flex gap-2">
-          <input value={q} onChange={e=> setQ(e.target.value)} onKeyDown={e=> { if (e.key==="Enter") ask(q); }} placeholder="Ask about priorities, projects or investment gaps..." className="flex-1 rounded-full border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#174EA6]" />
-          <Button onClick={()=> ask(q)} disabled={!q.trim() || loading} className="rounded-full gap-1.5"><Send className="h-4 w-4" /> {loading ? "Asking…" : "Ask"}</Button>
+          <input ref={inputRef} value={q} onChange={e=> setQ(e.target.value)} onKeyDown={e=> { if (e.key==="Enter") ask(q); }} placeholder="Ask about priorities, projects or investment gaps…" aria-label="Ask about priorities, projects or investment gaps" className="flex-1 rounded-full border border-[#E5E7EB] bg-white px-4 py-2.5 text-sm outline-none focus:border-[#174EA6]" />
+          <Button onClick={()=> ask(q)} disabled={!q.trim() || loading} className="rounded-full gap-1.5"><Send className="h-4 w-4" aria-hidden="true" /> {loading ? "Asking…" : "Ask"}</Button>
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {prompts.map(p=> (
-            <button key={p} onClick={()=> { setQ(p); ask(p); }} className="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] bg-white hover:bg-[#F8FAFC]">{p}</button>
+            <button key={p} type="button" onClick={()=> { setQ(p); setTimeout(()=> inputRef.current?.focus(), 0); }} className="text-xs px-3 py-1.5 rounded-full border border-[#E5E7EB] bg-white hover:bg-[#F8FAFC] text-left">{p}</button>
           ))}
         </div>
         {loading && <div className="mt-4 text-sm text-[#5F6368]">Fetching verified datasets… ranking clusters · computing gaps</div>}

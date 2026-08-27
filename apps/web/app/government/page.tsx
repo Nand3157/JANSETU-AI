@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ export default function GovernmentDashboard() {
   const [explain, setExplain] = useState<any>(null);
   const [decision, setDecision] = useState<"approved"|"rejected"|null>(null);
   const [decisionReason, setDecisionReason] = useState("");
+  const copilotInputRef = useRef<HTMLInputElement>(null);
 
   async function load() {
     try {
@@ -265,12 +266,12 @@ export default function GovernmentDashboard() {
             <div className="space-y-3">
               <div className="flex flex-wrap gap-2">
                 {["Which projects should we prioritize?","Why is Vadodara underserved?","What fits within ₹10 Cr?","What evidence supports this?","What changed this month?"].map(s=> (
-                  <button key={s} type="button" onClick={()=> setCopilotQ(s)} aria-pressed={copilotQ===s} className={`min-h-11 text-xs rounded-full px-3 py-1.5 border touch-manipulation transition-[background-color,border-color,color] ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"}`}>{s}</button>
+                  <button key={s} type="button" onClick={()=> { setCopilotQ(s); setTimeout(()=> copilotInputRef.current?.focus(), 0); }} aria-pressed={copilotQ===s} className={`min-h-11 text-xs rounded-full px-3 py-1.5 border touch-manipulation transition-[background-color,border-color,color] ${copilotQ===s?"bg-violet-600 text-white border-violet-600":"bg-white border-slate-200 hover:bg-slate-50"} text-left`}>{s}</button>
                 ))}
               </div>
               <div className="flex gap-2">
-                <input value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} aria-label="Ask a policy question" name="copilotQuestion" autoComplete="off" spellCheck={true} className="flex-1 rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" placeholder="Ask a policy question…" />
-                <Button onClick={askCopilot} className="min-h-11">Ask</Button>
+                <input ref={copilotInputRef} value={copilotQ} onChange={e=> setCopilotQ(e.target.value)} onKeyDown={e=> { if (e.key==="Enter" && copilotQ.trim()) askCopilot(); }} aria-label="Ask a policy question" name="copilotQuestion" autoComplete="off" spellCheck={true} className="flex-1 rounded-xl border border-slate-200 bg-white text-[#172033] px-3 py-2.5 text-[16px] md:text-sm min-h-11" placeholder="Ask a policy question…" />
+                <Button onClick={askCopilot} disabled={!copilotQ.trim()} className="min-h-11">Ask</Button>
               </div>
               {copilotA && (
                 <div className="animate-fade-in rounded-xl border border-slate-200 bg-slate-50 p-3 space-y-2">
