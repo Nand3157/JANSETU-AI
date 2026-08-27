@@ -181,11 +181,15 @@ export function VoiceRecorder({
     rec?.stream?.getTracks().forEach((t) => t.stop());
     recRef.current = null;
 
+    // Use finals, else interim/live as fallback (captures short utterances where browser hasn't finalized)
     const speechText = finals.current.join(" ").replace(/\s+/g, " ").trim();
-    let text = speechText;
+    const interimFallback = (interim || "").trim();
+    const liveFallback = liveTranscripts.join(" ").trim();
+    const combinedFallback = speechText || interimFallback || liveFallback;
+    let text = combinedFallback;
     let lang = selectedLang === "auto" ? "gu" : selectedLang;
     let audioUrl: string | null = null;
-    let source = speechText ? "speech-recognition" : "transcribe";
+    let source = combinedFallback ? "speech-recognition" : "transcribe";
 
     // 1. Try server transcription & media upload
     if (blob && blob.size > 50) {
@@ -221,7 +225,14 @@ export function VoiceRecorder({
     // 2. No fabricated fallback: silence must never become a synthetic complaint
     // attributed to the citizen. Surface an honest error instead.
     if (!text) {
-      setNote({ kind: "error", msg: "No speech detected. Please speak clearly or type your request below." });
+      // Provide actionable retry help instead of generic error
+      const hasAudio = !!(blob && blob.size > 200);
+      setNote({
+        kind: "error",
+        msg: hasAudio
+          ? "We recorded audio but couldn't transcribe it (engine busy or muted). Please try again — speak for 2–3 seconds clearly, or type your request below."
+          : "No speech detected. Check microphone permission (lock icon in address bar), select the correct language (ગુજરાતી/हिन्दी/English) matching what you spoke, speak louder for 2–3 seconds, then tap Stop. Or type below.",
+      });
       setInterim("");
       setState("idle");
       return;
