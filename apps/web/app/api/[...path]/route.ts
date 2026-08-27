@@ -413,8 +413,8 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
         }
       }
     }
-    // Handle greetings/help with friendly guidance, not top-priorities dump
-    if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim()) || /how can (u|you) help|what can you do|capabilities|help me|assist me/i.test(qRaw)) {
+    // Handle greetings/help — must catch before generic Gemini/deterministic so "how do you help?" doesn't become 4 clusters stub
+    if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim()) || /how (can|do) (u|you) help|what can you do|capabilities|help me|assist me|what do you do/i.test(qRaw)) {
       // Try Gemini for help too, if available
       if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
         const gemHelp = await callGeminiFallback(
