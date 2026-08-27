@@ -44,7 +44,8 @@ export function LocationPicker({ value, onChange }: { value: string; onChange: (
         const { latitude, longitude } = pos.coords;
         setCoords({ lat: latitude, lng: longitude });
         setSource("device");
-        onChange(value || "Village X, Vadodara", latitude, longitude, "device");
+        const pretty = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        onChange(value || pretty, latitude, longitude, "device");
         setLocating(false);
       },
       (err) => {
