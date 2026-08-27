@@ -468,32 +468,69 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
     });
   }
 
-  // Transcribe — tries real Gemini if key present, else demo mock (labels source honestly)
+  // Transcribe — real Gemini 3.5-transcribe with audio inline_data, no fabricated road text
   if (normPath === "transcribe") {
     const hint = String(jsonBody?.langHint || "auto").toLowerCase();
-    const tryTexts: Record<string, string> = {
-      gu: "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.",
-      hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है। अस्पताल जाने में बहुत समय लगता है और बच्चों को स्कूल जाने में कठिनाई होती है।",
-      en: "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.",
-    };
-    // If audioDataUrl present and Gemini key available, try real transcription via 3.5-audio
-    if (jsonBody?.dataUrl && (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY)) {
-      const tModel = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
-      const gem = await callGeminiFallback("You transcribe civic citizen voice notes. Preserve language and meaning. Return JSON {transcript, language}.", `Transcribe langHint=${hint}. Return JSON.`, { model: tModel });
-      if (gem) {
-        try {
-          const p = JSON.parse(gem.match(/\{[\s\S]*\}/)?.[0] || gem);
-          if (p.transcript) return NextResponse.json({ transcript: String(p.transcript), language: String(p.language||hint), source: "gemini" });
-        } catch {}
-        if (gem.trim() && !gem.trim().startsWith("{")) return NextResponse.json({ transcript: gem.trim().slice(0,500), language: hint, source: "gemini" });
-      }
+    const dataUrl: string | undefined = jsonBody?.dataUrl;
+    const hasKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+    // If audio present and Gemini key available, do real transcription via 3.5-audio with inline audio
+    if (dataUrl && hasKey) {
+      try {
+        // Parse dataUrl: data:audio/webm;codecs=opus;base64,....
+        const m = String(dataUrl).match(/^data:([^;]+);base64,([\s\S]+)$/);
+        if (m) {
+          const mimeType = m[1].split(";")[0].toLowerCase();
+          const b64 = m[2].replace(/\s/g, "");
+          if (b64.length < 100) throw new Error("audio too short");
+          const tModel = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
+          const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY!;
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${tModel}:generateContent?key=${key}`;
+          const gemRes = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language (gu/hi/en) and meaning. Never invent civic facts not spoken. Return ONLY JSON {transcript: string, language: 'gu'|'hi'|'en'|'und'}." }] },
+              contents: [{ parts: [{ text: `Transcribe this audio. langHint=${hint}. Return JSON only.` }, { inline_data: { mime_type: mimeType, data: b64 } }] }],
+              generationConfig: { temperature: 0.1, maxOutputTokens: 500, responseMimeType: "application/json" },
+            }),
+          });
+          if (gemRes.ok) {
+            const j: any = await gemRes.json();
+            const text = j?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (text) {
+              try {
+                const p = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
+                const tr = String(p.transcript || p.text || "").trim();
+                if (tr) return NextResponse.json({ transcript: tr, language: String(p.language || hint).slice(0,8), source: "gemini" });
+              } catch {}
+              const cleaned = text.replace(/```json|```/g, "").trim();
+              if (cleaned && !cleaned.startsWith("{")) return NextResponse.json({ transcript: cleaned.slice(0,800), language: hint === "auto" ? "und" : hint, source: "gemini" });
+              // if JSON parse succeeded above, already returned
+              if (text.trim()) {
+                try {
+                  const p2 = JSON.parse(text);
+                  if (p2.transcript) return NextResponse.json({ transcript: String(p2.transcript).trim(), language: String(p2.language || hint).slice(0,8), source: "gemini" });
+                } catch {}
+              }
+            }
+          } else {
+            const errText = await gemRes.text().catch(()=> "");
+            console.warn("Gemini transcribe failed", gemRes.status, errText.slice(0,300));
+          }
+        }
+      } catch (e:any) { console.warn("transcribe audio parse error", e?.message); }
+      // If Gemini audio transcription failed, fall through to browser speech (return empty so VoiceRecorder keeps speechText)
+      return NextResponse.json({ transcript: "", language: hint, source: "no_gemini_audio", error: "Gemini transcribe failed — using browser speech if available" });
     }
+    // No audio or no key: do NOT fabricate road-closure text. Return empty so VoiceRecorder keeps browser SpeechRecognition result or shows honest error.
+    // This stops the fake English road text you saw.
     const lang = hint === "hi" || hint === "hi-in" ? "hi" : hint === "en" || hint === "en-in" ? "en" : "gu";
-    return NextResponse.json({
-      transcript: tryTexts[lang] || tryTexts.gu,
-      language: lang,
-      source: process.env.GEMINI_API_KEY ? "gemini-fallback" : "mock",
-    });
+    if (!dataUrl) {
+      // No audio attached — likely browser Web Speech succeeded; if not, caller will show "No speech detected"
+      return NextResponse.json({ transcript: "", language: lang, source: hasKey ? "no_audio" : "mock_disabled", error: "No audio data — rely on browser speech" });
+    }
+    // Audio present but no Gemini key configured on this Vercel deployment
+    return NextResponse.json({ transcript: "", language: lang, source: "no_gemini_key", error: "GEMINI_API_KEY not set on Vercel — browser speech will be used if available" });
   }
 
   // Upload
