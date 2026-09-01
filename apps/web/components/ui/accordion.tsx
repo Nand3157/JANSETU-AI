@@ -11,19 +11,19 @@ export function Accordion({
 }) {
   const [open, setOpen] = useState<string | null>(items[0]?.value ?? null);
   return (
-    <div className="divide-y divide-[#E5E7EB] rounded-[16px] border border-[#E5E7EB] bg-white overflow-hidden">
+    <div className="divide-y divide-[#E5E7EB] border-y border-[#E5E7EB] bg-transparent">
       {items.map((it) => {
         const isOpen = open === it.value;
         return (
-          <div key={it.value} className="bg-white">
+          <div key={it.value} className="bg-transparent">
             <button
               type="button"
               aria-expanded={isOpen}
               aria-controls={`acc-${it.value}`}
               onClick={() => setOpen((v) => (v === it.value ? null : it.value))}
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-4 md:px-5 py-4 text-left text-[13.5px] font-semibold text-[#0B1F3A] hover:bg-[#F8FAFC] transition-colors",
-                isOpen && "bg-[#F8FAFC]"
+                "w-full flex items-center justify-between gap-3 px-0 py-4 text-left text-[14px] font-medium text-[#0B1F3A] hover:text-[#174EA6] transition-colors min-h-[44px]",
+                "bg-transparent border-0 shadow-none rounded-none focus-visible:outline-none focus-visible:text-[#174EA6]"
               )}
             >
               <span>{it.trigger}</span>
@@ -42,7 +42,7 @@ export function Accordion({
               )}
             >
               <div className="overflow-hidden">
-                <div className="px-4 md:px-5 pb-4 pt-0 text-[13.5px] leading-relaxed text-[#5F6368]">{it.content}</div>
+                <div className="pb-4 pt-1 text-[13.5px] leading-relaxed text-[#5F6368] pr-8">{it.content}</div>
               </div>
             </div>
           </div>
