@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
-// Cult UI / Aceternity — Dot Pattern background (subtle civic)
+// Cult UI / Aceternity — Dot Pattern background (very subtle civic, light)
 export function DotPattern({
   className,
-  dotColor = "rgba(23,78,166,0.12)",
-  size = 20,
+  dotColor = "rgba(23,78,166,0.08)",
+  size = 22,
 }: {
   className?: string;
   dotColor?: string;

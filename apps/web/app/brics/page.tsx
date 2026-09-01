@@ -1,11 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Globe, Languages, ArrowRight, CheckCircle2, MapPin, Banknote, Database } from "lucide-react";
-import { SpotlightCard } from "@/components/ui/spotlight";
-import { TiltCard } from "@/components/ui/tilt-card";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { Marquee } from "@/components/ui/marquee";
-import { BeamBorderAnimated } from "@/components/ui/border-beam";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
 
@@ -34,9 +31,9 @@ export default function BricsPage() {
   return (
     <div className="bg-[#F8FAFC] text-[#172033]">
       <div className="relative overflow-hidden border-b border-[#E5E7EB] bg-white">
-        <div className="absolute inset-0 aurora-soft opacity-60" aria-hidden="true" />
-        <DotPattern className="opacity-[0.12] [mask-image:radial-gradient(640px_420px_at_20%_12%,black,transparent_72%)]" />
-        <div className="absolute inset-0 grid-pattern opacity-[0.16]" aria-hidden="true" />
+        <div className="absolute inset-0 aurora-soft opacity-30" aria-hidden="true" />
+        <DotPattern className="opacity-[0.06] [mask-image:radial-gradient(640px_420px_at_20%_12%,black,transparent_72%)]" />
+        <div className="absolute inset-0 grid-pattern opacity-[0.08]" aria-hidden="true" />
         <div className="mx-auto max-w-[1080px] px-4 md:px-6 py-12 md:py-16 relative">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#F8FAFC] border border-[#E5E7EB] px-3 py-1 text-xs font-semibold text-[#5F6368]"><Globe className="h-3.5 w-3.5 text-[#174EA6]" /> BRICS-READY · 5 COUNTRIES</div>
           <h1 className="mt-4 text-[30px] md:text-[40px] font-extrabold tracking-[-0.04em] leading-[0.9] text-[#0B1F3A] text-balance">Built for diverse communities. Designed to scale across borders.</h1>
@@ -58,9 +55,7 @@ export default function BricsPage() {
       <div className="mx-auto max-w-[1080px] px-4 md:px-6 py-10">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {countries.map((b) => (
-            <TiltCard key={b.c} intensity={5} className="h-full">
-              <SpotlightCard className={`h-full rounded-[24px] border p-6 overflow-hidden group relative ${b.active ? "bg-[#FFFBF5] border-[#FF9933]/25 shadow-sm" : "bg-white border-[#E5E7EB]"}`} spotlightColor={b.active ? "rgba(255,153,51,0.09)" : "rgba(23,78,166,0.06)"}>
-                <BeamBorderAnimated duration={2.7} />
+            <div key={b.c} className={`rounded-[24px] border p-6 hover:shadow-sm hover:border-[#D2E3FC] transition-colors ${b.active ? "bg-[#FFFBF5] border-[#FF9933]/25 shadow-sm" : "bg-white border-[#E5E7EB]"}`}>
               <div className="flex items-center gap-3">
                 <span className="h-11 w-11 rounded-xl grid place-items-center text-white text-xs font-bold tracking-widest shadow-sm" style={{ background: b.col }} aria-hidden="true">{b.flag}</span>
                 <div>
@@ -68,18 +63,17 @@ export default function BricsPage() {
                   <div className="text-xs text-[#5F6368] flex items-center gap-1"><Languages className="h-3 w-3" /> {b.lang}</div>
                 </div>
               </div>
-              <div className="mt-4 space-y-2 text-xs relative">
+              <div className="mt-4 space-y-2 text-xs">
                 <div className="flex items-center gap-2 text-[#5F6368]"><MapPin className="h-3.5 w-3.5 text-[#174EA6]" /> <span className="font-medium text-[#172033]">Admin:</span> {b.admin}</div>
                 <div className="flex items-center gap-2 text-[#5F6368]"><Banknote className="h-3.5 w-3.5 text-[#188038]" /> <span className="font-medium text-[#172033]">Currency:</span> {b.currency}</div>
                 <div className="flex items-center gap-2 text-[#5F6368]"><Database className="h-3.5 w-3.5 text-[#0B1F3A]" /> <span className="font-medium text-[#172033]">Datasets:</span> {b.datasets}</div>
               </div>
               {b.active ? (
-                <div className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#188038] relative"><CheckCircle2 className="h-3.5 w-3.5" /> Demo deployed — Gujarat</div>
+                <div className="mt-4 inline-flex items-center gap-1.5 text-xs font-semibold text-[#188038]"><CheckCircle2 className="h-3.5 w-3.5" /> Demo deployed — Gujarat</div>
               ) : (
-                <div className="mt-4 text-xs text-[#5F6368] relative">Config ready — language + hierarchy + dataset swap.</div>
+                <div className="mt-4 text-xs text-[#5F6368]">Config ready — language + hierarchy + dataset swap.</div>
               )}
-              </SpotlightCard>
-            </TiltCard>
+            </div>
           ))}
         </div>
 

@@ -2,12 +2,12 @@
 import { useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
-// Aceternity — Spotlight / Cult UI — spotlight card (mouse tracking radial)
+// Aceternity — Spotlight / Cult UI — spotlight card (mouse tracking radial) — light, very subtle
 export function SpotlightCard({
   children,
   className,
-  spotlightColor = "rgba(23,78,166,0.12)",
-  size = 420,
+  spotlightColor = "rgba(23,78,166,0.05)",
+  size = 320,
 }: {
   children: React.ReactNode;
   className?: string;
