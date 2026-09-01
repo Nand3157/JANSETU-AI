@@ -55,51 +55,51 @@ export default function Home() {
               </BlurLine>
 
               <FadeIn delay={0.18}>
-                <div className="mt-7 flex flex-wrap items-center gap-4">
-                  <ShimmerButton href="/citizen/submit" className="h-[44px] px-7 text-[15px] min-h-[44px]">
+                <div className="mt-7">
+                  <ShimmerButton href="/citizen/submit" className="h-[46px] px-8 text-[15px] min-h-[44px] shadow-md">
                     Raise a Community Need <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </ShimmerButton>
-                  <Link href="/how-it-works" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] hover:decoration-[#174EA6] transition-colors min-h-[44px] px-2">
-                    How it works <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                  </Link>
+                  <div className="mt-2 flex items-center gap-3 text-xs text-[#5F6368]">
+                    <span>Takes ~2 min · No account to preview</span>
+                    <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
+                    <Link href="/how-it-works" className="text-[13px] font-normal text-[#5F6368] hover:text-[#172033] hover:underline underline-offset-4 decoration-[#CBD5E1] transition-colors min-h-[44px] inline-flex items-center">
+                      How it works
+                    </Link>
+                  </div>
                 </div>
-                <p className="mt-2 text-xs text-[#5F6368]">Takes ~2 min · Gujarati, Hindi, English · No account to preview</p>
               </FadeIn>
 
-              <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#5F6368]">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E5E7EB] px-2.5 py-1.5 shadow-sm min-h-[32px]">
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#188038]" aria-hidden="true" /> Privacy-preserving
-                </span>
-                <span className="inline-flex items-center gap-1.5 min-h-[32px]">
-                  <span className="h-1.5 w-1.5 rounded-full bg-[#174EA6]/15 border border-[#174EA6]/20" aria-hidden="true" /> GU · HI · EN
-                </span>
-                <span className="h-3 w-px bg-[#E5E7EB] hidden sm:block" aria-hidden="true" />
+              <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs text-[#5F6368]">
+                <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-[#188038]" aria-hidden="true" /> Privacy-preserving</span>
+                <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
                 <span>Human-governed</span>
                 <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
-                <Link href="/privacy" className="underline-premium min-h-[44px] inline-flex items-center px-1">Privacy</Link>
-                <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
-                <Link href="/docs" className="underline-premium min-h-[44px] inline-flex items-center px-1">Docs</Link>
+                <span>GU · HI · EN</span>
+                <span className="hidden sm:inline-flex items-center gap-1.5 ml-1">
+                  <span className="flex -space-x-1">
+                    <span className="h-6 w-6 rounded-full bg-[#E8F0FE] border-2 border-white grid place-items-center text-[10px] font-bold text-[#174EA6]">અ</span>
+                    <span className="h-6 w-6 rounded-full bg-[#E6F4EA] border-2 border-white grid place-items-center text-[10px] font-bold text-[#0D652D]">हि</span>
+                    <span className="h-6 w-6 rounded-full bg-[#FEF3C7] border-2 border-white grid place-items-center text-[10px] font-bold text-[#92400E]">A</span>
+                  </span>
+                  <span>voices</span>
+                </span>
               </div>
 
-              {/* submission preview — Task clarity, light */}
-              <div className="mt-6 max-w-[560px] rounded-[20px] bg-white border border-[#E5E7EB] p-3 shadow-sm">
-                <div className="flex items-center gap-2 text-[11px] tracking-[0.14em] font-bold text-[#5F6368]"><Eye className="h-3.5 w-3.5 text-[#174EA6]" /> WHAT HAPPENS NEXT</div>
+              {/* submission preview — light, no CTA competition */}
+              <div className="mt-6 max-w-[560px] rounded-[16px] bg-[#F8FAFC]/60 border border-dashed border-[#E5E7EB] p-3">
+                <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] font-bold text-[#5F6368]"><Eye className="h-3 w-3 text-[#5F6368]" aria-hidden="true" /> WHAT HAPPENS NEXT</div>
                 <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
                   {[
                     { icon: Zap, label: "1. Speak", sub: "Voice / Text / Photo" },
-                    { icon: Database, label: "2. AI understands", sub: "GU→EN, category" },
-                    { icon: BarChart3, label: "3. Evidence + score", sub: "Priority 0–100" },
+                    { icon: Database, label: "2. AI understands", sub: "GU→EN" },
+                    { icon: BarChart3, label: "3. Evidence + score", sub: "0–100" },
                   ].map((s) => (
-                    <div key={s.label} className="rounded-[14px] bg-[#F8FAFC] border border-[#E5E7EB] p-2.5">
-                      <s.icon className="h-4 w-4 text-[#174EA6] mx-auto" aria-hidden="true" />
-                      <div className="text-xs font-semibold text-[#0B1F3A] mt-1 leading-none">{s.label}</div>
+                    <div key={s.label} className="rounded-[12px] bg-white border border-[#E5E7EB]/60 p-2.5">
+                      <s.icon className="h-3.5 w-3.5 text-[#5F6368] mx-auto" aria-hidden="true" />
+                      <div className="text-xs font-medium text-[#172033] mt-1 leading-none">{s.label}</div>
                       <div className="text-[11px] text-[#5F6368]">{s.sub}</div>
                     </div>
                   ))}
-                </div>
-                <div className="mt-2.5 flex items-center justify-between text-xs">
-                  <span className="text-[#5F6368]">Preview before it’s clustered</span>
-                  <Link href="/citizen/submit" className="font-medium text-[#174EA6] hover:underline min-h-[44px] inline-flex items-center">Try demo →</Link>
                 </div>
               </div>
 
@@ -179,40 +179,72 @@ export default function Home() {
           <Link href="/citizen/submit" className="hidden md:inline-flex text-xs font-medium rounded-full border border-[#E5E7EB] bg-white px-3.5 py-2 hover:border-[#174EA6] hover:text-[#174EA6] min-h-[44px] items-center">Live citizen demo →</Link>
         </div>
         <div className="mt-6 grid md:grid-cols-3 gap-4">
-          {[
-            { title: "Citizen — Submit", sub: "Voice / Text / Photo → AI preview", accent: "GU · HI · EN", bar: "Speak in Gujarati", color: "#174EA6" },
-            { title: "Government — Priority queue", sub: "Evidence · score · audit", accent: "Deterministic v1", bar: "94 / High · Vadodara", color: "#0B1F3A" },
-            { title: "Impact — Baseline → Actual", sub: "Observed vs modeled", accent: "45 → 28 min", bar: "Observed · verified", color: "#188038" },
-          ].map((c) => (
-            <div key={c.title} className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
-              <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#FFDE9A] border border-[#FFEDC2]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#B8F2C2] border border-[#D1F5D9]" />
-                <span className="ml-auto text-[11px] font-medium text-[#5F6368]">{c.accent}</span>
+          <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
+            <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#FFDE9A] border border-[#FFEDC2]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#B8F2C2] border border-[#D1F5D9]" />
+              <span className="ml-auto text-[11px] font-medium text-[#5F6368]">GU · HI · EN</span>
+            </div>
+            <div className="p-4">
+              <div className="text-sm font-bold text-[#0B1F3A]">Citizen — Submit</div>
+              <div className="text-xs text-[#5F6368]">Voice / Text / Photo → AI preview</div>
+              <div className="mt-3 rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB] p-3">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#5F6368]"><span className="h-4 w-8 rounded bg-white border border-[#E5E7EB] grid place-items-center text-[10px]">GU</span> Gujarati voice detected</div>
+                <div className="mt-2 rounded-lg bg-white border border-[#E5E7EB] p-2 text-xs leading-relaxed text-[#172033]">“અમારા ગામનો રસ્તો…”</div>
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#5F6368]"><MapPin className="h-3 w-3" /> Village X, Vadodara · 📷 attached</div>
+                <div className="mt-2 h-7 rounded-full bg-[#174EA6] text-white grid place-items-center text-xs font-medium">Preview submission →</div>
               </div>
-              <div className="p-4">
-                <div className="text-sm font-bold text-[#0B1F3A]">{c.title}</div>
-                <div className="text-xs text-[#5F6368]">{c.sub}</div>
-                <div className="mt-3 rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB] p-3">
-                  <div className="h-2 w-3/4 rounded-full bg-[#E5E7EB]" />
-                  <div className="mt-2 h-2 w-1/2 rounded-full bg-[#E5E7EB]" />
-                  <div className="mt-3 h-8 rounded-lg flex items-center px-2 text-xs font-medium" style={{ background: `${c.color}12`, color: c.color, border: `1px solid ${c.color}18` }}>
-                    {c.bar}
-                  </div>
-                  <div className="mt-2 flex gap-1.5">
-                    <span className="h-6 flex-1 rounded-full bg-white border border-[#E5E7EB]" />
-                    <span className="h-6 w-6 rounded-full bg-[#174EA6] grid place-items-center text-white"><ArrowRight className="h-3 w-3" /></span>
-                  </div>
+            </div>
+          </div>
+          <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
+            <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#FFDE9A] border border-[#FFEDC2]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#B8F2C2] border border-[#D1F5D9]" />
+              <span className="ml-auto text-[11px] font-medium text-[#5F6368]">Deterministic v1</span>
+            </div>
+            <div className="p-4">
+              <div className="text-sm font-bold text-[#0B1F3A]">Government — Priority queue</div>
+              <div className="text-xs text-[#5F6368]">Evidence · score · audit</div>
+              <div className="mt-3 rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB] p-3 space-y-2">
+                <div className="flex items-center gap-2 rounded-xl bg-white border border-[#E5E7EB] p-2">
+                  <span className="h-7 w-7 rounded-lg bg-[#0B1F3A] text-white grid place-items-center text-xs font-bold">94</span>
+                  <div className="min-w-0 flex-1"><div className="text-xs font-semibold text-[#0B1F3A] truncate">Vadodara roads</div><div className="text-[11px] text-[#5F6368] truncate">4,218 req · 12.4k · high</div></div>
+                  <span className="h-2 w-2 rounded-full bg-[#D93025]" />
+                </div>
+                <div className="flex items-center gap-2 rounded-xl bg-white border border-[#E5E7EB] p-2 opacity-70">
+                  <span className="h-7 w-7 rounded-lg bg-white border border-[#E5E7EB] grid place-items-center text-xs font-bold text-[#5F6368]">62</span>
+                  <div className="min-w-0 flex-1"><div className="text-xs font-medium text-[#172033] truncate">Water — Surat</div><div className="text-[11px] text-[#5F6368] truncate">892 req · moderate</div></div>
                 </div>
               </div>
             </div>
-          ))}
+          </div>
+          <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
+            <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
+              <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#FFDE9A] border border-[#FFEDC2]" />
+              <span className="h-2.5 w-2.5 rounded-full bg-[#B8F2C2] border border-[#D1F5D9]" />
+              <span className="ml-auto text-[11px] font-medium text-[#5F6368]">45 → 28 min</span>
+            </div>
+            <div className="p-4">
+              <div className="text-sm font-bold text-[#0B1F3A]">Impact — Baseline → Actual</div>
+              <div className="text-xs text-[#5F6368]">Observed vs modeled</div>
+              <div className="mt-3 rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB] p-3">
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-lg bg-white border border-[#E5E7EB] p-2"><div className="font-bold text-[#5F6368]">45</div><div className="text-[10px] text-[#5F6368]">Baseline</div></div>
+                  <div className="rounded-lg bg-[#E8F0FE] border border-[#D2E3FC] p-2"><div className="font-bold text-[#174EA6]">22</div><div className="text-[10px] text-[#174EA6]">Target</div></div>
+                  <div className="rounded-lg bg-[#E6F4EA] border border-[#CEE6D0] p-2"><div className="font-bold text-[#0D652D]">28</div><div className="text-[10px] text-[#0D652D]">Actual</div></div>
+                </div>
+                <div className="mt-2 text-[11px] text-[#188038] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" /> Observed · verified</div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2 text-xs">
-          <Link href="/citizen/submit" className="rounded-full bg-white border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] min-h-[44px] inline-flex items-center">Citizen submit →</Link>
-          <Link href="/government" className="rounded-full bg-white border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] min-h-[44px] inline-flex items-center">Government dashboard →</Link>
-          <Link href="/docs" className="rounded-full bg-white border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] min-h-[44px] inline-flex items-center">Docs →</Link>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs">
+          <Link href="/citizen/submit" className="font-medium text-[#174EA6] hover:underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Citizen submit →</Link>
+          <Link href="/government" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Government dashboard →</Link>
+          <Link href="/docs" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Docs →</Link>
         </div>
       </section>
 
@@ -234,10 +266,7 @@ export default function Home() {
         </div>
 
         <div className="mt-8 relative">
-          <div className="hidden md:block absolute left-0 right-0 top-[20px] h-px bg-[#E5E7EB]" aria-hidden="true" />
-          <div className="hidden md:block absolute left-0 right-0 top-[20px] h-[2px] bg-gradient-to-r from-transparent via-[#174EA6]/18 to-transparent blur-[0.5px]" aria-hidden="true" />
-          {/* moving dot along beam (aceternity/ magicui inspired) */}
-          <div className="hidden md:block absolute top-[16px] h-1.5 w-1.5 rounded-full bg-[#174EA6] shadow-sm animate-[marquee_8s_linear_infinite]" style={{ left: 0, animationName: "float", animationDuration: "6s" }} aria-hidden="true" />
+          <div className="hidden md:block absolute left-[5%] right-[5%] top-[20px] h-px bg-[#E5E7EB]" aria-hidden="true" />
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4">
             {[
               { n: "01", t: "Citizen Voice", d: "Speak / type / photo" },

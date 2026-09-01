@@ -56,7 +56,7 @@ export function Header() {
             const active = pathname === n.href;
             return (
               <li key={n.href}>
-              <Link href={n.href} aria-current={active ? "page" : undefined} className={`px-3.5 py-2 rounded-full font-semibold nav-pill ${active ? "bg-[#0B1F3A] text-white shadow-sm" : "text-[#5F6368] hover:text-[#172033] hover:bg-[#F8FAFC] hover:shadow-sm"}`}>
+              <Link href={n.href} aria-current={active ? "page" : undefined} className={`px-3 py-2 rounded-full text-sm font-medium transition-colors min-h-[44px] inline-flex items-center ${active ? "bg-[#0B1F3A] text-white shadow-sm" : "text-[#172033] hover:text-[#174EA6] hover:bg-[#F8FAFC]"}`}>
                 {n.label}
               </Link>
               </li>
@@ -65,8 +65,8 @@ export function Header() {
           </ul>
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/login" className="hidden md:inline-flex h-9 px-4 items-center rounded-full text-sm font-medium text-[#5F6368] hover:text-[#172033] hover:bg-[#F8FAFC] transition-colors min-h-[44px]">Log In</Link>
-          <Link href="/register" className="hidden md:inline-flex h-9 px-4 items-center rounded-full border border-[#E5E7EB] bg-white text-sm font-medium text-[#172033] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors min-h-[44px]">Register</Link>
+          <Link href="/login" className="hidden md:inline-flex h-9 px-3 items-center text-sm font-normal text-[#5F6368] hover:text-[#172033] transition-colors min-h-[44px]">Log In</Link>
+          <Link href="/register" className="hidden md:inline-flex h-9 px-3 items-center text-sm font-normal text-[#5F6368] hover:text-[#172033] hover:underline underline-offset-4 decoration-[#E5E7EB] transition-colors min-h-[44px]">Register</Link>
           <button onClick={()=> setOpen(v=> !v)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-nav" className="lg:hidden h-11 w-11 grid place-items-center rounded-full border border-[#E5E7EB] bg-white touch-manipulation hover:border-[#CBD5E1] transition-colors" style={{ WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
             {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
           </button>

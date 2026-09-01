@@ -22,15 +22,17 @@ export function Accordion({
               aria-controls={`acc-${it.value}`}
               onClick={() => setOpen((v) => (v === it.value ? null : it.value))}
               className={cn(
-                "w-full flex items-center justify-between gap-3 px-0 py-4 text-left text-[14px] font-medium text-[#0B1F3A] hover:text-[#174EA6] transition-colors min-h-[44px]",
+                "group w-full flex items-center justify-between gap-3 px-0 py-4 text-left text-[14px] font-medium text-[#0B1F3A] hover:text-[#174EA6] transition-colors min-h-[44px]",
                 "bg-transparent border-0 shadow-none rounded-none focus-visible:outline-none focus-visible:text-[#174EA6]"
               )}
             >
               <span>{it.trigger}</span>
-              <ChevronDown
-                className={cn("h-4 w-4 text-[#5F6368] shrink-0 transition-transform duration-300", isOpen && "rotate-180 text-[#174EA6]")}
-                aria-hidden="true"
-              />
+              <span className={cn("h-7 w-7 rounded-full border bg-white grid place-items-center shrink-0 transition-colors", isOpen ? "border-[#174EA6] bg-[#E8F0FE]" : "border-[#E5E7EB] group-hover:border-[#CBD5E1]")}>
+                <ChevronDown
+                  className={cn("h-3.5 w-3.5 text-[#5F6368] shrink-0 transition-transform duration-300", isOpen && "rotate-180 text-[#174EA6]")}
+                  aria-hidden="true"
+                />
+              </span>
             </button>
             <div
               id={`acc-${it.value}`}
