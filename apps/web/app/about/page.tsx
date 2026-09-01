@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ShieldCheck, Eye, Users, Globe, ArrowRight, CheckCircle2, Database, Heart } from "lucide-react";
+import { SpotlightCard } from "@/components/ui/spotlight";
+import { DotPattern } from "@/components/ui/dot-pattern";
+import { BlurLine } from "@/components/ui/blur-text";
+import { BeamBorderAnimated } from "@/components/ui/border-beam";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://jansetu-ai-web-sooty.vercel.app";
 
@@ -22,13 +26,18 @@ export default function AboutPage() {
     <div className="bg-[#F8FAFC] text-[#172033]">
       <div className="relative overflow-hidden border-b border-[#E5E7EB] bg-white">
         <div className="absolute inset-0 aurora-soft opacity-60" aria-hidden="true" />
+        <DotPattern className="opacity-[0.12] [mask-image:radial-gradient(520px_360px_at_18%_10%,black,transparent_72%)]" />
         <div className="absolute inset-0 grid-pattern opacity-[0.16]" aria-hidden="true" />
         <div className="mx-auto max-w-[820px] px-4 md:px-6 py-12 md:py-16 relative">
           <div className="inline-flex items-center gap-2 rounded-full bg-[#F8FAFC] border border-[#E5E7EB] px-3 py-1 text-xs font-semibold text-[#5F6368]"><Heart className="h-3.5 w-3.5 text-[#D93025]" /> DIGITAL PUBLIC GOOD</div>
-          <h1 className="mt-4 text-[32px] md:text-[40px] font-extrabold tracking-[-0.04em] leading-[0.9] text-[#0B1F3A] text-balance">Infrastructure is not about concrete. It is about dignity.</h1>
-          <p className="text-[15.5px] leading-relaxed text-[#5F6368] mt-4">
-            <strong className="text-[#0B1F3A]">JANSETU AI</strong> is not a complaint chatbot. It is a public infrastructure demand intelligence layer connecting citizen demand to evidence, prioritization, investment planning and measurable outcomes.
-          </p>
+          <BlurLine delay={0.06}>
+            <h1 className="mt-4 text-[32px] md:text-[40px] font-extrabold tracking-[-0.04em] leading-[0.9] text-[#0B1F3A] text-balance">Infrastructure is not about concrete. It is about dignity.</h1>
+          </BlurLine>
+          <BlurLine delay={0.16}>
+            <p className="text-[15.5px] leading-relaxed text-[#5F6368] mt-4">
+              <strong className="text-[#0B1F3A]">JANSETU AI</strong> is not a complaint chatbot. It is a public infrastructure demand intelligence layer connecting citizen demand to evidence, prioritization, investment planning and measurable outcomes.
+            </p>
+          </BlurLine>
           <div className="mt-6 flex flex-wrap gap-2 text-xs">
             <span className="rounded-full bg-[#0B1F3A] text-white px-3.5 py-2 font-semibold">Citizen-first</span>
             <span className="rounded-full bg-white border border-[#E5E7EB] px-3.5 py-2">Privacy-preserving</span>
@@ -38,8 +47,12 @@ export default function AboutPage() {
       </div>
 
       <div className="mx-auto max-w-[820px] px-4 md:px-6 py-10 space-y-6">
-        <div className="rounded-[24px] bg-white border border-[#E5E7EB] p-6 md:p-8 beam-border shadow-card">
-          <h2 className="text-[11px] tracking-[0.14em] font-extrabold text-[#174EA6] flex items-center gap-2"><Users className="h-4 w-4" /> OUR MISSION</h2>
+        <SpotlightCard className="rounded-[24px] bg-white border border-[#E5E7EB] overflow-hidden shadow-card group" spotlightColor="rgba(23,78,166,0.06)">
+          <div className="p-6 md:p-8 relative">
+            <BeamBorderAnimated duration={3.2} />
+            <DotPattern className="opacity-[0.12] [mask-image:radial-gradient(380px_240px_at_88%_8%,black,transparent_72%)]" />
+            <div className="relative">
+              <h2 className="text-[11px] tracking-[0.14em] font-extrabold text-[#174EA6] flex items-center gap-2"><Users className="h-4 w-4" /> OUR MISSION</h2>
           <p className="text-[15.5px] leading-relaxed text-[#172033] mt-3">
             As a <strong>Digital Public Good</strong>, JANSETU is citizen-first, privacy-preserving, and fairness-constrained — we never use religion, caste, or political affiliation in any scoring or prioritization decision, and every recommendation is traceable to auditable evidence at a pinned weight version.
           </p>
@@ -60,7 +73,9 @@ export default function AboutPage() {
               <div className="text-[#5F6368]">Pinned weights</div>
             </div>
           </div>
-        </div>
+            </div>
+          </div>
+        </SpotlightCard>
 
         <div className="grid md:grid-cols-2 gap-4">
           <div className="rounded-[24px] bg-[#0B1F3A] text-white p-6 border border-[#0B1F3A] relative overflow-hidden">
