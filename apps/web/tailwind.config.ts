@@ -48,6 +48,11 @@ const config: Config = {
         float: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-4px)" } },
         pulse: { "0%,100%": { transform: "scale(1)", opacity: "0.92" }, "50%": { transform: "scale(1.04)", opacity: "1" } },
         "scale-in": { from: { opacity: "0", transform: "scale(0.98)" }, to: { opacity: "1", transform: "scale(1)" } },
+        marquee: { from: { transform: "translateX(0)" }, to: { transform: "translateX(calc(-50% - 0.75rem))" } },
+        "aurora-shift": { "0%": { backgroundPosition: "0% 50%" }, "50%": { backgroundPosition: "100% 50%" }, "100%": { backgroundPosition: "0% 50%" } },
+        "border-beam": { "100%": { offsetDistance: "100%" } },
+        spin: { from: { transform: "rotate(0deg)" }, to: { transform: "rotate(360deg)" } },
+        "beam-slide": { from: { transform: "translateX(-100%)" }, to: { transform: "translateX(100%)" } },
       },
       animation: {
         "fade-in": "fade-in 0.55s cubic-bezier(0.22,1,0.36,1) both",
@@ -57,6 +62,10 @@ const config: Config = {
         float: "float 6s ease-in-out infinite",
         pulse: "pulse 3.2s ease-in-out infinite",
         "scale-in": "scale-in 0.5s cubic-bezier(0.22,1,0.36,1) both",
+        marquee: "marquee var(--duration,32s) linear infinite",
+        "border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
+        spin: "spin 5s linear infinite",
+        "beam-slide": "beam-slide 2.2s linear infinite",
       },
       transitionTimingFunction: {
         "out-expo": "cubic-bezier(0.22,1,0.36,1)",

@@ -146,22 +146,27 @@ div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*
 .hotspot-hover { transition: transform 0.2s, filter 0.2s; }
 .hotspot-hover:hover { transform: scale(1.08); filter: brightness(1.05); }
 @keyframes beam-slide { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+@keyframes aurora-shift { 0%{ background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+@keyframes marquee { from{transform:translateX(0)} to{transform:translateX(calc(-50% - 0.75rem))} }
 .beam-shine { position: relative; overflow: hidden; }
 .beam-shine::after {
   content:""; position: absolute; inset:0; background: linear-gradient(100deg, transparent 42%, rgba(255,255,255,0.55) 50%, transparent 58%);
   transform: translateX(-100%); transition: transform 0.7s cubic-bezier(0.22,1,0.36,1); opacity:0;
 }
 .beam-shine:hover::after { transform: translateX(100%); opacity:1; }
+.aurora-animate { background-size:200% 100%; animation: aurora-shift 5.5s ease infinite; }
+.marquee-track { animation: marquee var(--duration,32s) linear infinite; }
+.shimmer-slide { background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.52) 50%, transparent 70%); animation: beam-slide 1.8s ease-in-out infinite; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 8px; border: 2px solid #F8FAFC; }
 ::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
 /* Reduced motion: stop decorative + looping movement, keep instant non-moving
-   state feedback (color/shadow/opacity). Spinners are exempt — they carry
-   loading state and have text equivalents beside them. */
+    state feedback (color/shadow/opacity). Spinners are exempt — they carry
+    loading state and have text equivalents beside them. */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .hotspot-pulse, .shimmer-border::after, .animate-ping,
-  [class*="animate-pulse"]:not(.animate-spin) { animation: none !important; }
+  .hotspot-pulse, .shimmer-border::after, .animate-ping, .marquee-track, .shimmer-slide,
+  [class*="animate-pulse"]:not(.animate-spin), [class*="animate-marquee"], [class*="animate-shimmer"], [class*="animate-aurora-shift"], [class*="animate-border-beam"] { animation: none !important; }
   *, *::before, *::after {
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
