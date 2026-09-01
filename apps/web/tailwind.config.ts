@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Spec palette — premium Google civic
+        // Spec palette — premium Google civic (DESIGN.md single source of truth)
         brand: { blue: "#174EA6", navy: "#0B1F3A", light: "#E8F0FE" },
         civic: {
           900: "#0B1F3A", 800: "#174EA6", 700: "#1A5ED6", 600: "#2D6AE0",
@@ -28,25 +28,39 @@ const config: Config = {
       },
       borderRadius: { xl: "16px", "2xl": "20px", "3xl": "24px", "4xl": "28px" },
       boxShadow: {
-        nav: "0 1px 3px rgba(11,31,58,0.08)",
-        card: "0 1px 3px rgba(23,32,51,0.07), 0 4px 12px rgba(23,32,51,0.06)",
-        "card-hover": "0 8px 24px rgba(11,31,58,0.10), 0 4px 12px rgba(11,31,58,0.06)",
+        nav: "0 1px 3px rgba(11,31,58,0.08), 0 0 0 1px rgba(11,31,58,0.03)",
+        card: "0 1px 2px rgba(23,32,51,0.06), 0 4px 16px rgba(23,32,51,0.05)",
+        "card-hover": "0 12px 32px rgba(11,31,58,0.10), 0 4px 16px rgba(11,31,58,0.06)",
         soft: "0 4px 16px rgba(11,31,58,0.06)",
         map: "0 8px 30px rgba(11,31,58,0.12)",
+        elevated: "0 20px 48px rgba(11,31,58,0.12), 0 8px 16px rgba(11,31,58,0.06)",
+      },
+      maxWidth: {
+        content: "1280px",
+        prose: "68ch",
       },
       keyframes: {
-        "fade-in": { from: { opacity: "0", transform: "translateY(6px)" }, to: { opacity: "1", transform: "translateY(0)" } },
-        "blur-in": { from: { opacity: "0", filter: "blur(6px)" }, to: { opacity: "1", filter: "blur(0)" } },
+        "fade-in": { from: { opacity: "0", transform: "translateY(8px)" }, to: { opacity: "1", transform: "translateY(0)" } },
+        "fade-in-slow": { from: { opacity: "0", transform: "translateY(10px)" }, to: { opacity: "1", transform: "translateY(0)" } },
+        "blur-in": { from: { opacity: "0", filter: "blur(8px)", transform: "translateY(4px)" }, to: { opacity: "1", filter: "blur(0)", transform: "translateY(0)" } },
         shimmer: { "0%": { transform: "translateX(-100%)" }, "100%": { transform: "translateX(100%)" } },
+        "beam-dash": { "0%": { strokeDashoffset: "0" }, "100%": { strokeDashoffset: "-22" } },
         float: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-4px)" } },
-        pulse: { "0%,100%": { transform: "scale(1)", opacity: "0.9" }, "50%": { transform: "scale(1.05)", opacity: "1" } },
+        pulse: { "0%,100%": { transform: "scale(1)", opacity: "0.92" }, "50%": { transform: "scale(1.04)", opacity: "1" } },
+        "scale-in": { from: { opacity: "0", transform: "scale(0.98)" }, to: { opacity: "1", transform: "scale(1)" } },
       },
       animation: {
-        "fade-in": "fade-in 0.5s ease both",
-        "blur-in": "blur-in 0.6s ease both",
-        shimmer: "shimmer 1.6s ease-in-out infinite",
+        "fade-in": "fade-in 0.55s cubic-bezier(0.22,1,0.36,1) both",
+        "fade-in-slow": "fade-in-slow 0.7s cubic-bezier(0.22,1,0.36,1) both",
+        "blur-in": "blur-in 0.7s cubic-bezier(0.22,1,0.36,1) both",
+        shimmer: "shimmer 1.8s ease-in-out infinite",
         float: "float 6s ease-in-out infinite",
-        pulse: "pulse 3s ease-in-out infinite",
+        pulse: "pulse 3.2s ease-in-out infinite",
+        "scale-in": "scale-in 0.5s cubic-bezier(0.22,1,0.36,1) both",
+      },
+      transitionTimingFunction: {
+        "out-expo": "cubic-bezier(0.22,1,0.36,1)",
+        "in-out": "cubic-bezier(0.45,0,0.55,1)",
       },
     },
   },

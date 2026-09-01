@@ -40,7 +40,7 @@ export function SiteFooter() {
   if (hide) return null;
   return (
     <footer className="border-t border-[#E5E7EB] bg-white">
-      <div className="mx-auto max-w-[1280px] px-4 md:px-6 py-10">
+      <div className="mx-auto max-w-[1280px] px-4 md:px-6 py-10 md:py-12">
         <div className="grid md:grid-cols-[1.4fr_1fr_1fr_1fr] gap-8">
           <div>
             <Link href="/" aria-label="JANSETU AI — Home" className="flex items-center gap-2.5">
@@ -58,11 +58,11 @@ export function SiteFooter() {
               </div>
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-[#5F6368] max-w-[38ch]">
-              A Digital Public Good turning citizen voice into evidence-backed development priorities.
+              A Digital Public Good turning citizen voice into evidence-backed development priorities. Human-governed, audit-logged, deterministic.
             </p>
             <div className="mt-4 flex flex-wrap gap-2 text-xs text-[#5F6368]">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EB] px-2.5 py-1"><ShieldCheck className="h-3.5 w-3.5 text-[#188038]" /> Human-governed</span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EB] px-2.5 py-1"><Globe className="h-3.5 w-3.5 text-[#174EA6]" /> GU · HI · EN · BRICS-ready</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-[#F8FAFC] px-2.5 py-1"><ShieldCheck className="h-3.5 w-3.5 text-[#188038]" /> Human-governed</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-[#F8FAFC] px-2.5 py-1"><Globe className="h-3.5 w-3.5 text-[#174EA6]" /> GU · HI · EN · BRICS-ready</span>
             </div>
             <div className="mt-4 space-y-1.5 text-sm">
               <a href={`mailto:${SUPPORT_EMAIL}`} className="flex items-center gap-2 text-[#172033] hover:text-[#174EA6] transition-colors break-all"><Mail className="h-4 w-4 shrink-0 text-[#174EA6]" /> {SUPPORT_EMAIL}</a>

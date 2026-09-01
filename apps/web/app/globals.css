@@ -5,22 +5,20 @@
 :root { --background: 210 40% 98%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
 * { border-color: #E5E7EB; }
 html { scroll-behavior: smooth; }
-/* Vercel: skip-to-content anchor offset + sticky header clearance */
+@media (prefers-reduced-motion: no-preference) {
+  html { scroll-behavior: smooth; }
+}
 [id] { scroll-margin-top: 72px; }
-/* touch-optimizations per Vercel */
 button, a, [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 input, textarea, select { font-size: 16px; }
 @media (min-width: 768px) {
   input, textarea, select { font-size: 14px; }
 }
-/* Kill horizontal scrolling / mobile overflow globally */
 html, body { overflow-x: hidden; }
 @supports (overflow-x: clip) { html, body { overflow-x: clip; } }
 img, svg, video, canvas { max-width: 100%; }
-body { @apply bg-[#F5F7FB] text-ink antialiased selection:bg-[#174EA6] selection:text-white; }
+body { @apply bg-[#F5F7FB] text-ink antialiased selection:bg-[#174EA6] selection:text-white; font-feature-settings: "cv02","cv03","cv04","ss01"; text-rendering: optimizeLegibility; }
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom); }
-/* Global focus fallback — element+pseudo-class specificity beats single-class
-   utilities like focus:outline-none, so keyboard focus is never invisible. */
 button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible,
 select:focus-visible, summary:focus-visible, [role="button"]:focus-visible,
 [role="radio"]:focus-visible, [role="checkbox"]:focus-visible, [role="tab"]:focus-visible,
@@ -29,9 +27,10 @@ select:focus-visible, summary:focus-visible, [role="button"]:focus-visible,
   outline-offset: 2px;
 }
 
+/* — editorial tokens — */
 .civic-gradient { background: linear-gradient(180deg, #F8FAFC 0%, #EFF3FA 100%); }
 .navbar-blur {
-  backdrop-filter: blur(16px) saturate(1.15);
+  backdrop-filter: blur(18px) saturate(1.18);
   background: rgba(255,255,255,0.92);
   border-bottom: 1px solid #E5E7EB;
 }
@@ -39,10 +38,15 @@ select:focus-visible, summary:focus-visible, [role="button"]:focus-visible,
   background: #FFFFFF;
   border: 1px solid #E5E7EB;
   box-shadow: 0 1px 2px rgba(23,32,51,0.05), 0 8px 24px rgba(23,32,51,0.045);
+  transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
 }
-.page-heading { font-size: clamp(1.55rem, 2.5vw, 2.15rem); line-height: 1.12; letter-spacing: -0.035em; font-weight: 750; color: #0B1F3A; }
-.eyebrow { color: #174EA6; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 750; }
+.page-heading { font-size: clamp(1.55rem, 2.6vw, 2.2rem); line-height: 1.08; letter-spacing: -0.038em; font-weight: 800; color: #0B1F3A; text-wrap: balance; }
+.display-tight { letter-spacing: -0.04em; line-height: 0.92; font-weight: 800; }
+.eyebrow { color: #174EA6; font-size: 0.66rem; letter-spacing: 0.15em; text-transform: uppercase; font-weight: 800; }
+.eyebrow-muted { color: #5F6368; font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; }
 .soft-section { background: linear-gradient(135deg, #F8FAFC 0%, #EEF4FF 100%); }
+.hairline { height: 1px; background: linear-gradient(90deg, transparent, #E5E7EB 12%, #E5E7EB 88%, transparent); }
+.hairline-strong { height: 1px; background: #E5E7EB; }
 .touch-target { min-height: 44px; min-width: 44px; }
 .card-premium:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(11,31,58,0.10), 0 4px 12px rgba(11,31,58,0.06); border-color: #D2D8E3; }
 /* All cards, rows, pills get hover — perf: transform/opacity only */
@@ -82,9 +86,55 @@ a:hover { text-decoration-color: #174EA6; }
     radial-gradient(900px 520px at 18% -8%, rgba(23,78,166,0.07), transparent 60%),
     radial-gradient(700px 480px at 88% 0%, rgba(24,128,56,0.04), transparent 55%);
 }
+/* — editorial utilities — inspired by Aceternity / Magic UI but civic-restrained — */
+.editorial-rule { height: 1px; background: #E5E7EB; }
+.editorial-rule-fade { height: 1px; background: linear-gradient(90deg, transparent 0%, #E5E7EB 15%, #E5E7EB 85%, transparent 100%); }
+.prose-measure { max-width: 62ch; }
+.text-balance { text-wrap: balance; }
+.kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: 0.14em; font-weight: 800; text-transform: uppercase; color: #5F6368; }
+.kicker::before { content:""; width: 18px; height: 1px; background: currentColor; opacity: 0.35; }
+.kicker-accent { color: #174EA6; }
+.grid-pattern {
+  background-image:
+    linear-gradient(rgba(23,78,166,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23,78,166,0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.dotted-rule {
+  height: 1px;
+  background-image: linear-gradient(90deg, #E5E7EB 50%, transparent 50%);
+  background-size: 8px 1px;
+}
+.beam-border {
+  position: relative; overflow: hidden; isolation: isolate;
+}
+.beam-border::before {
+  content:""; position: absolute; inset: -1px; border-radius: inherit; padding: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(23,78,166,0.18) 20%, rgba(23,78,166,0.28) 50%, rgba(23,78,166,0.18) 80%, transparent 100%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude; opacity:0; transition: opacity 0.3s ease;
+}
+.beam-border:hover::before { opacity: 1; }
+.aurora-soft {
+  background:
+    radial-gradient(680px 380px at 12% 0%, rgba(23,78,166,0.08), transparent 62%),
+    radial-gradient(560px 380px at 92% 10%, rgba(24,128,56,0.05), transparent 58%),
+    radial-gradient(900px 500px at 50% 100%, rgba(23,78,166,0.03), transparent 70%);
+}
+.glass-card {
+  background: rgba(255,255,255,0.88);
+  backdrop-filter: blur(12px) saturate(1.15);
+  border: 1px solid rgba(229,231,235,0.9);
+  box-shadow: 0 1px 2px rgba(11,31,58,0.04), 0 8px 24px rgba(11,31,58,0.06);
+}
+.focus-ring { outline: none; }
+.focus-ring:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px #174EA6; border-radius: 9999px; }
+.underline-premium { text-decoration: underline; text-decoration-color: #CBD5E1; text-underline-offset: 4px; text-decoration-thickness: 1px; transition: text-decoration-color 0.2s; }
+.underline-premium:hover { text-decoration-color: #174EA6; }
+
 /* Auto-hover for all premium rounded cards — covers Home, Gov, Citizen without per-file edits */
 div[class*="rounded-[20px]"].bg-white, div[class*="rounded-[20px]"][class*="border"], div[class*="rounded-2xl"].bg-white {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
 }
 div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*="border"]:hover, div[class*="rounded-2xl"].bg-white:hover {
   transform: translateY(-2px);
@@ -95,6 +145,13 @@ div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*
 .hotspot-pulse { animation: hotspot-pulse 2.6s ease-in-out infinite; }
 .hotspot-hover { transition: transform 0.2s, filter 0.2s; }
 .hotspot-hover:hover { transform: scale(1.08); filter: brightness(1.05); }
+@keyframes beam-slide { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+.beam-shine { position: relative; overflow: hidden; }
+.beam-shine::after {
+  content:""; position: absolute; inset:0; background: linear-gradient(100deg, transparent 42%, rgba(255,255,255,0.55) 50%, transparent 58%);
+  transform: translateX(-100%); transition: transform 0.7s cubic-bezier(0.22,1,0.36,1); opacity:0;
+}
+.beam-shine:hover::after { transform: translateX(100%); opacity:1; }
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: #E5E7EB; border-radius: 8px; border: 2px solid #F8FAFC; }
 ::-webkit-scrollbar-thumb:hover { background: #D1D5DB; }
