@@ -65,8 +65,8 @@ export function Header() {
           </ul>
         </nav>
         <div className="flex items-center gap-2">
-          <Link href="/login" className="hidden md:inline-flex h-9 px-4 items-center rounded-full border border-[#E5E7EB] bg-white text-sm font-semibold text-[#172033] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] hover:shadow-sm hover:-translate-y-[1px] transition-all">Log In</Link>
-          <Link href="/register" className="hidden md:inline-flex h-9 px-5 items-center rounded-full bg-[#174EA6] text-white text-sm font-semibold hover:bg-[#0B1F3A] shadow-sm hover:shadow-md hover:-translate-y-[1px] transition-all">Register</Link>
+          <Link href="/login" className="hidden md:inline-flex h-9 px-4 items-center rounded-full text-sm font-medium text-[#5F6368] hover:text-[#172033] hover:bg-[#F8FAFC] transition-colors min-h-[44px]">Log In</Link>
+          <Link href="/register" className="hidden md:inline-flex h-9 px-4 items-center rounded-full border border-[#E5E7EB] bg-white text-sm font-medium text-[#172033] hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-colors min-h-[44px]">Register</Link>
           <button onClick={()=> setOpen(v=> !v)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-nav" className="lg:hidden h-11 w-11 grid place-items-center rounded-full border border-[#E5E7EB] bg-white touch-manipulation hover:border-[#CBD5E1] transition-colors" style={{ WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
             {open ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
           </button>
@@ -81,8 +81,8 @@ export function Header() {
             ))}
             </ul>
             <div className="pt-3 flex gap-2">
-              <Link href="/login" onClick={()=> setOpen(false)} className="flex-1 h-11 grid place-items-center rounded-full border border-[#E5E7EB] text-sm font-medium">Log In</Link>
-              <Link href="/register" onClick={()=> setOpen(false)} className="flex-1 h-11 grid place-items-center rounded-full bg-[#174EA6] text-white text-sm font-medium">Register</Link>
+              <Link href="/login" onClick={()=> setOpen(false)} className="flex-1 h-11 grid place-items-center rounded-full border border-[#E5E7EB] text-sm font-medium min-h-[44px]">Log In</Link>
+              <Link href="/register" onClick={()=> setOpen(false)} className="flex-1 h-11 grid place-items-center rounded-full border border-[#E5E7EB] bg-white text-sm font-medium min-h-[44px]">Register</Link>
             </div>
           </nav>
         </div>

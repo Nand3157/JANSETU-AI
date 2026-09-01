@@ -71,44 +71,44 @@ export function SiteFooter() {
           </div>
           <nav aria-label="Footer platform">
             <h2 className="text-[11px] tracking-widest font-semibold text-[#5F6368]">PLATFORM</h2>
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="mt-3 space-y-1 text-sm">
               {platform.map(l=> (
-                <li key={l.href}><Link href={l.href} className="text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</Link></li>
+                <li key={l.href}><Link href={l.href} className="min-h-[44px] inline-flex items-center py-2 text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</Link></li>
               ))}
             </ul>
           </nav>
           <nav aria-label="Footer developer">
             <h2 className="text-[11px] tracking-widest font-semibold text-[#5F6368]">DEVELOPER — JANSETU AI</h2>
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="mt-3 space-y-1 text-sm">
               {developer.map(l=> (
-                <li key={l.href}><a href={l.href} className="text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</a></li>
+                <li key={l.href}><a href={l.href} className="min-h-[44px] inline-flex items-center py-2 text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</a></li>
               ))}
             </ul>
           </nav>
           <nav aria-label="Footer get started">
             <h2 className="text-[11px] tracking-widest font-semibold text-[#5F6368]">GET STARTED</h2>
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="mt-3 space-y-1 text-sm">
               {access.map(l=> (
-                <li key={l.href}><Link href={l.href} className="text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</Link></li>
+                <li key={l.href}><Link href={l.href} className="min-h-[44px] inline-flex items-center py-2 text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</Link></li>
               ))}
             </ul>
             <h2 className="mt-6 text-[11px] tracking-widest font-semibold text-[#5F6368]">PORTALS</h2>
-            <ul className="mt-3 space-y-2 text-sm">
+            <ul className="mt-3 space-y-1 text-sm">
               {portals.map(l=> (
-                <li key={l.href}><Link href={l.href} className="text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</Link></li>
+                <li key={l.href}><Link href={l.href} className="min-h-[44px] inline-flex items-center py-2 text-[#172033] hover:text-[#174EA6] transition-colors">{l.label}</Link></li>
               ))}
             </ul>
           </nav>
         </div>
-        <div className="mt-8 pt-5 border-t border-[#E5E7EB] flex flex-col md:flex-row items-start md:items-center justify-between gap-2 text-xs text-[#5F6368]">
+        <div className="mt-8 pt-5 border-t border-[#E5E7EB] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-[#5F6368]">
           <span>© {new Date().getFullYear()} JANSETU AI · Citizen-first · Evidence-first · Privacy-preserving</span>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
-            <Link href="/privacy" className="hover:text-[#174EA6]">Privacy Policy</Link>
-            <Link href="/terms" className="hover:text-[#174EA6]">Terms</Link>
-            <Link href="/accessibility" className="hover:text-[#174EA6]">Accessibility</Link>
-            <a href="/sitemap.xml" className="hover:text-[#174EA6]">Sitemap</a>
+          <div className="flex flex-wrap gap-x-2 gap-y-1">
+            <Link href="/privacy" className="min-h-[44px] inline-flex items-center px-2 hover:text-[#174EA6]">Privacy Policy</Link>
+            <Link href="/terms" className="min-h-[44px] inline-flex items-center px-2 hover:text-[#174EA6]">Terms</Link>
+            <Link href="/accessibility" className="min-h-[44px] inline-flex items-center px-2 hover:text-[#174EA6]">Accessibility</Link>
+            <a href="/sitemap.xml" className="min-h-[44px] inline-flex items-center px-2 hover:text-[#174EA6]">Sitemap</a>
           </div>
-          <span>This is an AI-assisted recommendation. Final decisions remain with the authorized public authority.</span>
+          <span className="max-w-[32ch] leading-relaxed">This is an AI-assisted recommendation. Final decisions remain with the authorized public authority.</span>
         </div>
       </div>
     </footer>

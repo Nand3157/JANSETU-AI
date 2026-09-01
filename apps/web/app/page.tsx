@@ -1,6 +1,5 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, ShieldCheck, Layers, Target, TrendingUp, MapPin, Activity, Quote, CheckCircle2, Database, Users, Eye, Sparkles, BarChart3, Globe, Zap, Fingerprint, Search } from "lucide-react";
+import { ArrowRight, ShieldCheck, Target, TrendingUp, MapPin, Quote, CheckCircle2, Database, Users, Eye, Sparkles, BarChart3, Zap, Fingerprint, Search } from "lucide-react";
 import Counter from "@/components/home/Counter";
 import { FadeIn, StaggerCard } from "@/components/home/HomeMotion";
 import { BlurLine } from "@/components/ui/blur-text";
@@ -40,7 +39,7 @@ export default function Home() {
                   <span className="sr-only">JANSETU AI — </span>
                   Your voice
                   <br />
-                  <AuroraText className="font-[300] italic tracking-[-0.05em]">can shape</AuroraText>
+                  <AuroraText className="font-extrabold italic tracking-[-0.04em]">can shape</AuroraText>
                   <br />
                   your community.
                 </h1>
@@ -56,145 +55,110 @@ export default function Home() {
               </BlurLine>
 
               <FadeIn delay={0.18}>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  <ShimmerButton href="/citizen/submit" className="h-[44px] px-7 text-[15px]">
+                <div className="mt-7 flex flex-wrap items-center gap-4">
+                  <ShimmerButton href="/citizen/submit" className="h-[44px] px-7 text-[15px] min-h-[44px]">
                     Raise a Community Need <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </ShimmerButton>
-                  <Link href="/how-it-works">
-                    <Button variant="secondary" size="lg" className="rounded-full gap-2">
-                      Explore the Platform <Layers className="h-4 w-4" aria-hidden="true" />
-                    </Button>
+                  <Link href="/how-it-works" className="inline-flex items-center gap-1.5 text-sm font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] hover:decoration-[#174EA6] transition-colors min-h-[44px] px-2">
+                    How it works <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
                   </Link>
                 </div>
+                <p className="mt-2 text-xs text-[#5F6368]">Takes ~2 min · Gujarati, Hindi, English · No account to preview</p>
               </FadeIn>
 
               <div className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 text-xs text-[#5F6368]">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E5E7EB] px-2.5 py-1.5 shadow-sm">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E5E7EB] px-2.5 py-1.5 shadow-sm min-h-[32px]">
                   <ShieldCheck className="h-3.5 w-3.5 text-[#188038]" aria-hidden="true" /> Privacy-preserving
                 </span>
-                <span className="inline-flex items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 min-h-[32px]">
                   <span className="h-1.5 w-1.5 rounded-full bg-[#174EA6]/15 border border-[#174EA6]/20" aria-hidden="true" /> GU · HI · EN
                 </span>
                 <span className="h-3 w-px bg-[#E5E7EB] hidden sm:block" aria-hidden="true" />
                 <span>Human-governed</span>
                 <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
-                <Link href="/privacy" className="underline-premium">Privacy</Link>
+                <Link href="/privacy" className="underline-premium min-h-[44px] inline-flex items-center px-1">Privacy</Link>
                 <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
-                <Link href="/docs" className="underline-premium">Docs</Link>
+                <Link href="/docs" className="underline-premium min-h-[44px] inline-flex items-center px-1">Docs</Link>
               </div>
 
-              {/* metrics — light, consistent */}
-              <div className="mt-8 grid grid-cols-3 gap-3 max-w-[580px]">
-                {[
-                  { k: "4,218", label: "requests clustered", sub: "Vadodara · sample", accent: "text-[#174EA6]", bar: 86 },
-                  { k: "94/100", label: "priority score", sub: "high · v1", accent: "text-[#0B1F3A]", bar: 94 },
-                  { k: "12.4k", label: "people impacted", sub: "estimated", accent: "text-[#0B1F3A]", bar: 72 },
-                ].map((c, i) => (
-                  <div key={c.k} className="group rounded-[20px] bg-white border border-[#E5E7EB] p-3.5 shadow-sm hover-lift hover:border-[#D2E3FC] transition-colors relative overflow-hidden">
-                    <div className="text-[10px] tracking-[0.13em] font-bold text-[#5F6368]">{c.label.toUpperCase()}</div>
-                    <div className={`text-[18px] md:text-[20px] font-extrabold mt-1.5 tracking-tight tabular-nums ${c.accent}`}>{c.k}</div>
-                    <div className="text-[11px] text-[#5F6368] mt-0.5">{c.sub}</div>
-                    <div className="mt-2.5 h-1 rounded-full bg-[#F1F5F9] overflow-hidden">
-                      <div className="h-full bg-[#174EA6] rounded-full origin-left animate-[scale-in_1s_cubic-bezier(0.22,1,0.36,1)_both]" style={{ width: `${c.bar}%`, animationDelay: `${0.4 + i * 0.12}s` }} />
+              {/* submission preview — fixes Task & goal clarity, reduces cognitive load */}
+              <div className="mt-6 max-w-[560px] rounded-[20px] bg-white border border-[#E5E7EB] p-3 shadow-sm">
+                <div className="flex items-center gap-2 text-[11px] tracking-[0.14em] font-bold text-[#5F6368]"><Eye className="h-3.5 w-3.5 text-[#174EA6]" /> WHAT HAPPENS NEXT</div>
+                <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
+                  {[
+                    { icon: Zap, label: "1. Speak", sub: "Voice / Text / Photo" },
+                    { icon: Database, label: "2. AI understands", sub: "GU→EN, category" },
+                    { icon: BarChart3, label: "3. Evidence + score", sub: "Priority 0–100" },
+                  ].map((s) => (
+                    <div key={s.label} className="rounded-[14px] bg-[#F8FAFC] border border-[#E5E7EB] p-2.5">
+                      <s.icon className="h-4 w-4 text-[#174EA6] mx-auto" aria-hidden="true" />
+                      <div className="text-xs font-semibold text-[#0B1F3A] mt-1 leading-none">{s.label}</div>
+                      <div className="text-[11px] text-[#5F6368]">{s.sub}</div>
                     </div>
-                    <div className="mt-1.5 flex items-center gap-1 text-[10px] font-semibold text-[#174EA6] opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Activity className="h-3 w-3" /> Live signal
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {/* small animated list (Smooth UI inspired) under metrics */}
-              <div className="mt-4 max-w-[560px] rounded-[16px] bg-white border border-[#E5E7EB] p-2.5 flex items-center gap-2 shadow-sm overflow-hidden">
-                <span className="h-7 w-7 rounded-full bg-[#E8F0FE] border border-[#D2E3FC] grid place-items-center shrink-0"><Zap className="h-3.5 w-3.5 text-[#174EA6]" /></span>
-                <div className="min-w-0 flex-1 text-xs">
-                  <div className="font-semibold text-[#0B1F3A]">Latest: Gujarati voice → roads cluster · 3m ago</div>
-                  <div className="text-[#5F6368] truncate">“અમારા ગામનો રસ્તો…” → priority 94 · evidence-fused</div>
+                  ))}
                 </div>
-                <span className="h-2 w-2 rounded-full bg-[#188038] animate-pulse shrink-0" aria-hidden="true" />
+                <div className="mt-2.5 flex items-center justify-between text-xs">
+                  <span className="text-[#5F6368]">Preview your submission before it’s clustered</span>
+                  <Link href="/citizen/submit" className="font-medium text-[#174EA6] hover:underline min-h-[44px] inline-flex items-center">Try demo →</Link>
+                </div>
+              </div>
+
+              {/* metrics — de-emphasized, lighter (fixes cognitive load, visual hierarchy) */}
+              <div className="mt-4 max-w-[560px] rounded-[16px] bg-[#F8FAFC] border border-[#E5E7EB] px-3 py-2.5 flex flex-wrap items-center justify-between gap-3 text-xs">
+                <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#174EA6]" /> <strong className="text-[#0B1F3A]">4,218</strong> requests clustered</span>
+                <span className="h-3 w-px bg-[#E5E7EB] hidden sm:block" aria-hidden="true" />
+                <span className="inline-flex items-center gap-1.5"><span className="h-6 w-6 rounded-full bg-white border border-[#E5E7EB] grid place-items-center text-[11px] font-bold text-[#174EA6]">94</span> priority · high · v1</span>
+                <span className="h-3 w-px bg-[#E5E7EB] hidden sm:block" aria-hidden="true" />
+                <span><strong className="text-[#0B1F3A]">12.4k</strong> people impacted</span>
               </div>
             </FadeIn>
 
-            {/* RIGHT — light, no tilt, subtle */}
+            {/* RIGHT — de-emphasized dashboard preview (fixes visual hierarchy + cognitive load) */}
             <FadeIn delay={0.1} className="relative lg:sticky lg:top-[84px]">
-              <div className="absolute -inset-3 -z-10 rounded-[32px] bg-gradient-to-br from-[#E8F0FE]/40 to-transparent opacity-60 blur-[1px]" aria-hidden="true" />
-              <div className="rounded-[28px] bg-white border border-[#E5E7EB] shadow-elevated overflow-hidden p-3 md:p-4 group relative">
-                  <div className="flex items-center justify-between px-1 pb-3">
-                    <div className="flex items-center gap-2.5">
-                      <span className="h-8 w-8 rounded-xl bg-[#0B1F3A] text-white grid place-items-center shadow-sm">
-                        <MapPin className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <div className="leading-none">
-                        <div className="text-xs font-bold tracking-tight text-[#0B1F3A]">Demand Hotspot Map</div>
-                        <div className="text-[11px] text-[#5F6368]">BigQuery GIS · GeoJSON · centroids only</div>
-                      </div>
-                    </div>
-                    <span className="hidden sm:inline-flex items-center gap-1.5 rounded-full bg-[#E8F0FE] text-[#174EA6] border border-[#D2E3FC] px-2.5 py-1 text-[11px] font-semibold">
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#174EA6] animate-pulse" aria-hidden="true" /> Live
+              <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-card overflow-hidden p-3 group relative">
+                <div className="flex items-center justify-between px-1 pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-7 w-7 rounded-lg bg-[#F8FAFC] border border-[#E5E7EB] text-[#174EA6] grid place-items-center">
+                      <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                     </span>
-                  </div>
-
-                  <div className="relative h-[360px] md:h-[420px] rounded-[20px] bg-[#F8FAFC] border border-[#E5E7EB] overflow-hidden">
-                    <div className="absolute inset-0 grid-pattern opacity-[0.08]" aria-hidden="true" />
-                    <div className="absolute left-[32%] top-[28%] h-[120px] w-[120px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#174EA6]/[0.04] blur-[16px] pointer-events-none" aria-hidden="true" />
-
-                    <svg viewBox="0 0 360 420" className="absolute inset-0 w-full h-full" aria-hidden="true">
-                      <path d="M118 62 L152 56 L183 70 L204 95 L212 132 L202 165 L192 194 L178 224 L152 250 L123 269 L98 240 L88 210 L91 168 L100 118 Z" fill="#FFFFFF" stroke="#174EA6" strokeOpacity="0.14" strokeWidth="1.25" />
-                      <path d="M118 62 L152 56 L183 70 L204 95 L212 132 L202 165 L192 194 L178 224 L152 250 L123 269 L98 240 L88 210 L91 168 L100 118 Z" fill="none" stroke="#174EA6" strokeOpacity="0.06" strokeWidth="8" />
-                      <g>
-                        <circle cx="150" cy="144" r="28" fill="#174EA6" opacity="0.11" className="hotspot-pulse" />
-                        <circle cx="150" cy="144" r="16" fill="#174EA6" opacity="0.08" />
-                        <circle cx="150" cy="144" r="6.5" fill="#174EA6" stroke="white" strokeWidth="2.2" />
-                        <circle cx="168" cy="186" r="18" fill="#0B1F3A" opacity="0.07" />
-                        <circle cx="168" cy="186" r="4.5" fill="#0B1F3A" stroke="white" strokeWidth="1.6" />
-                        <circle cx="132" cy="208" r="13" fill="#188038" opacity="0.09" />
-                        <circle cx="132" cy="208" r="3.2" fill="#188038" stroke="white" strokeWidth="1.5" />
-                      </g>
-                      <path d="M150 144 L108 98" stroke="#CBD5E1" strokeWidth="1" strokeDasharray="3 3" opacity="0.7" className="animate-[beam-dash_12s_linear_infinite]" style={{ strokeDasharray: "6 4" }} />
-                      <path d="M168 186 L208 132" stroke="#CBD5E1" strokeWidth="1" strokeDasharray="3 3" opacity="0.5" />
-                    </svg>
-
-                    <div className="absolute left-3 top-3 rounded-[16px] glass-card px-3.5 py-2.5 shadow-card max-w-[150px] beam-shine">
-                      <div className="text-[10px] tracking-[0.12em] font-extrabold text-[#174EA6]">CITIZEN REQUESTS</div>
-                      <div className="text-[14px] font-extrabold tracking-tight text-[#0B1F3A] mt-0.5">4,218 clustered</div>
-                      <div className="text-[11px] text-[#5F6368] flex items-center gap-1"><TrendingUp className="h-3 w-3" /> 1 major hotspot</div>
-                    </div>
-
-                    <div className="absolute right-3 top-3 rounded-[16px] bg-[#0B1F3A] text-white px-4 py-3 shadow-lg border border-[#0B1F3A] min-w-[124px] overflow-hidden">
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-[radial-gradient(220px_circle_at_70%_10%,rgba(255,255,255,0.12),transparent_62%)]" aria-hidden="true" />
-                      <div className="text-[10px] tracking-[0.14em] font-semibold opacity-60 relative">PRIORITY</div>
-                      <div className="text-[22px] font-extrabold leading-none tracking-tight mt-1 relative">94<span className="text-[13px] font-medium opacity-60">/100</span></div>
-                      <div className="text-[11px] opacity-75 mt-0.5 relative">High · Deterministic v1</div>
-                      <div className="mt-2 h-1 rounded-full bg-white/15 overflow-hidden relative"><div className="h-full w-[94%] bg-white rounded-full animate-[scale-in_1.2s_0.6s_both]" style={{ transformOrigin: "left" }} /></div>
-                    </div>
-
-                    <div className="absolute left-1/2 -translate-x-1/2 bottom-3 right-3 md:right-auto md:left-1/2 rounded-[16px] glass-card px-3 py-2.5 shadow-card flex items-center gap-2.5 max-w-[92%] md:max-w-[86%]">
-                      <span className="h-9 w-9 rounded-xl bg-[#174EA6] text-white grid place-items-center shrink-0 shadow-sm">
-                        <MapPin className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-xs font-bold leading-none text-[#0B1F3A]">Recommended Project</div>
-                        <div className="text-[11px] text-[#5F6368] truncate">Rural connectivity · ₹4.2 Cr · 12.4k people</div>
-                      </div>
-                      <span className="ml-auto h-7 w-7 rounded-full bg-[#F8FAFC] border border-[#E5E7EB] grid place-items-center shrink-0 group-hover:bg-[#174EA6] group-hover:text-white group-hover:border-[#174EA6] transition-colors">
-                        <ArrowRight className="h-3.5 w-3.5 text-[#174EA6] group-hover:text-white" aria-hidden="true" />
-                      </span>
+                    <div className="leading-none">
+                      <div className="text-xs font-semibold tracking-tight text-[#172033]">Demand preview</div>
+                      <div className="text-[11px] text-[#5F6368]">Vadodara · sample · centroids only</div>
                     </div>
                   </div>
+                  <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[#F8FAFC] border border-[#E5E7EB] px-2 py-1 text-[11px] font-medium text-[#5F6368]">Sample</span>
+                </div>
 
-                  <div className="mt-3 flex items-center justify-between gap-3 px-1">
-                    <span className="text-xs font-medium text-[#0B1F3A]">Vadodara · Gujarat · Priority Engine v1</span>
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E8F0FE] text-[#174EA6] border border-[#D2E3FC] px-2.5 py-1 text-xs font-medium">
-                      <Activity className="h-3 w-3" aria-hidden="true" /> Sample data
-                    </span>
+                <div className="relative h-[300px] md:h-[320px] rounded-[14px] bg-[#F8FAFC] border border-[#E5E7EB] overflow-hidden">
+                  <div className="absolute inset-0 grid-pattern opacity-[0.06]" aria-hidden="true" />
+
+                  <svg viewBox="0 0 360 360" className="absolute inset-0 w-full h-full" aria-hidden="true">
+                    <path d="M118 62 L152 56 L183 70 L204 95 L212 132 L202 165 L192 194 L178 224 L152 250 L123 269 L98 240 L88 210 L91 168 L100 118 Z" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
+                    <g>
+                      <circle cx="150" cy="144" r="22" fill="#174EA6" opacity="0.08" />
+                      <circle cx="150" cy="144" r="5" fill="#174EA6" stroke="white" strokeWidth="1.8" />
+                      <circle cx="168" cy="186" r="14" fill="#0B1F3A" opacity="0.06" />
+                      <circle cx="168" cy="186" r="3.5" fill="#5F6368" stroke="white" strokeWidth="1.2" />
+                    </g>
+                  </svg>
+
+                  <div className="absolute left-3 top-3 rounded-xl bg-white border border-[#E5E7EB] px-3 py-2 shadow-sm">
+                    <div className="text-[10px] tracking-[0.12em] font-bold text-[#5F6368]">CITIZEN REQUESTS</div>
+                    <div className="text-sm font-bold text-[#0B1F3A]">4,218 clustered</div>
                   </div>
-                  <div className="mt-3 hairline" aria-hidden="true" />
-                  <div className="mt-2.5 flex items-center justify-between text-[11px] text-[#5F6368]">
-                    <span className="inline-flex items-center gap-1.5"><Database className="h-3 w-3" /> Evidence-fused · weightVersion v1</span>
-                    <Link href="/government" className="font-semibold text-[#174EA6] underline-premium">Open dashboard →</Link>
+                  <div className="absolute left-1/2 -translate-x-1/2 bottom-3 rounded-xl bg-white border border-[#E5E7EB] px-3 py-2 shadow-sm flex items-center gap-2 max-w-[90%]">
+                    <span className="h-7 w-7 rounded-lg bg-[#174EA6] text-white grid place-items-center shrink-0"><BarChart3 className="h-3.5 w-3.5" /></span>
+                    <div>
+                      <div className="text-xs font-semibold text-[#0B1F3A]">Priority 94 · High</div>
+                      <div className="text-[11px] text-[#5F6368]">Deterministic v1 · sample</div>
+                    </div>
                   </div>
                 </div>
-              <div className="hidden lg:flex absolute -bottom-2 -right-2 items-center gap-2 rounded-full bg-[#0B1F3A] text-white border border-[#0B1F3A] px-3.5 py-1.5 text-xs shadow-card">
-                <span className="h-2 w-2 rounded-full bg-[#188038] animate-pulse" aria-hidden="true" /> 284 hotspots · 42 projects · sample
+
+                <div className="mt-2.5 flex items-center justify-between text-xs px-1">
+                  <span className="text-[#5F6368] text-[11px]">Evidence-fused · human-governed</span>
+                  <Link href="/government" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center text-[11px]">Open dashboard</Link>
+                </div>
               </div>
             </FadeIn>
           </div>
@@ -503,20 +467,15 @@ export default function Home() {
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] border border-[#CEE6D0] px-2.5 py-1 text-[#0D652D] font-semibold"><Search className="h-3 w-3" /> Centroids only</span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-3 shrink-0">
-                <ShimmerButton href="/citizen/submit" className="h-[44px] px-7 text-[15px]">
+              <div className="flex flex-col gap-3 shrink-0 items-stretch sm:items-end">
+                <ShimmerButton href="/citizen/submit" className="h-[44px] px-7 text-[15px] min-h-[44px] justify-center">
                   Raise a Community Need <ArrowRight className="h-4 w-4" />
                 </ShimmerButton>
-                <Link href="/register">
-                  <Button variant="secondary" size="lg" className="rounded-full">
-                    Create Account
-                  </Button>
-                </Link>
-                <Link href="/login">
-                  <Button variant="ghost" size="lg" className="rounded-full">
-                    Log In
-                  </Button>
-                </Link>
+                <div className="flex gap-2 text-xs justify-center sm:justify-end">
+                  <Link href="/register" className="min-h-[44px] inline-flex items-center px-3 font-medium text-[#5F6368] hover:text-[#172033] underline underline-offset-4 decoration-[#E5E7EB]">Create account</Link>
+                  <span className="text-[#E5E7EB] py-3" aria-hidden="true">·</span>
+                  <Link href="/login" className="min-h-[44px] inline-flex items-center px-3 font-medium text-[#5F6368] hover:text-[#172033] underline underline-offset-4 decoration-[#E5E7EB]">Log in</Link>
+                </div>
               </div>
             </div>
             <div className="mt-6 hairline" aria-hidden="true" />
