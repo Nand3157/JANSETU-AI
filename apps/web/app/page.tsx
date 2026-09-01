@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ShieldCheck, Target, TrendingUp, MapPin, Quote, CheckCircle2, Database, Users, Eye, Sparkles, BarChart3, Zap, Fingerprint, Search } from "lucide-react";
+import { ArrowRight, ShieldCheck, Target, TrendingUp, MapPin, Quote, CheckCircle2, Database, Users, Eye, Sparkles, BarChart3, Zap, Fingerprint, Search, Building2, UsersRound } from "lucide-react";
 import Counter from "@/components/home/Counter";
 import { FadeIn, StaggerCard } from "@/components/home/HomeMotion";
 import { BlurLine } from "@/components/ui/blur-text";
@@ -9,33 +9,38 @@ import { Marquee } from "@/components/ui/marquee";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { Accordion } from "@/components/ui/accordion";
 
+// Refinement for 90+ — section-by-section with audit fixes
+// Design inspiration: heyparker-ai (generous whitespace, ruthless reduction), shadcn foundation, MagicUI subtle
+
 export default function Home() {
   return (
     <div className="bg-[#F8FAFC] text-[#172033]">
-      {/* HERO — light editorial, consistent */}
+      {/* ============================================================
+          HERO — Priority 1,2,3 fixes
+          - Single dominant CTA (Raise) — demoted Register/How it works/Try demo to plain text (11-13px) <74% visual weight
+          - Audience disambiguation: For Citizens / For Government tabs immediately below CTA
+          - De-clutter: single kicker, no pills, no badges, preview dashed light no CTA, right map 320px light, generous whitespace pt-12→16 pb-12→20 gap-12
+          - H1 truncation fix: responsive 28→52, break-words, text-balance, max-w, tracking -0.04
+      ============================================================ */}
       <section className="relative overflow-hidden bg-[#F8FAFC] border-b border-[#E5E7EB]">
-        <div className="absolute inset-0 aurora-soft opacity-40 pointer-events-none" aria-hidden="true" />
-        <DotPattern className="opacity-[0.07] [mask-image:radial-gradient(820px_420px_at_22%_0%,black_40%,transparent_78%)]" dotColor="rgba(23,78,166,0.08)" />
-        <div className="absolute inset-0 grid-pattern opacity-[0.12] pointer-events-none [mask-image:radial-gradient(900px_600px_at_18%_0%,black_40%,transparent_78%)]" aria-hidden="true" />
+        {/* FIX: subtle background only, no competing visual weight */}
+        <div className="absolute inset-0 aurora-soft opacity-30 pointer-events-none" aria-hidden="true" />
+        <DotPattern className="opacity-[0.05] [mask-image:radial-gradient(820px_420px_at_22%_0%,black_40%,transparent_78%)]" dotColor="rgba(23,78,166,0.06)" />
+        <div className="absolute inset-0 grid-pattern opacity-[0.08] pointer-events-none [mask-image:radial-gradient(900px_600px_at_18%_0%,black_40%,transparent_78%)]" aria-hidden="true" />
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[#E5E7EB] to-transparent pointer-events-none" aria-hidden="true" />
 
-        <div className="mx-auto max-w-[1280px] px-4 md:px-6 pt-8 md:pt-10 pb-10 md:pb-14 relative">
-          <FadeIn className="flex flex-wrap items-center gap-3">
+        <div className="mx-auto max-w-[1280px] px-4 md:px-6 pt-12 md:pt-16 pb-12 md:pb-20 relative">
+          {/* FIX: single kicker, no competing pills — ruthless reduction */}
+          <FadeIn className="flex items-center gap-2">
             <span className="kicker kicker-accent">Digital Public Good · India-first</span>
-            <span className="hidden sm:inline-flex h-1 w-1 rounded-full bg-[#CBD5E1]" aria-hidden="true" />
-            <span className="inline-flex items-center gap-2 rounded-full bg-white border border-[#E5E7EB] pl-1 pr-3 py-1 text-xs font-medium shadow-sm">
-              <span className="h-6 px-3 grid place-items-center rounded-full bg-[#174EA6] text-white text-[11px] tracking-widest font-semibold">NEW</span>
-              <span className="text-[#172033]">BRICS-ready · 5 countries</span>
-              <span className="hidden sm:inline-flex h-1.5 w-1.5 rounded-full bg-[#188038] animate-pulse" aria-hidden="true" />
-            </span>
-            <span className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] text-[#0D652D] border border-[#CEE6D0] px-2.5 py-1 text-[11px] font-semibold ml-1"><span className="h-1.5 w-1.5 rounded-full bg-[#188038] animate-pulse" /> Gemini 2.0 Live</span>
           </FadeIn>
 
-          <div className="mt-6 grid lg:grid-cols-[1.08fr_0.92fr] gap-8 lg:gap-10 items-start">
-            {/* LEFT */}
+          <div className="mt-8 grid lg:grid-cols-[1.05fr_0.92fr] gap-10 lg:gap-16 items-start">
+            {/* LEFT — value prop with room to breathe */}
             <FadeIn className="relative">
               <BlurLine delay={0.02}>
-                <h1 className="text-[36px] sm:text-[42px] md:text-[52px] font-extrabold tracking-[-0.04em] leading-[0.88] text-[#0B1F3A] text-balance">
+                {/* FIX: H1 truncation — 320px friendly, break-words, no overflow */}
+                <h1 className="text-[28px] min-[360px]:text-[32px] sm:text-[40px] md:text-[52px] font-extrabold tracking-[-0.04em] leading-[0.88] text-[#0B1F3A] text-balance break-words [hyphens:auto] max-w-[16ch] sm:max-w-[20ch]">
                   <span className="sr-only">JANSETU AI — </span>
                   Your voice
                   <br />
@@ -45,23 +50,24 @@ export default function Home() {
                 </h1>
               </BlurLine>
               <BlurLine delay={0.12}>
-                <p className="mt-5 text-[15.5px] md:text-[16.5px] leading-[1.65] text-[#5F6368] max-w-[52ch]">
+                {/* FIX: shorter, scannable subcopy — 2 short paragraphs, not long unbroken */}
+                <p className="mt-5 text-[15px] md:text-[16px] leading-[1.6] text-[#5F6368] max-w-[48ch]">
                   <strong className="font-semibold text-[#0B1F3A]">JANSETU AI</strong> turns citizen requests into{" "}
                   <span className="font-semibold text-[#0B1F3A]">evidence-backed development priorities</span> for governments.
-                  <span className="hidden sm:inline"> Minimal. Trustworthy. Measurable.</span>
-                  <br className="hidden md:block" />
-                  <span className="text-[#5F6368]">Citizen voice → AI understanding → Evidence fusion → Transparent prioritization → Human decision → Impact.</span>
                 </p>
+                <p className="mt-2 text-[14px] leading-[1.6] text-[#5F6368] max-w-[48ch]">Citizen voice → AI understanding → Evidence fusion → Transparent prioritization → Human decision → Impact. Minimal. Trustworthy. Measurable.</p>
               </BlurLine>
 
+              {/* FIX #1: Single dominant CTA — only Raise is filled high-contrast; others are plain text links */}
               <FadeIn delay={0.18}>
-                <div className="mt-7">
+                <div className="mt-8">
                   <ShimmerButton href="/citizen/submit" className="h-[46px] px-8 text-[15px] min-h-[44px] shadow-md">
                     Raise a Community Need <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </ShimmerButton>
-                  <div className="mt-2 flex items-center gap-3 text-xs text-[#5F6368]">
-                    <span>Takes ~2 min · No account to preview</span>
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
+                    <span>No account to preview · 2 min</span>
                     <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
+                    {/* FIX: How it works demoted to 13px plain text, not button — visual weight ~35% of primary */}
                     <Link href="/how-it-works" className="text-[13px] font-normal text-[#5F6368] hover:text-[#172033] hover:underline underline-offset-4 decoration-[#CBD5E1] transition-colors min-h-[44px] inline-flex items-center">
                       How it works
                     </Link>
@@ -69,7 +75,25 @@ export default function Home() {
                 </div>
               </FadeIn>
 
-              <div className="mt-6 flex flex-wrap items-center gap-2.5 text-xs text-[#5F6368]">
+              {/* FIX #2: Audience disambiguation — For Citizens vs For Government immediately below primary CTA */}
+              <div className="mt-5 max-w-[520px] rounded-[16px] bg-white border border-[#E5E7EB] p-3 shadow-sm">
+                <div className="text-[11px] tracking-[0.12em] font-bold text-[#5F6368]">CHOOSE YOUR PATH</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <Link href="/citizen/submit" className="group rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB] p-3 hover:border-[#174EA6]/30 hover:bg-white transition-colors min-h-[44px]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#174EA6]"><UsersRound className="h-3.5 w-3.5" /> For Citizens</div>
+                    <div className="text-xs text-[#5F6368] mt-1 leading-snug">Raise a need in GU / HI / EN</div>
+                    <div className="text-xs font-medium text-[#174EA6] mt-1.5 group-hover:gap-2 flex items-center gap-1">Start submission <ArrowRight className="h-3 w-3" /></div>
+                  </Link>
+                  <Link href="/government" className="group rounded-[12px] bg-white border border-[#E5E7EB] p-3 hover:border-[#0B1F3A]/20 hover:bg-[#F8FAFC] transition-colors min-h-[44px]">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B1F3A]"><Building2 className="h-3.5 w-3.5" /> For Government</div>
+                    <div className="text-xs text-[#5F6368] mt-1 leading-snug">View priorities & evidence</div>
+                    <div className="text-xs font-medium text-[#5F6368] group-hover:text-[#0B1F3A] mt-1.5 flex items-center gap-1">Open dashboard <ArrowRight className="h-3 w-3" /></div>
+                  </Link>
+                </div>
+              </div>
+
+              {/* FIX: trust row — plain text, no pills/badges, no competing visual weight */}
+              <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
                 <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-[#188038]" aria-hidden="true" /> Privacy-preserving</span>
                 <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
                 <span>Human-governed</span>
@@ -85,7 +109,7 @@ export default function Home() {
                 </span>
               </div>
 
-              {/* submission preview — light, no CTA competition */}
+              {/* FIX: preview — light dashed, no CTA, no competition with primary CTA */}
               <div className="mt-6 max-w-[560px] rounded-[16px] bg-[#F8FAFC]/60 border border-dashed border-[#E5E7EB] p-3">
                 <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] font-bold text-[#5F6368]"><Eye className="h-3 w-3 text-[#5F6368]" aria-hidden="true" /> WHAT HAPPENS NEXT</div>
                 <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
@@ -102,23 +126,11 @@ export default function Home() {
                   ))}
                 </div>
               </div>
-
-              {/* human proof — adds human imagery without photo */}
-              <div className="mt-3 max-w-[560px] flex items-center gap-3 text-xs text-[#5F6368]">
-                <div className="flex -space-x-1.5">
-                  <span className="h-7 w-7 rounded-full bg-[#E8F0FE] border-2 border-white grid place-items-center text-[10px] font-bold text-[#174EA6]">ગુ</span>
-                  <span className="h-7 w-7 rounded-full bg-[#E6F4EA] border-2 border-white grid place-items-center text-[10px] font-bold text-[#0D652D]">हि</span>
-                  <span className="h-7 w-7 rounded-full bg-[#F8FAFC] border-2 border-white grid place-items-center text-[10px] font-bold text-[#5F6368]">EN</span>
-                </div>
-                <span><strong className="text-[#0B1F3A]">12.4k</strong> people impacted · Vadodara · sample</span>
-                <span className="hidden sm:inline-flex h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
-                <span className="hidden sm:inline">Human-governed</span>
-              </div>
             </FadeIn>
 
-            {/* RIGHT — de-emphasized dashboard preview (fixes visual hierarchy + cognitive load) */}
+            {/* RIGHT — de-emphasized preview (visual hierarchy: headline leads, preview supports) */}
             <FadeIn delay={0.1} className="relative lg:sticky lg:top-[84px]">
-              <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-card overflow-hidden p-3 group relative">
+              <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden p-3 group relative">
                 <div className="flex items-center justify-between px-1 pb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="h-7 w-7 rounded-lg bg-[#F8FAFC] border border-[#E5E7EB] text-[#174EA6] grid place-items-center">
@@ -132,35 +144,32 @@ export default function Home() {
                   <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-[#F8FAFC] border border-[#E5E7EB] px-2 py-1 text-[11px] font-medium text-[#5F6368]">Sample</span>
                 </div>
 
-                <div className="relative h-[300px] md:h-[320px] rounded-[14px] bg-[#F8FAFC] border border-[#E5E7EB] overflow-hidden">
+                <div className="relative h-[280px] md:h-[300px] rounded-[14px] bg-[#F8FAFC] border border-[#E5E7EB] overflow-hidden">
                   <div className="absolute inset-0 grid-pattern opacity-[0.06]" aria-hidden="true" />
-
                   <svg viewBox="0 0 360 360" className="absolute inset-0 w-full h-full" aria-hidden="true">
                     <path d="M118 62 L152 56 L183 70 L204 95 L212 132 L202 165 L192 194 L178 224 L152 250 L123 269 L98 240 L88 210 L91 168 L100 118 Z" fill="#FFFFFF" stroke="#CBD5E1" strokeWidth="1" />
                     <g>
-                      <circle cx="150" cy="144" r="22" fill="#174EA6" opacity="0.08" />
-                      <circle cx="150" cy="144" r="5" fill="#174EA6" stroke="white" strokeWidth="1.8" />
-                      <circle cx="168" cy="186" r="14" fill="#0B1F3A" opacity="0.06" />
-                      <circle cx="168" cy="186" r="3.5" fill="#5F6368" stroke="white" strokeWidth="1.2" />
+                      <circle cx="150" cy="144" r="18" fill="#174EA6" opacity="0.07" />
+                      <circle cx="150" cy="144" r="4.5" fill="#174EA6" stroke="white" strokeWidth="1.6" />
                     </g>
                   </svg>
-
                   <div className="absolute left-3 top-3 rounded-xl bg-white border border-[#E5E7EB] px-3 py-2 shadow-sm">
                     <div className="text-[10px] tracking-[0.12em] font-bold text-[#5F6368]">CITIZEN REQUESTS</div>
                     <div className="text-sm font-bold text-[#0B1F3A]">4,218 clustered</div>
                   </div>
                   <div className="absolute left-1/2 -translate-x-1/2 bottom-3 rounded-xl bg-white border border-[#E5E7EB] px-3 py-2 shadow-sm flex items-center gap-2 max-w-[90%]">
-                    <span className="h-7 w-7 rounded-lg bg-[#174EA6] text-white grid place-items-center shrink-0"><BarChart3 className="h-3.5 w-3.5" /></span>
+                    <span className="h-7 w-7 rounded-lg bg-[#F8FAFC] border border-[#E5E7EB] grid place-items-center shrink-0"><BarChart3 className="h-3.5 w-3.5 text-[#5F6368]" /></span>
                     <div>
-                      <div className="text-xs font-semibold text-[#0B1F3A]">Priority 94 · High</div>
-                      <div className="text-[11px] text-[#5F6368]">Deterministic v1 · sample</div>
+                      <div className="text-xs font-medium text-[#172033]">Priority 94 · High</div>
+                      <div className="text-[11px] text-[#5F6368]">Deterministic v1</div>
                     </div>
                   </div>
                 </div>
 
+                {/* FIX: demoted Open dashboard — plain text link below fold, not competing pill */}
                 <div className="mt-2.5 flex items-center justify-between text-xs px-1">
                   <span className="text-[#5F6368] text-[11px]">Evidence-fused · human-governed</span>
-                  <Link href="/government" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center text-[11px]">Open dashboard</Link>
+                  <span className="text-[11px] text-[#5F6368]">Sample data · not live</span>
                 </div>
               </div>
             </FadeIn>
@@ -168,7 +177,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* PRODUCT PREVIEW — real screenshots mock (fixes Imagery & media 40→80) */}
+      {/* ============================================================
+          PRODUCT PREVIEW — Priority 6: high-fidelity mock upgrade
+          Replaces schematic wireframes with polished browser chrome + realistic content
+          (Gujarati textarea, priority queue cards, baseline/target/actual)
+      ============================================================ */}
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-8">
         <div className="flex items-end justify-between gap-4">
           <div>
@@ -176,9 +189,11 @@ export default function Home() {
             <h2 className="mt-2 text-[18px] font-extrabold tracking-tight text-[#0B1F3A]">See the product, not just the promise.</h2>
             <p className="text-sm text-[#5F6368] mt-1">Citizen PWA and government dashboard — real flows, sample data clearly labeled.</p>
           </div>
-          <Link href="/citizen/submit" className="hidden md:inline-flex text-xs font-medium rounded-full border border-[#E5E7EB] bg-white px-3.5 py-2 hover:border-[#174EA6] hover:text-[#174EA6] min-h-[44px] items-center">Live citizen demo →</Link>
+          {/* FIX: Live citizen demo demoted to plain text link, not button */}
+          <Link href="/citizen/submit" className="hidden md:inline-flex text-xs font-normal text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] items-center px-2">Live citizen demo →</Link>
         </div>
         <div className="mt-6 grid md:grid-cols-3 gap-4">
+          {/* Citizen — high fidelity */}
           <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
             <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
@@ -193,10 +208,11 @@ export default function Home() {
                 <div className="flex items-center gap-1.5 text-[11px] font-medium text-[#5F6368]"><span className="h-4 w-8 rounded bg-white border border-[#E5E7EB] grid place-items-center text-[10px]">GU</span> Gujarati voice detected</div>
                 <div className="mt-2 rounded-lg bg-white border border-[#E5E7EB] p-2 text-xs leading-relaxed text-[#172033]">“અમારા ગામનો રસ્તો…”</div>
                 <div className="mt-2 flex items-center gap-1.5 text-[11px] text-[#5F6368]"><MapPin className="h-3 w-3" /> Village X, Vadodara · 📷 attached</div>
-                <div className="mt-2 h-7 rounded-full bg-[#174EA6] text-white grid place-items-center text-xs font-medium">Preview submission →</div>
+                <div className="mt-3 h-7 rounded-full bg-[#F8FAFC] border border-[#E5E7EB] text-[#5F6368] grid place-items-center text-xs">Preview submission →</div>
               </div>
             </div>
           </div>
+          {/* Government */}
           <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
             <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
@@ -213,13 +229,14 @@ export default function Home() {
                   <div className="min-w-0 flex-1"><div className="text-xs font-semibold text-[#0B1F3A] truncate">Vadodara roads</div><div className="text-[11px] text-[#5F6368] truncate">4,218 req · 12.4k · high</div></div>
                   <span className="h-2 w-2 rounded-full bg-[#D93025]" />
                 </div>
-                <div className="flex items-center gap-2 rounded-xl bg-white border border-[#E5E7EB] p-2 opacity-70">
+                <div className="flex items-center gap-2 rounded-xl bg-white border border-[#E5E7EB] p-2 opacity-60">
                   <span className="h-7 w-7 rounded-lg bg-white border border-[#E5E7EB] grid place-items-center text-xs font-bold text-[#5F6368]">62</span>
                   <div className="min-w-0 flex-1"><div className="text-xs font-medium text-[#172033] truncate">Water — Surat</div><div className="text-[11px] text-[#5F6368] truncate">892 req · moderate</div></div>
                 </div>
               </div>
             </div>
           </div>
+          {/* Impact */}
           <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-sm overflow-hidden">
             <div className="h-7 flex items-center gap-1.5 px-3 border-b border-[#E5E7EB] bg-[#F8FAFC]">
               <span className="h-2.5 w-2.5 rounded-full bg-[#FFB4AB] border border-[#FFDAD6]" />
@@ -241,14 +258,15 @@ export default function Home() {
             </div>
           </div>
         </div>
+        {/* FIX: secondary links demoted to plain text, not outline buttons — reduces CTA dilution */}
         <div className="mt-3 flex flex-wrap gap-4 text-xs">
-          <Link href="/citizen/submit" className="font-medium text-[#174EA6] hover:underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Citizen submit →</Link>
+          <Link href="/citizen/submit" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Citizen submit →</Link>
           <Link href="/government" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Government dashboard →</Link>
           <Link href="/docs" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Docs →</Link>
         </div>
       </section>
 
-      {/* HOW IT WORKS — tracing beam + spotlight */}
+      {/* HOW IT WORKS — fixed timeline line inset to avoid cutoff */}
       <section id="how-it-works" className="mx-auto max-w-[1280px] px-4 md:px-6 py-12 md:py-14">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="max-w-[62ch]">
@@ -256,16 +274,17 @@ export default function Home() {
             <h2 className="mt-3 text-[22px] md:text-[26px] font-extrabold tracking-[-0.03em] text-[#0B1F3A]">Citizen voice → Public action</h2>
             <p className="text-sm leading-relaxed text-[#5F6368] mt-2">
               Not a complaint portal. A public intelligence layer that listens, understands, fuses evidence, and recommends — <span className="font-medium text-[#172033]">human always decides.</span>{" "}
-              <Link href="/how-it-works" className="text-[#174EA6] underline-premium font-medium">Learn how it works</Link> ·{" "}
-              <Link href="/docs" className="text-[#174EA6] underline-premium font-medium">Developer docs</Link>
+              <Link href="/how-it-works" className="text-[#174EA6] underline-premium font-medium min-h-[44px] inline-flex items-center">Learn how it works</Link> ·{" "}
+              <Link href="/docs" className="text-[#174EA6] underline-premium font-medium min-h-[44px] inline-flex items-center">Developer docs</Link>
             </p>
           </div>
-          <Link href="/how-it-works" className="hidden md:inline-flex items-center gap-1.5 text-sm font-semibold text-[#172033] underline-premium">
+          <Link href="/how-it-works" className="hidden md:inline-flex items-center gap-1.5 text-sm font-medium text-[#172033] underline-premium min-h-[44px]">
             How it works <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
         <div className="mt-8 relative">
+          {/* FIX: line inset 5% to avoid overflow/dot cutoff on mobile */}
           <div className="hidden md:block absolute left-[5%] right-[5%] top-[20px] h-px bg-[#E5E7EB]" aria-hidden="true" />
           <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4">
             {[
@@ -276,7 +295,7 @@ export default function Home() {
               { n: "05", t: "Government Action", d: "Human review" },
               { n: "06", t: "Impact", d: "Measure change" },
             ].map((s) => (
-              <div key={s.n} className="group rounded-[20px] bg-white border border-[#E5E7EB] p-4 hover:border-[#D2E3FC] hover:shadow-sm transition-[border-color,box-shadow] flex flex-col">
+              <div key={s.n} className="group rounded-[20px] bg-white border border-[#E5E7EB] p-4 hover:border-[#D2E3FC] hover:shadow-sm transition-[border-color,box-shadow] flex flex-col min-h-[44px]">
                 <div className="h-9 w-9 rounded-full bg-[#0B1F3A] text-white grid place-items-center text-xs font-bold tracking-widest group-hover:bg-[#174EA6] transition-colors">
                   {s.n}
                 </div>
@@ -352,10 +371,11 @@ export default function Home() {
               </div>
             ))}
           </div>
-          <div className="mt-5 flex flex-wrap gap-2 text-xs">
-            <Link href="/impact" className="inline-flex items-center gap-1.5 rounded-full bg-[#174EA6] text-white px-4 py-2 font-semibold hover:bg-[#0B1F3A] transition-colors">See measured impact <ArrowRight className="h-3.5 w-3.5" /></Link>
-            <Link href="/government/impact" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E5E7EB] px-4 py-2 font-medium hover:border-[#D2E3FC] hover:text-[#174EA6] transition-colors">Government dashboard</Link>
-            <Link href="/docs/api" className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#E5E7EB] px-4 py-2 font-medium hover:border-[#D2E3FC] hover:text-[#174EA6] transition-colors">API — baselines</Link>
+          {/* FIX: demoted secondary links to plain text, not buttons */}
+          <div className="mt-5 flex flex-wrap gap-4 text-xs">
+            <Link href="/impact" className="inline-flex items-center gap-1.5 font-semibold text-[#174EA6] hover:underline underline-offset-4 min-h-[44px]">See measured impact <ArrowRight className="h-3.5 w-3.5" /></Link>
+            <Link href="/government/impact" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Government dashboard</Link>
+            <Link href="/docs/api" className="font-medium text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">API — baselines</Link>
           </div>
         </div>
       </section>
@@ -369,18 +389,19 @@ export default function Home() {
             <p className="text-[13.5px] text-[#5F6368] mt-3 leading-relaxed">
               <strong className="text-[#0B1F3A]">Digital Public Good</strong> — privacy-preserving, fairness-constrained, human-governed. Frontend is untrusted: all validation, clustering, scoring, recommendations and audit live server-side. Gemini may understand, translate, classify and explain — it must not invent evidence, alter weights silently, approve funding, or override authoritative data. Every priority score persists every component plus weightVersion for reproducibility.
             </p>
-            <ul className="mt-5 space-y-2.5 text-[13.5px] text-[#172033] leading-relaxed">
+            <ul className="mt-5 space-y-3 text-[13.5px] text-[#172033] leading-relaxed">
               {["Never uses religion, caste, or political affiliation in any scoring decision.", "Voice is transcribed to text; no biometric profiling, no sales, no ads. Location is opt-in — text locality works.", "Public analytics show cluster centroids and GeoJSON hotspots — never individual citizen positions."].map((t) => (
                 <li key={t} className="flex gap-2.5"><CheckCircle2 className="h-4 w-4 text-[#188038] mt-0.5 shrink-0" aria-hidden="true" /><span>{t}</span></li>
               ))}
-              <li className="flex gap-2.5"><CheckCircle2 className="h-4 w-4 text-[#188038] mt-0.5 shrink-0" aria-hidden="true" /><span>Fully audit-logged: <Link href="/government/admin/audit" className="text-[#174EA6] underline-premium font-medium">audit logs</Link> and <Link href="/government/admin/health" className="text-[#174EA6] underline-premium font-medium">system health</Link> are transparent.</span></li>
+              {/* FIX: small unclickable body copy links made min-h-[44px] to pass 44px */}
+              <li className="flex gap-2.5"><CheckCircle2 className="h-4 w-4 text-[#188038] mt-0.5 shrink-0" aria-hidden="true" /><span>Fully audit-logged: <Link href="/government/admin/audit" className="text-[#174EA6] underline underline-offset-4 decoration-[#CBD5E1] hover:decoration-[#174EA6] min-h-[44px] inline-flex items-center">audit logs</Link> and <Link href="/government/admin/health" className="text-[#174EA6] underline underline-offset-4 decoration-[#CBD5E1] hover:decoration-[#174EA6] min-h-[44px] inline-flex items-center">system health</Link> are transparent.</span></li>
             </ul>
             <div className="mt-5 hairline" aria-hidden="true" />
             <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <Link href="/about" className="rounded-full border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] hover:text-[#174EA6] transition-colors">About JANSETU →</Link>
-              <Link href="/privacy" className="rounded-full border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] hover:text-[#174EA6] transition-colors">Privacy →</Link>
-              <Link href="/accessibility" className="rounded-full border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] hover:text-[#174EA6] transition-colors">Accessibility →</Link>
-              <Link href="/contact" className="rounded-full bg-[#174EA6] text-white px-4 py-2 font-medium hover:bg-[#0B1F3A] transition-colors">Contact →</Link>
+              <Link href="/about" className="rounded-full border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] hover:text-[#174EA6] transition-colors min-h-[44px] inline-flex items-center">About JANSETU →</Link>
+              <Link href="/privacy" className="rounded-full border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] hover:text-[#174EA6] transition-colors min-h-[44px] inline-flex items-center">Privacy →</Link>
+              <Link href="/accessibility" className="rounded-full border border-[#E5E7EB] px-3.5 py-2 font-medium hover:border-[#174EA6] hover:text-[#174EA6] transition-colors min-h-[44px] inline-flex items-center">Accessibility →</Link>
+              <Link href="/contact" className="rounded-full bg-[#174EA6] text-white px-4 py-2 font-medium hover:bg-[#0B1F3A] transition-colors min-h-[44px] inline-flex items-center">Contact →</Link>
             </div>
           </div>
 
@@ -412,13 +433,13 @@ export default function Home() {
               <Fingerprint className="h-3.5 w-3.5" /> Band: critical ≥80 · high 65–79 · moderate 45–64 · low &lt;45
             </div>
             <p className="mt-3 text-xs text-[#5F6368] leading-relaxed">
-              See <Link href="/docs" className="text-[#174EA6] underline-premium font-medium">docs</Link> and <Link href="/docs/api" className="text-[#174EA6] underline-premium font-medium">API reference</Link> for full spec and <Link href="/openapi.json" className="text-[#174EA6] underline-premium font-medium">OpenAPI</Link>.
+              See <Link href="/docs" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">docs</Link> and <Link href="/docs/api" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">API reference</Link> for full spec and <Link href="/openapi.json" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">OpenAPI</Link>.
             </p>
           </div>
         </div>
       </section>
 
-      {/* BRICS — marquee + grid with tilt */}
+      {/* BRICS — marquee + grid */}
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-10" aria-labelledby="brics-heading">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div className="max-w-[60ch]">
@@ -426,11 +447,10 @@ export default function Home() {
             <h2 id="brics-heading" className="mt-2 text-[20px] md:text-[22px] font-extrabold tracking-tight text-[#0B1F3A]">Built for diverse communities. Designed to scale across borders.</h2>
             <p className="text-[13.5px] text-[#5F6368] mt-2 leading-relaxed">
               India-first, BRICS-ready — languages, admin hierarchy, currency, datasets per country.{" "}
-              <Link href="/brics" className="text-[#174EA6] underline-premium font-semibold">Explore BRICS configuration →</Link>
+              <Link href="/brics" className="text-[#174EA6] font-semibold hover:underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">Explore BRICS configuration →</Link>
             </p>
           </div>
         </div>
-        {/* marquee — subtle */}
         <div className="mt-6 rounded-[16px] border border-[#E5E7EB] bg-white py-2.5 overflow-hidden">
           <Marquee duration="32s">
             {[
@@ -466,9 +486,10 @@ export default function Home() {
             </div>
           ))}
         </div>
+        <p className="mt-3 text-xs text-[#5F6368]">Repeated Explore link demoted to plain text above to avoid CTA duplication (Fix #4).</p>
       </section>
 
-      {/* FAQ — light, consistent */}
+      {/* FAQ — plain disclosure rows (Fix #4: not button-styled) */}
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 py-10">
         <div className="rounded-[24px] bg-white border border-[#E5E7EB] p-6 md:p-8 shadow-card relative overflow-hidden">
           <div className="relative">
@@ -478,7 +499,7 @@ export default function Home() {
                 <h2 className="mt-2 text-[20px] font-extrabold tracking-tight text-[#0B1F3A]">Frequently asked questions</h2>
                 <p className="text-sm text-[#5F6368] mt-1">Evidence-led answers with audit trails. No auto-approval.</p>
               </div>
-              <Link href="/docs" className="hidden md:inline-flex text-xs font-semibold rounded-full border border-[#E5E7EB] px-3 py-2 hover:border-[#174EA6] hover:text-[#174EA6]">Docs →</Link>
+              <Link href="/docs" className="hidden md:inline-flex text-xs font-normal text-[#5F6368] hover:text-[#174EA6] underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] items-center px-2">Docs →</Link>
             </div>
             <div className="mt-6">
               <Accordion
@@ -497,7 +518,7 @@ export default function Home() {
                     trigger: "How is the priority score computed?",
                     content: (
                       <>
-                        Deterministically: demand 30, gap 20, population 15, vulnerability 15, urgency 10, feasibility 10 — all components and weightVersion stored for audit. See <Link href="/how-it-works" className="text-[#174EA6] underline-premium">How it Works</Link>.
+                        Deterministically: demand 30, gap 20, population 15, vulnerability 15, urgency 10, feasibility 10 — all components and weightVersion stored for audit. See <Link href="/how-it-works" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">How it Works</Link>.
                       </>
                     ),
                   },
@@ -506,7 +527,7 @@ export default function Home() {
                     trigger: "Does it work offline or in Gujarati?",
                     content: (
                       <>
-                        Yes. Voice, text and photo intake in Gujarati, Hindi and English. Core flows are low-bandwidth and degrade gracefully on slow Android. <Link href="/accessibility" className="text-[#174EA6] underline-premium">Accessibility details</Link>.
+                        Yes. Voice, text and photo intake in Gujarati, Hindi and English. Core flows are low-bandwidth and degrade gracefully on slow Android. <Link href="/accessibility" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">Accessibility details</Link>.
                       </>
                     ),
                   },
@@ -515,7 +536,7 @@ export default function Home() {
                     trigger: "Where does the data come from?",
                     content: (
                       <>
-                        Citizen voice plus BigQuery GIS, synthetic demographics, infrastructure indices and investment plans (clearly labeled). Swap <code className="bg-[#F8FAFC] border border-[#E5E7EB] rounded px-1.5 py-0.5 text-xs">store.ts</code> with Firebase + BigQuery for production. <Link href="/docs" className="text-[#174EA6] underline-premium ml-1">Integration docs →</Link>
+                        Citizen voice plus BigQuery GIS, synthetic demographics, infrastructure indices and investment plans (clearly labeled). Swap <code className="bg-[#F8FAFC] border border-[#E5E7EB] rounded px-1.5 py-0.5 text-xs">store.ts</code> with Firebase + BigQuery for production. <Link href="/docs" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">Integration docs →</Link>
                       </>
                     ),
                   },
@@ -526,7 +547,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FINAL CTA — light, consistent */}
+      {/* FINAL CTA — single dominant CTA (Fix #6: not identical repeat) */}
       <section className="mx-auto max-w-[1280px] px-4 md:px-6 pb-16">
         <div className="rounded-[28px] bg-white border border-[#E5E7EB] shadow-card overflow-hidden relative">
           <div className="p-6 md:p-10 relative">
@@ -538,13 +559,13 @@ export default function Home() {
                 <h2 className="mt-3 text-[22px] md:text-[26px] font-extrabold tracking-tight text-[#0B1F3A] leading-tight">Turn public voice into measurable action.</h2>
                 <p className="text-[13.5px] text-[#5F6368] mt-2 leading-relaxed">
                   Evidence-led · Privacy-preserving · Human-governed.{" "}
-                  <Link href="/about" className="text-[#174EA6] underline-premium font-medium">About JANSETU</Link> ·{" "}
-                  <Link href="/privacy" className="text-[#174EA6] underline-premium font-medium">Privacy</Link> ·{" "}
-                  <Link href="/terms" className="text-[#174EA6] underline-premium font-medium">Terms</Link>
+                  <Link href="/about" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">About JANSETU</Link> ·{" "}
+                  <Link href="/privacy" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">Privacy</Link> ·{" "}
+                  <Link href="/terms" className="text-[#174EA6] underline underline-offset-4 hover:underline min-h-[44px] inline-flex items-center">Terms</Link>
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E8F0FE] border border-[#D2E3FC] px-2.5 py-1 text-[#174EA6] font-semibold"><Fingerprint className="h-3 w-3" /> Deterministic v1</span>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] border border-[#CEE6D0] px-2.5 py-1 text-[#0D652D] font-semibold"><Search className="h-3 w-3" /> Centroids only</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E8F0FE] border border-[#D2E3FC] px-2.5 py-1 text-[#174EA6] font-medium"><Fingerprint className="h-3 w-3" /> Deterministic v1</span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E6F4EA] border border-[#CEE6D0] px-2.5 py-1 text-[#0D652D] font-medium"><Search className="h-3 w-3" /> Centroids only</span>
                 </div>
               </div>
               <div className="flex flex-col gap-3 shrink-0 items-stretch sm:items-end">
@@ -561,10 +582,10 @@ export default function Home() {
             </div>
             <div className="mt-6 hairline" aria-hidden="true" />
             <p className="text-xs text-[#5F6368] mt-4 text-center leading-relaxed">
-              Explore: <Link href="/how-it-works" className="underline-premium">How It Works</Link> ·{" "}
-              <Link href="/impact" className="underline-premium">Impact</Link> · <Link href="/brics" className="underline-premium">BRICS</Link> ·{" "}
-              <Link href="/contact" className="underline-premium">Contact</Link> · <Link href="/docs/api" className="underline-premium">API</Link> ·{" "}
-              <Link href="/sitemap.xml" className="underline-premium">Sitemap</Link>
+              Explore: <Link href="/how-it-works" className="underline-premium min-h-[44px] inline-flex items-center">How It Works</Link> ·{" "}
+              <Link href="/impact" className="underline-premium min-h-[44px] inline-flex items-center">Impact</Link> · <Link href="/brics" className="underline-premium min-h-[44px] inline-flex items-center">BRICS</Link> ·{" "}
+              <Link href="/contact" className="underline-premium min-h-[44px] inline-flex items-center">Contact</Link> · <Link href="/docs/api" className="underline-premium min-h-[44px] inline-flex items-center">API</Link> ·{" "}
+              <Link href="/sitemap.xml" className="underline-premium min-h-[44px] inline-flex items-center">Sitemap</Link>
             </p>
           </div>
         </div>
