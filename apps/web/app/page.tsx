@@ -75,56 +75,30 @@ export default function Home() {
                 </div>
               </FadeIn>
 
-              {/* FIX #2: Audience disambiguation — For Citizens vs For Government immediately below primary CTA */}
-              <div className="mt-5 max-w-[520px] rounded-[16px] bg-white border border-[#E5E7EB] p-3 shadow-sm">
-                <div className="text-[11px] tracking-[0.12em] font-bold text-[#5F6368]">CHOOSE YOUR PATH</div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <Link href="/citizen/submit" className="group rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB] p-3 hover:border-[#174EA6]/30 hover:bg-white transition-colors min-h-[44px]">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#174EA6]"><UsersRound className="h-3.5 w-3.5" /> For Citizens</div>
-                    <div className="text-xs text-[#5F6368] mt-1 leading-snug">Raise a need in GU / HI / EN</div>
-                    <div className="text-xs font-medium text-[#174EA6] mt-1.5 group-hover:gap-2 flex items-center gap-1">Start submission <ArrowRight className="h-3 w-3" /></div>
-                  </Link>
-                  <Link href="/government" className="group rounded-[12px] bg-white border border-[#E5E7EB] p-3 hover:border-[#0B1F3A]/20 hover:bg-[#F8FAFC] transition-colors min-h-[44px]">
-                    <div className="flex items-center gap-1.5 text-xs font-bold text-[#0B1F3A]"><Building2 className="h-3.5 w-3.5" /> For Government</div>
-                    <div className="text-xs text-[#5F6368] mt-1 leading-snug">View priorities & evidence</div>
-                    <div className="text-xs font-medium text-[#5F6368] group-hover:text-[#0B1F3A] mt-1.5 flex items-center gap-1">Open dashboard <ArrowRight className="h-3 w-3" /></div>
-                  </Link>
-                </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
+                <span>I am a</span>
+                <Link href="/citizen/submit" className="font-medium text-[#174EA6] hover:underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">citizen</Link>
+                <span className="text-[#E5E7EB]">·</span>
+                <Link href="/government" className="font-medium text-[#5F6368] hover:text-[#172033] hover:underline underline-offset-4 decoration-[#E5E7EB] min-h-[44px] inline-flex items-center">government agency</Link>
+                <span className="hidden sm:inline-flex items-center gap-1 ml-2 text-[11px]"><ShieldCheck className="h-3 w-3 text-[#188038]" /> Privacy-preserving</span>
               </div>
 
-              {/* FIX: trust row — plain text, no pills/badges, no competing visual weight */}
               <div className="mt-5 flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
-                <span className="inline-flex items-center gap-1.5"><ShieldCheck className="h-3.5 w-3.5 text-[#188038]" aria-hidden="true" /> Privacy-preserving</span>
+                <span className="inline-flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-[#188038]" aria-hidden="true" /> Privacy-preserving</span>
                 <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
                 <span>Human-governed</span>
-                <span className="h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
-                <span>GU · HI · EN</span>
-                <span className="hidden sm:inline-flex items-center gap-1.5 ml-1">
-                  <span className="flex -space-x-1">
-                    <span className="h-6 w-6 rounded-full bg-[#E8F0FE] border-2 border-white grid place-items-center text-[10px] font-bold text-[#174EA6]">અ</span>
-                    <span className="h-6 w-6 rounded-full bg-[#E6F4EA] border-2 border-white grid place-items-center text-[10px] font-bold text-[#0D652D]">हि</span>
-                    <span className="h-6 w-6 rounded-full bg-[#FEF3C7] border-2 border-white grid place-items-center text-[10px] font-bold text-[#92400E]">A</span>
-                  </span>
-                  <span>voices</span>
-                </span>
+                <span className="hidden sm:inline-flex h-1 w-1 rounded-full bg-[#E5E7EB]" aria-hidden="true" />
+                <span className="hidden sm:inline">GU · HI · EN</span>
               </div>
 
-              {/* FIX: preview — light dashed, no CTA, no competition with primary CTA */}
-              <div className="mt-6 max-w-[560px] rounded-[16px] bg-[#F8FAFC]/60 border border-dashed border-[#E5E7EB] p-3">
-                <div className="flex items-center gap-2 text-[10px] tracking-[0.14em] font-bold text-[#5F6368]"><Eye className="h-3 w-3 text-[#5F6368]" aria-hidden="true" /> WHAT HAPPENS NEXT</div>
-                <div className="mt-2.5 grid grid-cols-3 gap-2 text-center">
-                  {[
-                    { icon: Zap, label: "1. Speak", sub: "Voice / Text / Photo" },
-                    { icon: Database, label: "2. AI understands", sub: "GU→EN" },
-                    { icon: BarChart3, label: "3. Evidence + score", sub: "0–100" },
-                  ].map((s) => (
-                    <div key={s.label} className="rounded-[12px] bg-white border border-[#E5E7EB]/60 p-2.5">
-                      <s.icon className="h-3.5 w-3.5 text-[#5F6368] mx-auto" aria-hidden="true" />
-                      <div className="text-xs font-medium text-[#172033] mt-1 leading-none">{s.label}</div>
-                      <div className="text-[11px] text-[#5F6368]">{s.sub}</div>
-                    </div>
-                  ))}
-                </div>
+              {/* FIX: preview — ultra-light inline, no card, no competition */}
+              <div className="mt-5 max-w-[560px] rounded-[12px] bg-[#F8FAFC] border border-[#E5E7EB]/60 px-3 py-2.5 flex flex-wrap items-center gap-2 text-xs text-[#5F6368]">
+                <span className="inline-flex items-center gap-1 font-medium text-[#172033]"><Eye className="h-3 w-3" /> What happens next:</span>
+                <span className="inline-flex items-center gap-1"><Zap className="h-3 w-3" /> Speak</span>
+                <span className="text-[#E5E7EB]">→</span>
+                <span className="inline-flex items-center gap-1"><Database className="h-3 w-3" /> AI understands</span>
+                <span className="text-[#E5E7EB]">→</span>
+                <span className="inline-flex items-center gap-1"><BarChart3 className="h-3 w-3" /> Evidence + score</span>
               </div>
             </FadeIn>
 
