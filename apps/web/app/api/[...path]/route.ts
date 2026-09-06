@@ -735,12 +735,14 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
     const isHi = /[\u0900-\u097F]/.test(text) || /सड़क|गांव|बारिश/.test(text);
     const lang = isGu ? "gu" : isHi ? "hi" : "en";
     const isRoad = /રસ્તો|road|सड़क|monsoon|વરસાદ/i.test(text);
-    const category = isRoad ? "roads" : (target?.category || "other");
+    const isFlooding = /પાણી\s*ભરા|ભરાવો|water.?logging|ગટર|નાળા?|drain|flood|जलभराव|नाली|नाला|सीवर/i.test(text);
+    const category = isRoad ? "roads" : isFlooding ? "flooding_drainage" : (target?.category || "other");
+    const hasKnownTranslation = isRoad || isFlooding || lang === "en";
     const intake: any = {
       category,
-      subcategory: isRoad ? "rural_road_access" : null,
+      subcategory: isRoad ? "rural_road_access" : isFlooding ? "flooding" : null,
       source_language: lang,
-      translated_text: isRoad ? "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school." : text.slice(0, 120),
+      translated_text: isRoad ? "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school." : isFlooding ? "Waterlogging in our area during rains due to blocked drains. Water enters houses and roads become impassable." : text.slice(0, 120),
       problem_statement: isRoad ? "Village road becomes impassable during monsoon, delaying hospital access and preventing children from attending school" : text.slice(0, 160),
       citizen_summary: isRoad ? "Monsoon road closure blocking healthcare and school access" : "Citizen civic request",
       location: { district: "Vadodara", region: "Gujarat", country: "IN", location_source: target?.locationSource || "user_text", location_confidence: 0.78, raw_reference: target?.originalText?.slice(0,40) || "Vadodara" },
@@ -748,7 +750,7 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       affected_groups: isRoad ? ["children","patients"] : ["general_population"],
       urgency: { score: isRoad ? 4 : 2, reason: isRoad ? "Healthcare and education access blocked seasonally" : "General service disruption" },
       evidence_phrases: [text.slice(0, 80)],
-      ambiguities: [],
+      ambiguities: hasKnownTranslation ? [] : ["Automatic translation unavailable offline — original preserved verbatim; verify with native speaker"],
       ai_confidence: 0.84,
     };
     const cl = FALLBACK_CLUSTERS[0];

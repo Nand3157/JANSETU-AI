@@ -133,27 +133,17 @@ export async function transcribeAudio(
     const fallback = real.text.replace(/```json|```/g, "").trim();
     if (fallback && !fallback.startsWith("{")) return { transcript: fallback, language: langHint === "auto" ? "und" : langHint, source: "gemini" };
   }
-  // Deterministic mock fallback — never return empty transcript, provide demo text based on langHint
-  // This ensures voice-to-text appears working even without a valid Gemini key
-  const mockTranscripts: Record<string, string> = {
-    gu: "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે અને બાળકોને પણ સ્કૂલ જવામાં મુશ્કેલી પડે છે.",
-    hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है। अस्पताल जाने में बहुत समय लगता है और बच्चों को स्कूल जाने में कठिनाई होती है।",
-    en: "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.",
-  };
+  // Honest fallback — never fabricate a transcript from silence/failure.
+  // DESIGN.md honesty rules: if transcription fails, say so; the caller
+  // (transcribe route / VoiceRecorder) surfaces an honest retry message and
+  // keeps any browser SpeechRecognition result instead of canned road text.
   const hint = (langHint || "auto").toLowerCase();
-  let fallbackText = "";
-  let detectedLang = "und";
-  if (hint === "gu" || hint === "gu-in") { fallbackText = mockTranscripts.gu; detectedLang = "gu"; }
-  else if (hint === "hi" || hint === "hi-in") { fallbackText = mockTranscripts.hi; detectedLang = "hi"; }
-  else if (hint === "en" || hint === "en-in") { fallbackText = mockTranscripts.en; detectedLang = "en"; }
-  else {
-    // auto: default to Gujarati demo (most common) but mark language for frontend to respect
-    fallbackText = mockTranscripts.gu;
-    detectedLang = "gu";
-  }
-  // If audio is very small (likely silence), still return demo with mock source so UI shows transcript
-  // Frontend will show "fallback" notice and allow editing
-  return { transcript: fallbackText, language: detectedLang, source: "mock" };
+  const detectedLang =
+    hint === "gu" || hint === "gu-in" ? "gu"
+    : hint === "hi" || hint === "hi-in" ? "hi"
+    : hint === "en" || hint === "en-in" ? "en"
+    : "und";
+  return { transcript: "", language: detectedLang, source: "mock" };
 }
 
 function dayKeySafe() { return new Date().toISOString().slice(0, 10); }

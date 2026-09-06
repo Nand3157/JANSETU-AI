@@ -28,31 +28,20 @@ transcribeRouter.post("/", json({ limit: "12mb" }), async (req, res) => {
   const langHint = typeof req.body?.langHint === "string" ? req.body.langHint : "auto";
   try {
     const result = await transcribeAudio(dataUrl, langHint);
-    // Always return 200 with transcript, even if source is mock — frontend treats non-empty transcript as success
-    // Never return empty transcript on error; provide fallback
+    // Honest contract (DESIGN.md): never substitute canned road text for real
+    // audio. Empty transcript + error lets VoiceRecorder keep browser speech
+    // or show a retry message — silence must never become a fake complaint.
     if (!result.transcript) {
-      const fb: Record<string,string> = {
-        gu: "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે. હોસ્પિટલ જવા માટે ખૂબ સમય લાગે છે.",
-        hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है।",
-        en: "Our village road gets closed in the monsoon.",
-      };
-      const hint = (langHint||"auto").toLowerCase();
-      const tx = hint==="gu" ? fb.gu : hint==="hi" ? fb.hi : fb.en;
-      const lang = hint==="gu"||hint==="hi"||hint==="en" ? hint : "gu";
-      return res.json({ transcript: tx, language: lang, source: "mock" });
+      const hint = (langHint || "auto").toLowerCase();
+      const lang = ["gu", "gu-in", "hi", "hi-in", "en", "en-in"].includes(hint) ? hint.slice(0, 2) : "und";
+      return res.json({ transcript: "", language: lang, source: "unavailable", error: "Transcription unavailable — Gemini returned no transcript. Browser speech (if any) is preserved; otherwise please retry or type your request." });
     }
     res.json(result);
   } catch (e: any) {
     console.warn("transcribe failed:", e?.message);
-    // Return 200 with mock transcript instead of 502 to keep UX working
+    // Honest error — no fabricated fallback transcript.
     const hint = (typeof req.body?.langHint === "string" ? req.body.langHint : "auto").toLowerCase();
-    const fallbackMap: Record<string, string> = {
-      gu: "અમારા ગામનો રસ્તો વરસાદમાં બંધ થઈ જાય છે.",
-      hi: "हमारे गांव की सड़क बारिश में बंद हो जाती है।",
-      en: "Our village road gets closed in the monsoon.",
-    };
-    const tx = fallbackMap[hint] || fallbackMap.gu;
-    const lang = ["gu","hi","en"].includes(hint) ? hint : "gu";
-    res.json({ transcript: tx, language: lang, source: "mock", note: "fallback due to transcribe error: " + (e?.message || "unknown") });
+    const lang = ["gu", "hi", "en"].includes(hint) ? hint : "und";
+    res.json({ transcript: "", language: lang, source: "unavailable", error: "Transcription failed: " + (e?.message || "unknown") + " — please retry or type your request." });
   }
 });

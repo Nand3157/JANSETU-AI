@@ -86,45 +86,61 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
   // FIX: comprehensive language + category detection for real work translations + scoring
   function detectLanguage(text: string, hint?: string): string {
     const h = (hint || "").toLowerCase();
-    if (h === "gu" || h === "hi" || h === "en") return h;
+    if (h === "gu" || h === "gu-in") return "gu";
+    if (h === "hi" || h === "hi-in") return "hi";
+    if (h === "en" || h === "en-in") return "en";
+    // "auto"/unknown hint: detect from script — Gujarati block U+0A80–U+AFF,
+    // Devanagari block U+0900–U+097F — before any romanized guessing.
     if (/[\u0A80-\u0AFF]/.test(text)) return "gu";
     if (/[\u0900-\u097F]/.test(text)) return "hi";
-    // Heuristic for romanized Hindi/Gujarati
-    if (/\b(hamare|gaam|paani|bijli|aspatal|school|bachche)\b/i.test(text)) {
-      // If contains Gujarati gujarati words transliterated, prefer gu else hi — check gu-specific
-      if (/\b(amar|amara|gam|gamno|rasta|vasadam|hospital|hospital)\b/i.test(text)) return "gu";
-    }
+    // Romanized gu/hi (e.g. "amara gam no rasta"): gu-specific markers first.
+    if (/\b(amar[ao]|gam(no)?|rasta|rast[ao]|vasadma|varsad|paani|pani)\b/i.test(text)) return "gu";
+    if (/\b(hamar[aei]|gao|gaon|sadak|sadak|paani|bijli|aspatal|bachche|school)\b/i.test(text)) return "hi";
     return "en";
   }
-  function translateMock(text: string, lang: string): string | null {
-    if (lang === "en") return text; // already English
-    // For demo, provide faithful English translations for known patterns, otherwise return text with language tag
-    const lower = text.toLowerCase();
-    if (/રસ્તો|road|monsoon|વરસાદ|सड़क|सड़क.*बंद/i.test(text)) {
-      if (lang === "gu") return "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.";
-      if (lang === "hi") return "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school. (translated from Hindi)";
+  // Returns { text, translated } — translated=false means no English mapping
+  // exists and the original is preserved verbatim (caller flags ambiguity).
+  function translateMock(text: string, lang: string): { text: string; translated: boolean } {
+    if (lang === "en") return { text, translated: true }; // already English
+    const t = text;
+    // Flooding/drainage BEFORE road — mirrors classifyCategory order so a
+    // "વરસાદમાં પાણી ભરાઈ" report isn't translated as a road closure.
+    if (/પાણી\s*ભરા|ભરાવો|water.?logging|water logging|ગટર|નાળા?|drain|flood|जलभराव|नाली|नाला|सीवर/i.test(t)) {
+      return { text: "Waterlogging in our area during rains due to blocked drains. Water enters houses and roads become impassable.", translated: true };
     }
-    if (/પાણી|पानी|water|supply|leak/i.test(text)) {
-      if (lang === "gu") return "There is intermittent water supply in our area. We get water only for 2 hours in the morning.";
-      if (lang === "hi") return "There is intermittent water supply in our area. Water comes only for 2 hours in the morning.";
+    if (/રસ્તો|રસ્તા|road|monsoon|વરસાદ|सड़क/i.test(t)) {
+      return { text: "Our village road gets closed in the monsoon. It takes a lot of time to reach the hospital and children also face difficulty going to school.", translated: true };
     }
-    if (/વીજળી|बिजली|electric/i.test(text)) {
-      if (lang === "gu" || lang === "hi") return "There are frequent power cuts in our village, affecting daily life and studies.";
+    if (/પાણી|पानी|water|supply|leak|नल/i.test(t)) {
+      if (lang === "gu") return { text: "There is intermittent water supply in our area. We get water only for 2 hours in the morning.", translated: true };
+      return { text: "There is intermittent water supply in our area. Water comes only for 2 hours in the morning.", translated: true };
     }
-    if (/હોસ્પિટલ|अस्पताल|hospital|clinic/i.test(text) && !/road/i.test(lower)) {
-      if (lang === "gu" || lang === "hi") return "Healthcare access is poor in our area. The nearest clinic is far and often closed.";
+    if (/વીજળી|बिजली|electric|power|light|बत्ती/i.test(t)) {
+      return { text: "There are frequent power cuts in our village, affecting daily life and studies.", translated: true };
     }
-    if (lang !== "en") {
-      // Generic fallback: note that translation would be done by Gemini, provide original with prefix for demo
-      // But for E2E, ensure translated_text contains English meaningful phrase
-      if (text.length > 20) return text; // preserve original if no mapping, still English-ish
+    if (/હોસ્પિટલ|अस्पताल|hospital|clinic|दवा|doctor/i.test(t)) {
+      return { text: "Healthcare access is poor in our area. The nearest clinic is far and often closed.", translated: true };
     }
-    return text;
+    if (/શાળા|शाला|school|teacher|શિક્ષક/i.test(t)) {
+      return { text: "Children in our area face difficulty reaching school due to poor access.", translated: true };
+    }
+    if (/કચરો|સ્વચ્છ|સફાઈ|कचरा|सफाई|waste|sanitation|garbage|clean|kachra/i.test(t)) {
+      return { text: "Waste collection and sanitation are poor in our area. Garbage piles up and drains stay clogged.", translated: true };
+    }
+    // No mapping: preserve the original verbatim — never invent English.
+    return { text: t, translated: false };
   }
   function classifyCategory(text: string): { category: string; subcategory: string | null; services: string[]; groups: string[]; urgency: number; urgencyReason: string } {
-    const t = text.toLowerCase();
+    // Order matters: flooding/drainage before generic water; roads before
+    // healthcare/school so "road blocks hospital access" stays roads.
+    if (/પાણી\s*ભરા|ભરાવો|water.?logging|water logging|ગટર|નાળા?|drain|flood|जलभराव|नाली|नाला|सीवर/i.test(text)) {
+      return { category: "flooding_drainage", subcategory: "flooding", services: ["drainage","sanitation"], groups: ["general_population"], urgency: 4, urgencyReason: "Flooding and drainage failure" };
+    }
     if (/રસ્તો|road|सड़क|bridge|pull|monsoon|વરસાદ|transport|રસ્તા/i.test(text)) {
       return { category: "roads", subcategory: "rural_road_access", services: ["transport","healthcare","education"], groups: ["children","patients","general_population"], urgency: 4, urgencyReason: "Healthcare and education access blocked seasonally" };
+    }
+    if (/કચરો|સ્વચ્છ|સફાઈ|कचरा|सफाई|waste|sanitation|garbage|clean/i.test(text)) {
+      return { category: "sanitation", subcategory: "waste_management", services: ["sanitation"], groups: ["general_population"], urgency: 3, urgencyReason: "Sanitation and hygiene at risk" };
     }
     if (/પાણી|पानी|water|supply|leak|drainage|नल/i.test(text)) {
       return { category: "water", subcategory: "water_supply", services: ["water"], groups: ["general_population"], urgency: 4, urgencyReason: "Essential water supply disrupted" };
@@ -138,13 +154,7 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
     if (/શાળા|शाला|school|teacher|education|पढ़ाई/i.test(text)) {
       return { category: "education", subcategory: "school_access", services: ["education"], groups: ["children"], urgency: 3, urgencyReason: "Education access disrupted" };
     }
-    if (/સ્વચ્છ|कचरा|waste|sanitation|garbage|clean/i.test(text)) {
-      return { category: "sanitation", subcategory: "waste_management", services: ["sanitation"], groups: ["general_population"], urgency: 3, urgencyReason: "Sanitation and hygiene at risk" };
-    }
-    if (/flooding|पाणी.*भर|drain|नाली|flood|water_logging/i.test(text)) {
-      return { category: "flooding_drainage", subcategory: "flooding", services: ["drainage"], groups: ["general_population"], urgency: 4, urgencyReason: "Flooding and drainage failure" };
-    }
-    if (/cat|movie|chat|cute/i.test(t)) {
+    if (/\b(cat is cute|movies?|chat about|my cat)\b/i.test(text)) {
       return { category: "other", subcategory: null, services: [], groups: ["general_population"], urgency: 1, urgencyReason: "Non-civic content — low civic urgency" };
     }
     return { category: "other", subcategory: null, services: [], groups: ["general_population"], urgency: 2, urgencyReason: "General service disruption" };
@@ -157,31 +167,34 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
       const detectedLang = detectLanguage(text, userInput.langHint);
       const cls = classifyCategory(text);
       const hasRoad = cls.category === "roads";
-      // Preserve user's category if explicitly provided and not "other"
-      const userCat = userInput.category || null; // not passed currently, but respect if needed
       const finalCategory = cls.category;
-      // Location handling: respect locationRaw if it's not "null,null" or empty
-      let locRaw = userInput.locationRaw;
-      if (!locRaw || locRaw === "null,null" || locRaw === "null" || locRaw.trim() === ",") locRaw = "Village X, Vadodara District, Gujarat";
+      const translation = translateMock(text, detectedLang);
+      // Honest location: explicit district/coords win; otherwise district stays
+      // null with low confidence + ambiguity — never assert Vadodara unheard.
+      const rawLoc = userInput.locationRaw;
+      const hasRawLoc = !!rawLoc && rawLoc !== "null,null" && rawLoc !== "null" && String(rawLoc).trim() !== "," && String(rawLoc).trim() !== "";
+      const locRaw = hasRawLoc ? String(rawLoc) : null;
       // If locationRaw looks like coords (e.g., "22.30,73.18"), keep as is but set district
-      let locDistrict = "Vadodara", locRegion = "Gujarat", locSource: any = "user_text", locConf = 0.72;
+      let locDistrict: string | null = null, locRegion: string | null = "Gujarat", locSource: any = "inferred", locConf = 0.35;
       // First, try to extract district from explicit text (highest priority)
       const districts = ["Vadodara","Ahmedabad","Surat","Rajkot","Gandhinagar","Mehsana","Anand"];
       let textDistrict: string | null = null;
-      for (const d of districts) if (new RegExp(d, "i").test(locRaw) || new RegExp(d, "i").test(text)) { textDistrict = d; break; }
-      if (/વડોદરા|वडोदरा/i.test(locRaw+text)) textDistrict = "Vadodara";
-      else if (/અમદાવાદ|अहमदाबाद/i.test(locRaw+text)) textDistrict = "Ahmedabad";
-      else if (/સુરત|सूरत/i.test(locRaw+text)) textDistrict = "Surat";
-      else if (/ગાંધીનગર|गांधीनगर/i.test(locRaw+text)) textDistrict = "Gandhinagar";
-      else if (/મહેસાણા|मेहसाणा/i.test(locRaw+text)) textDistrict = "Mehsana";
-      else if (/આણંદ|आणंद/i.test(locRaw+text)) textDistrict = "Anand";
+      const locHay = `${locRaw || ""} ${text}`;
+      for (const d of districts) if (new RegExp(d, "i").test(locHay)) { textDistrict = d; break; }
+      if (/વડોદરા|वडोदरा/i.test(locHay)) textDistrict = "Vadodara";
+      else if (/અમદાવાદ|अहमदाबाद/i.test(locHay)) textDistrict = "Ahmedabad";
+      else if (/સુરત|सूरत/i.test(locHay)) textDistrict = "Surat";
+      else if (/ગાંધીનગર|गांधीनगर/i.test(locHay)) textDistrict = "Gandhinagar";
+      else if (/મહેસાણા|मेहसाणा/i.test(locHay)) textDistrict = "Mehsana";
+      else if (/આણંદ|आणंद/i.test(locHay)) textDistrict = "Anand";
       if (textDistrict) {
         locDistrict = textDistrict;
         locConf = 0.85;
+        locSource = "user_text";
         // if coords also present but textDistrict explicit, keep textDistrict but mark source as device if coords present
-        const coordMatchText = locRaw.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
+        const coordMatchText = (locRaw || "").match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
         if (coordMatchText) { locSource = "device"; locConf = 0.88; }
-      } else {
+      } else if (locRaw) {
         const coordMatch = locRaw.match(/^(-?\d+\.?\d*),\s*(-?\d+\.?\d*)$/);
         if (coordMatch) {
           // coords provided — infer district from lat/lng rough (Vadodara ~22.3,73.18)
@@ -192,16 +205,22 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
           else if (lat >= 22 && lat <= 22.6) locDistrict = "Vadodara";
           locSource = "device";
           locConf = 0.88;
+        } else {
+          // Free-text location without a known district — keep raw, low confidence.
+          locDistrict = null;
+          locSource = "user_text";
+          locConf = 0.45;
         }
       }
+      // locRaw null + no district in text → district stays null, conf 0.35.
       mock = {
         source_language: detectedLang,
         original_text: text,
-        translated_text: translateMock(text, detectedLang),
+        translated_text: translation.text,
         citizen_summary: hasRoad ? "Monsoon road closure blocking healthcare and school access" : cls.category === "other" ? "Citizen civic infrastructure request" : `${cls.category} issue reported`,
         category: finalCategory,
         subcategory: cls.subcategory,
-        problem_statement: hasRoad ? "Village road becomes impassable during monsoon, delaying hospital access and preventing children from attending school" : text.slice(0, 160),
+        problem_statement: hasRoad ? "Village road becomes impassable during monsoon, delaying hospital access and preventing children from attending school" : translation.translated ? translation.text.slice(0, 160) : text.slice(0, 160),
         location: {
           raw_reference: locRaw,
           city: null, district: locDistrict, region: locRegion, country: "IN",
@@ -213,8 +232,9 @@ export async function callGemini<T>(promptKey: keyof typeof prompts, userInput: 
         evidence_phrases: [text.slice(0,80)],
         ambiguities: (() => {
           const amb: string[] = [];
-          if (!userInput.locationRaw || locConf < 0.75) amb.push("Exact village coordinates not provided — needs geocoding confirmation");
-          if (detectedLang !== "en" && !translateMock(text, detectedLang)?.includes("monsoon") && cls.category==="other") amb.push("Language preserved — translation is heuristic; verify with native speaker");
+          if (!locDistrict) amb.push("Location not specified — district unknown, needs geocoding confirmation");
+          else if (!hasRawLoc || locConf < 0.75) amb.push("Exact village coordinates not provided — needs geocoding confirmation");
+          if (detectedLang !== "en" && !translation.translated) amb.push("Automatic translation unavailable — original preserved verbatim; verify with native speaker");
           return amb;
         })(),
         ai_confidence: cls.category === "other" && cls.urgency <=2 ? 0.62 : 0.84,

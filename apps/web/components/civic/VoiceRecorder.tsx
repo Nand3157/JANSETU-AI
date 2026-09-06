@@ -187,7 +187,9 @@ export function VoiceRecorder({
     const liveFallback = liveTranscripts.join(" ").trim();
     const combinedFallback = speechText || interimFallback || liveFallback;
     let text = combinedFallback;
-    let lang = selectedLang === "auto" ? "gu" : selectedLang;
+    // Keep the user's explicit language choice; only overwrite with a
+    // server-confirmed language from real Gemini transcription.
+    let lang = selectedLang === "auto" ? "" : selectedLang;
     let audioUrl: string | null = null;
     let source = combinedFallback ? "speech-recognition" : "transcribe";
 
@@ -201,13 +203,13 @@ export function VoiceRecorder({
           headers: { "x-role": "citizen" },
         });
 
-        if (tr?.transcript?.trim()) {
-          // If we had no browser speech or server produced a high-confidence transcript, use it
-          if (!text || tr.source === "gemini") {
-            text = tr.transcript.trim();
-          }
+        if (tr?.transcript?.trim() && tr.source === "gemini") {
+          // Real server transcription wins — it heard the raw audio, not just
+          // the browser's interim hypotheses. Mock/unavailable/empty sources
+          // are ignored so silence never becomes a fabricated complaint.
+          text = tr.transcript.trim();
           if (tr.language && tr.language !== "und") lang = tr.language;
-          source = tr.source || "gemini";
+          source = "gemini";
         }
 
         // Upload audio note
@@ -218,6 +220,7 @@ export function VoiceRecorder({
             headers: { "x-role": "citizen" },
           });
           audioUrl = up.audioUrl || up.url || null;
+          if (up?.backend === "mock") console.warn("voice note stored as demo mock URL (not persisted):", up.storageError || up.note || "storage unconfigured");
         } catch {}
       } catch {}
     }
@@ -238,9 +241,18 @@ export function VoiceRecorder({
       return;
     }
 
+    // Resolve display/source language honestly: explicit choice wins, then
+    // server-confirmed, then script detection — never blind-default to "gu".
+    if (!lang || lang === "auto") {
+      if (/[\u0A80-\u0AFF]/.test(text)) lang = "gu";
+      else if (/[\u0900-\u097F]/.test(text)) lang = "hi";
+      else if (text) lang = "en";
+      else lang = selectedLang === "auto" ? "auto" : selectedLang;
+    }
+
     setNote({
       kind: "success",
-      msg: `Transcribed (${lang.toUpperCase()}). You can review and edit the text below before submitting.`,
+      msg: `Transcribed (${String(lang).toUpperCase()}). You can review and edit the text below before submitting.`,
     });
     onTranscript(text, lang, { audioUrl, source });
 
