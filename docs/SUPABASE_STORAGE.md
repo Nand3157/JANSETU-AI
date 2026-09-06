@@ -52,6 +52,20 @@ The service key lives only in `services/api/.env` — the browser never sees it.
    Submit a request with a photo in the citizen portal → check Storage → Files →
    `citizen-media/<uid>/...jpg` appears.
 
+## Troubleshooting
+
+- `GET /api/upload/health` → `{"backend":"mock"}` means the API never saw the
+  keys: check `services/api/.env` has `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY`
+  (run `npm run sync-env` after editing root `.env`) and restart the API.
+  The API loads this file at boot via `src/lib/env.ts` — no other setup needed.
+- Upload returns `backend: "mock"` with a `storageError` field: the keys loaded
+  but Supabase rejected the call. Common causes:
+  - `supabase unreachable / ENOTFOUND <ref>.supabase.co` — wrong project URL, or
+    the project was deleted. Free projects also **pause after 1 week idle**:
+    open the project in the Supabase dashboard to resume it, then retry.
+  - `Bucket not found` — create the `citizen-media` bucket (step 2).
+  - `401/403` — you pasted the `anon` key instead of `service_role` (step 4).
+
 ## Notes
 
 - Priority order in code: **Supabase → Firebase Storage → mock URLs**, so you can run

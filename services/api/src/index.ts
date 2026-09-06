@@ -1,3 +1,4 @@
+import "./lib/env.js"; // FIRST: load services/api/.env before any module reads process.env
 import express from "express";
 import cors from "cors";
 import { authMiddleware } from "./middleware/auth.js";

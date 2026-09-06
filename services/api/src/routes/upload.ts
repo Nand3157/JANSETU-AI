@@ -64,7 +64,13 @@ uploadRouter.post("/", json({ limit: "12mb" }), async (req, res) => {
   // C-08 fix: use raw uid without encodeURIComponent to match storage.rules {userId} (no encoding mismatch)
   // Sanitize uid to allow only alphanumeric, -, _
   const safeUid = String(user.uid).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
-  const objectPath = `citizen-media/${safeUid}/${randomBytes(16).toString("hex")}.${ext}`;
+  // NOTE: no `citizen-media/` prefix here — that is the bucket name, so objects
+  // land at citizen-media/<uid>/<rand>.ext as docs/SUPABASE_STORAGE.md shows.
+  const objectPath = `${safeUid}/${randomBytes(16).toString("hex")}.${ext}`;
+  // Captured when Supabase is configured but the call fails (wrong URL, paused
+  // project, missing bucket, bad key) — surfaced on the mock response so the
+  // failure is diagnosable from the client, not just server logs.
+  let storageError: string | null = null;
 
   try {
     // ── 1) Supabase Storage ──
@@ -82,6 +88,7 @@ uploadRouter.post("/", json({ limit: "12mb" }), async (req, res) => {
       });
       if (!put.ok) {
         const errText = await put.text().catch(() => "");
+        storageError = `supabase PUT ${put.status}: ${errText.slice(0, 200)}`;
         console.warn("supabase upload failed, falling back to mock:", put.status, errText.slice(0,300));
         // Fall through to mock instead of failing — keeps demo working even with misconfigured Supabase
       } else {
@@ -111,6 +118,9 @@ uploadRouter.post("/", json({ limit: "12mb" }), async (req, res) => {
       return res.json({ url: readUrl, photoUrl: isAudio ? undefined : readUrl, audioUrl: isAudio ? readUrl : undefined, contentType, backend: "firebase", maxBytes: MAX_BYTES });
     }
   } catch (e: any) {
+    // Network-level failure (DNS, refused, timeout) — e.g. wrong SUPABASE_URL
+    // or a paused/deleted project. Record it so the mock response says why.
+    if (SB_URL && SB_KEY && !storageError) storageError = `supabase unreachable: ${(e.message || "unknown").slice(0, 200)}`;
     console.warn("upload failed, falling back to mock:", e.message);
     // Fall through to mock
   }
@@ -125,6 +135,7 @@ uploadRouter.post("/", json({ limit: "12mb" }), async (req, res) => {
     backend: "mock",
     maxBytes: MAX_BYTES,
     note: "No storage configured — set SUPABASE_* or FIREBASE_STORAGE_BUCKET for real uploads",
+    ...(storageError ? { storageError } : {}),
   });
 });
 

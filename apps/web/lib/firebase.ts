@@ -459,7 +459,12 @@ export async function uploadPhoto(file: File): Promise<string> {
       body: JSON.stringify({ filename: file.name, contentType: file.type, dataUrl }),
     });
     const j: any = await res.json();
-    if (res.ok && (j.photoUrl || j.url)) return j.photoUrl || j.url;
+    if (res.ok && (j.photoUrl || j.url)) {
+      // Honesty: a mock URL means the file was NOT persisted (Supabase/Firebase
+      // unreachable or unconfigured). Demo keeps working, but say so loudly.
+      if (j.backend === "mock") console.warn("photo upload stored as demo mock URL (not persisted):", j.storageError || j.note || "storage unconfigured");
+      return j.photoUrl || j.url;
+    }
     console.warn("upload rejected:", j?.error || res.status);
   } catch (e: any) { console.warn("upload failed:", e.message); }
   return `https://storage.googleapis.com/jansetu-demo-citizen-media/local/${encodeURIComponent(file.name)}`;
