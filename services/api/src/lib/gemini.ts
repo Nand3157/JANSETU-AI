@@ -47,12 +47,19 @@ export const MAIN_SYSTEM = (()=> {
 
 function isValidGeminiKey(key: string): boolean {
   if (!key || key.length < 10) return false;
+  // Accept both AI Studio (AIza...) and newer (AQ...) formats, but warn if unexpected
+  if (!key.startsWith("AIza") && !key.startsWith("AQ.")) {
+    console.warn(`GEMINI_API_KEY has unexpected prefix "${key.slice(0,4)}..." — expected AIza or AQ. — trying anyway`);
+  }
   return true;
 }
 
 export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; raw: any } | null> {
-  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!key || !isValidGeminiKey(key)) return null;
+  const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+  if (!key || !isValidGeminiKey(key)) {
+    if (!key) console.warn("GEMINI_API_KEY missing — using deterministic mock");
+    return null;
+  }
   // Daily spend cap — refuse paid calls once the ceiling is hit (mock fallback takes over)
   const { geminiQuota, recordGeminiCall } = await import("./rateLimit.js");
   const q = geminiQuota();
@@ -64,11 +71,14 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
     if (!GoogleGenerativeAI) return null;
     const genAI = new GoogleGenerativeAI(key);
-    // H-03 fix: valid model names only — 2.0/2.5 now 404, use 3.7/3.6 stable + 3.5-audio for transcribe
-    const rawModel = opts.model || process.env.GEMINI_MODEL || "gemini-3.7-flash";
-    const validModels = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-transcribe", "gemini-3.5-audio", "gemini-flash-latest", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"];
-    const modelName = validModels.includes(rawModel) ? rawModel : "gemini-3.7-flash";
-    if (rawModel !== modelName) {
+    // Model allowlist removed (2026-09 fix): Gemini ships 3.8/3.7/3.6/3.5 + 2.5
+    // families and new names appear monthly. Hard-coding validModels caused
+    // silent fallback to mock whenever .env used a newer valid name.
+    // Sanitize format only (lowercase, gemini-/learnlm- prefix) and pass through.
+    const rawModel = (opts.model || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+    const looksValid = /^(gemini|learnlm)-[a-z0-9][a-z0-9._-]*$/i.test(rawModel);
+    const modelName = looksValid ? rawModel : "gemini-2.5-flash";
+    if (!looksValid) {
       console.warn(`Invalid GEMINI_MODEL "${rawModel}" — using ${modelName} instead`);
     }
     const jsonMode = opts.jsonMode !== false;
@@ -79,7 +89,9 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
       responseMimeType: jsonMode ? "application/json" : "text/plain",
       ...(opts.responseSchema ? { responseSchema: opts.responseSchema } : {}),
     };
-    if (modelName.includes("2.5") || modelName.includes("3")) {
+    // thinkingBudget=0 (fast, cheap) is supported on 2.5+ and all 3.x models.
+    // 2.0/1.5 ignore it — set only where supported to avoid SDK throws.
+    if (/2\.5|3\.\d+|^gemini-3|^gemini-flash-latest/.test(modelName)) {
       generationConfig.thinkingConfig = { thinkingBudget: 0 };
     }
     const model = genAI.getGenerativeModel({
@@ -105,7 +117,11 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     await recordGeminiCall();
     return { text, raw: result.response };
   } catch (e: any) {
-    console.warn("Gemini real call failed, falling back to mock:", e.message);
+    // Surface actionable diagnostics: status + body snippet tells AQ-vs-AIza
+    // auth failures, 404 wrong model, 429 quota apart. Mock fallback still applies.
+    const status = e?.status || e?.response?.status;
+    const body = e?.response?.data || e?.errorDetails;
+    console.warn("Gemini real call failed, falling back to mock:", e.message, status ? `(status ${status})` : "", body ? String(JSON.stringify(body)).slice(0, 300) : "");
     return null;
   }
 }
@@ -116,8 +132,9 @@ export async function transcribeAudio(
 ): Promise<{ transcript: string; language: string; source: "gemini" | "mock" }> {
   const sys = "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language and meaning. Never invent civic facts that were not spoken.";
   const user = `Transcribe the attached audio. langHint=${langHint}. Return ONLY JSON with keys transcript (string) and language (gu|hi|en|und).`;
-  // Use 3.5-audio transcribe model for best Gujarati/Hindi WER
-  const transcribeModel = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
+  // Dedicated speech-to-text model (2026: gemini-3.5-transcribe stable).
+  // Falls back to the main model if unset — never hardcode an allowlist.
+  const transcribeModel = (process.env.GEMINI_TRANSCRIBE_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim() || "gemini-2.5-flash";
   const real = await callGeminiReal({ systemPrompt: sys, userPrompt: user, audioDataUrl, jsonMode: true, model: transcribeModel });
   if (real?.text) {
     try {

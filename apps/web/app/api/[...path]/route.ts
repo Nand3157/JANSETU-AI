@@ -143,8 +143,11 @@ async function tryProxy(req: NextRequest, pathStr: string, bodyText?: string) {
     const auth = req.headers.get("authorization");
     if (auth) headers["authorization"] = auth;
 
+    // 25s: Gemini analyze/transcribe needs 5-15s cold. The old 4s timeout
+    // aborted every real AI call and silently served mocks — the main reason
+    // "Gemini integrated but not working" when the backend was actually fine.
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), 25000);
 
     const res = await fetch(targetUrl.toString(), {
       method: req.method,
@@ -157,19 +160,28 @@ async function tryProxy(req: NextRequest, pathStr: string, bodyText?: string) {
     if (res.ok || res.status < 500) {
       const data = await res.json().catch(() => null);
       if (data !== null) {
-        return NextResponse.json(data, { status: res.status });
+        const out = NextResponse.json(data, { status: res.status });
+        // Mark backend vs mock so the UI can show "AI live" vs "offline demo"
+        out.headers.set("x-jansetu-backend", "express");
+        return out;
       }
     }
-  } catch {}
+    // 5xx / unreachable → fall through to in-process fallback below
+    console.warn(`[api-proxy] backend ${res.status} for ${pathStr} — using fallback`);
+  } catch (e: any) {
+    console.warn(`[api-proxy] backend unreachable for ${pathStr} (${e?.name || e?.message}) — using fallback`);
+  }
   return null;
 }
 
 async function callGeminiFallback(system: string, user: string, opts?: { model?: string }): Promise<string | null> {
-  const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (!key || key.length < 10) return null;
   try {
-    const model = opts?.model || process.env.GEMINI_MODEL || "gemini-3.7-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    // No allowlist — 3.8/3.7/3.6/3.5 + 2.5 all valid in 2026. Sanitize format only.
+    const raw = (opts?.model || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+    const model = /^(gemini|learnlm)-[a-z0-9][a-z0-9._-]*$/i.test(raw) ? raw : "gemini-2.5-flash";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -179,11 +191,15 @@ async function callGeminiFallback(system: string, user: string, opts?: { model?:
         generationConfig: { temperature: 0.2, maxOutputTokens: 800, responseMimeType: "application/json" },
       }),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const err = await res.text().catch(() => "");
+      console.warn(`[gemini-fallback] ${model} → ${res.status}: ${err.slice(0, 300)}`);
+      return null;
+    }
     const j: any = await res.json();
     const text = j?.candidates?.[0]?.content?.parts?.[0]?.text;
     return text ? String(text) : null;
-  } catch { return null; }
+  } catch (e: any) { console.warn("[gemini-fallback] fetch failed:", e?.message); return null; }
 }
 
 async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) {
@@ -482,15 +498,17 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
           const mimeType = m[1].split(";")[0].toLowerCase();
           const b64 = m[2].replace(/\s/g, "");
           if (b64.length < 100) throw new Error("audio too short");
-          const tModel = process.env.GEMINI_TRANSCRIBE_MODEL || "gemini-3.5-transcribe";
-          const key = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY!;
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${tModel}:generateContent?key=${key}`;
+          // REST v1beta uses camelCase inlineData/mimeType (snake_case 400s).
+          // generateContent also accepts audio natively on 3.5-transcribe / 2.5-flash.
+          const tModel = ((process.env.GEMINI_TRANSCRIBE_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim());
+          const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/${tModel}:generateContent?key=${encodeURIComponent(key)}`;
           const gemRes = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               system_instruction: { parts: [{ text: "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language (gu/hi/en) and meaning. Never invent civic facts not spoken. Return ONLY JSON {transcript: string, language: 'gu'|'hi'|'en'|'und'}." }] },
-              contents: [{ parts: [{ text: `Transcribe this audio. langHint=${hint}. Return JSON only.` }, { inline_data: { mime_type: mimeType, data: b64 } }] }],
+              contents: [{ parts: [{ text: `Transcribe this audio. langHint=${hint}. Return JSON only.` }, { inlineData: { mimeType, data: b64 } }] }],
               generationConfig: { temperature: 0.1, maxOutputTokens: 500, responseMimeType: "application/json" },
             }),
           });
@@ -519,8 +537,9 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
           }
         }
       } catch (e:any) { console.warn("transcribe audio parse error", e?.message); }
-      // If Gemini audio transcription failed, fall through to browser speech (return empty so VoiceRecorder keeps speechText)
-      return NextResponse.json({ transcript: "", language: hint, source: "no_gemini_audio", error: "Gemini transcribe failed — using browser speech if available" });
+      // Surface the real Gemini status so "integrated but not working" is diagnosable
+      // (VoiceRecorder keeps browser speech when transcript is empty).
+      return NextResponse.json({ transcript: "", language: hint, source: "no_gemini_audio", error: "Gemini transcribe failed — check server logs / GET /api/debug/gemini for status. Browser speech (if any) is preserved." });
     }
     // No audio or no key: do NOT fabricate road-closure text. Return empty so VoiceRecorder keeps browser SpeechRecognition result or shows honest error.
     // This stops the fake English road text you saw.

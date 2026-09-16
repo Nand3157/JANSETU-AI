@@ -120,28 +120,33 @@ app.use(cors({
     if (!allowedOrigins.length && process.env.NODE_ENV !== "production") return cb(null, true);
     cb(new Error("origin_not_allowed"));
   },
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-role", "x-country", "X-Requested-With"],
   credentials: false, // auth is Bearer ID tokens, never cookies
 }));
 
-app.use(authMiddleware);
+// ── Health BEFORE auth/parsers: load-balancers + Next proxy must reach it unauthenticated
+app.get("/health", (_req, res) => res.json({ ok: true, service: "jansetu-api", version: "1.0.0", chain: "Citizen → AI → Evidence → Prioritization → Human → Impact" }));
+app.get("/api/health", (_req, res) => res.json({ ok: true, service: "jansetu-api", version: "1.0.0" }));
 
 // ── Rate limits (directive #6): general + stricter AI budget ────────────────
 import { rateLimit } from "./lib/rateLimit.js";
 const generalLimiter = rateLimit({ scope: "general", max: Number(process.env.RATE_MAX_GENERAL || 300) });
 const aiLimiter = rateLimit({ scope: "ai", max: Number(process.env.RATE_MAX_AI || 30) });
+
+// Uploads/transcribe mount FIRST with their own larger JSON cap (base64 ≤ ~6.7MB wire).
+// They parse their own body (12mb) so they must NOT sit behind the tight 100kb parser.
+app.use("/api/upload", uploadRouter);
+app.use("/api/transcribe", transcribeRouter);
+
+// Everything else gets the tight default cap — mounted BEFORE auth/routers
+app.use("/api", express.json({ limit: process.env.MAX_BODY_BYTES || "100kb" }));
+
+app.use(authMiddleware);
+
+// Single limiter per route — /api general once here, AI-heavy routes get aiLimiter only
+// (previously /upload got generalLimiter twice and /transcribe got general+ai).
 app.use("/api", generalLimiter);
-
-// Uploads mount FIRST with their own larger JSON cap (base64 photos ≤ ~6.7MB wire size)
-app.use("/api/upload", generalLimiter, uploadRouter);
-app.use("/api/transcribe", aiLimiter, transcribeRouter);
-
-// Everything else gets the tight default cap
-app.use(express.json({ limit: process.env.MAX_BODY_BYTES || "100kb" }));
-
-// Health
-app.get("/health", (_req, res) => res.json({ ok: true, service: "jansetu-api", version: "1.0.0", chain: "Citizen → AI → Evidence → Prioritization → Human → Impact" }));
 
 // API
 app.use("/api/requests", requestsRouter);
@@ -149,7 +154,57 @@ app.use("/api/clusters", aiLimiter, clustersRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/copilot", aiLimiter, copilotRouter);
 app.use("/api/analytics", analyticsRouter);
-app.use("/api/govdata", generalLimiter, govDataRouter);
+app.use("/api/govdata", govDataRouter);
+
+// Debug: Gemini/API diagnostics WITHOUT leaking secrets (prefix + length only).
+// This is why "Gemini integrated but not working" was undebuggable — now
+// GET /api/debug/gemini tells key presence, model, quota, SDK reachability.
+app.get("/api/debug/gemini", async (_req, res) => {
+  const rawKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+  const model = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
+  const tModel = (process.env.GEMINI_TRANSCRIBE_MODEL || model).trim();
+  const { geminiQuota } = await import("./lib/rateLimit.js");
+  const quota = geminiQuota();
+  let sdk = "not_installed";
+  let liveCheck: any = null;
+  try {
+    const mod: any = await import("@google/generative-ai").catch(() => null);
+    sdk = mod?.GoogleGenerativeAI ? "installed" : "not_installed";
+  } catch { sdk = "import_failed"; }
+  // Live reachability: lightweight ListModels (no generation cost). Timeout 8s.
+  if (rawKey && sdk === "installed") {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(rawKey)}`, { signal: ctrl.signal } as any);
+      clearTimeout(t);
+      const j: any = await r.json().catch(() => null);
+      if (r.ok && Array.isArray(j?.models)) {
+        const names: string[] = j.models.map((m: any) => String(m.name || "").replace("models/", ""));
+        liveCheck = {
+          ok: true,
+          count: names.length,
+          requestedModelFound: names.includes(model),
+          transcribeModelFound: names.includes(tModel),
+          sample: names.slice(0, 8),
+          ...(names.includes(model) ? {} : { hint: `GEMINI_MODEL "${model}" not in ListModels — use one of the sample names` }),
+        };
+      } else {
+        liveCheck = { ok: false, status: r.status, error: String(j?.error?.message || "list_models_failed").slice(0, 300) };
+      }
+    } catch (e: any) {
+      liveCheck = { ok: false, error: String(e?.message || "fetch_failed").slice(0, 200) };
+    }
+  }
+  res.json({
+    key: { present: !!rawKey, length: rawKey.length, prefix: rawKey.slice(0, 4) || null },
+    models: { main: model, transcribe: tModel },
+    quota,
+    sdk,
+    liveCheck,
+    envFile: process.env.SKIP_SEED === "true" ? "seed_skipped" : "seed_on",
+  });
+});
 
 // Seed on boot (skip when seeded externally via data/firestore/seed.js)
 if (process.env.SKIP_SEED !== "true") seed();
