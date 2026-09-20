@@ -27,6 +27,9 @@
       ],
       "@jansetu/shared": [
         "../../packages/shared/src"
+      ],
+      "@jansetu/shared/*": [
+        "../../packages/shared/src/*"
       ]
     },
     "baseUrl": "."

@@ -1,4 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  generateText,
+  parseModelJson,
+  transcribeAudio as geminiTranscribe,
+  synthesizeSpeech,
+  normalizeVoiceLang,
+  MAIN_MODEL,
+  TRANSCRIBE_MODEL,
+} from "@jansetu/shared/geminiVoice";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +141,22 @@ const FALLBACK_PROJECTS = [
   },
 ];
 
+/**
+ * Why the in-process fallback answered instead of the Express API. Without this
+ * the UI could only say "Gemini was tried", when the real story was usually
+ * "there is no backend on :8080 to try with".
+ */
+let proxyStatus: "unknown" | "ok" | "unreachable" | "backend_error" = "unknown";
+
+type GeminiOutcome = { text: string | null; model: string; code?: string; status?: number; message?: string; hint?: string };
+
+/** Append the local-dev recovery step when the backend simply was not running. */
+function backendRecovery(hint?: string): string | undefined {
+  if (proxyStatus !== "unreachable") return hint;
+  const note = "The API backend on :8080 is not running — start it with `npm run dev:api` (or `npm run dev`) for live Gemini; this request was served by the in-process fallback.";
+  return hint ? `${hint} ${note}` : note;
+}
+
 async function tryProxy(req: NextRequest, pathStr: string, bodyText?: string) {
   try {
     const targetUrl = new URL(`${BACKEND_API}/api/${pathStr}${req.nextUrl.search}`);
@@ -163,43 +188,49 @@ async function tryProxy(req: NextRequest, pathStr: string, bodyText?: string) {
         const out = NextResponse.json(data, { status: res.status });
         // Mark backend vs mock so the UI can show "AI live" vs "offline demo"
         out.headers.set("x-jansetu-backend", "express");
+        proxyStatus = "ok";
         return out;
       }
     }
     // 5xx / unreachable → fall through to in-process fallback below
+    proxyStatus = "backend_error";
     console.warn(`[api-proxy] backend ${res.status} for ${pathStr} — using fallback`);
   } catch (e: any) {
+    proxyStatus = "unreachable";
     console.warn(`[api-proxy] backend unreachable for ${pathStr} (${e?.name || e?.message}) — using fallback`);
   }
   return null;
 }
 
-async function callGeminiFallback(system: string, user: string, opts?: { model?: string }): Promise<string | null> {
-  const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
-  if (!key || key.length < 10) return null;
-  try {
-    // No allowlist — 3.8/3.7/3.6/3.5 + 2.5 all valid in 2026. Sanitize format only.
-    const raw = (opts?.model || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
-    const model = /^(gemini|learnlm)-[a-z0-9][a-z0-9._-]*$/i.test(raw) ? raw : "gemini-2.5-flash";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: system.slice(0, 4000) }] },
-        contents: [{ parts: [{ text: user.slice(0, 8000) }] }],
-        generationConfig: { temperature: 0.2, maxOutputTokens: 800, responseMimeType: "application/json" },
-      }),
-    });
-    if (!res.ok) {
-      const err = await res.text().catch(() => "");
-      console.warn(`[gemini-fallback] ${model} → ${res.status}: ${err.slice(0, 300)}`);
-      return null;
-    }
-    const j: any = await res.json();
-    const text = j?.candidates?.[0]?.content?.parts?.[0]?.text;
-    return text ? String(text) : null;
-  } catch (e: any) { console.warn("[gemini-fallback] fetch failed:", e?.message); return null; }
+function hasGeminiKey(): boolean {
+  return !!((process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim().length >= 10);
+}
+
+/**
+ * Gemini text call through the shared REST client (x-goog-api-key transport).
+ * Returns the classified failure instead of `null`, so callers can tell the user
+ * whether Gemini answered, hit quota, or was rejected — the old version returned
+ * null for every case and the UI blamed the model for a bad key.
+ */
+async function callGeminiFallback(system: string, user: string, opts?: { model?: string }): Promise<GeminiOutcome> {
+  const model = (opts?.model || MAIN_MODEL()).trim();
+  if (!hasGeminiKey()) {
+    // Server keys are deliberately never synced into the web app (see
+    // scripts/sync-env.mjs), so this branch is normal for a local fallback.
+    return {
+      text: null,
+      model,
+      code: "no_key",
+      message: "GEMINI_API_KEY is not configured for this web deployment.",
+      hint: backendRecovery(undefined),
+    };
+  }
+  const res = await generateText({ model, systemInstruction: system, userText: user, jsonMode: true, maxOutputTokens: 900 });
+  if (!res.ok) {
+    console.warn(`[gemini] ${res.model} → ${res.error.code}${res.error.status ? ` ${res.error.status}` : ""}: ${res.error.message}`);
+    return { text: null, model: res.model, code: res.error.code, status: res.error.status, message: res.error.message, hint: res.error.hint };
+  }
+  return { text: res.text, model: res.model };
 }
 
 async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) {
@@ -398,62 +429,68 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
   if (normPath === "copilot") {
     const qRaw = String(jsonBody?.question || "");
     const q = qRaw.toLowerCase();
-    // Try Gemini 3.7-flash for richer answer when key is configured (backend does this too; this is fallback when backend offline)
-    if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
+    // Live Gemini first: answers grounded in the same cluster facts the
+    // deterministic path uses. Any failure is recorded verbatim for the UI.
+    let geminiError: { code?: string; status?: number; message?: string; hint?: string } | null = null;
+    {
       const gem = await callGeminiFallback(
-        "You are JANSETU Policy Copilot. Answer ONLY from verified civic datasets: clusters, priority engine v1, Census 2011. Cite evidence, list data gaps, never hallucinate. End with human_review_notice.",
+        "You are JANSETU Policy Copilot. Answer ONLY from the verified civic datasets in the input (request clusters, priority engine v1, Census 2011). Cite the evidence you used, list data gaps, never invent numbers, never change weights. Return ONLY JSON: {\"answer\": string, \"evidence\": string[], \"data_gaps\": string[], \"human_review_notice\": string}.",
         `Question: ${qRaw}\nClusters: ${JSON.stringify(FALLBACK_CLUSTERS.map(c=> ({id:c.clusterId, title:c.title, score:c.priorityScore, req:c.requestCount})))}`,
-        { model: process.env.GEMINI_MODEL || "gemini-3.7-flash" }
       );
-      if (gem) {
-        try {
-          const p = JSON.parse(gem.match(/\{[\s\S]*\}/)?.[0] || "");
-          if (p.answer) return NextResponse.json({
-            answer: String(p.answer).slice(0, 2000),
-            evidence: Array.isArray(p.evidence) ? p.evidence.slice(0,4) : ["Census 2011", "4,218 clustered requests"],
-            data_gaps: Array.isArray(p.data_gaps) ? p.data_gaps : ["Awaiting updated survey"],
-            source: "gemini-fallback",
-            confidence: 0.84,
-            human_review_notice: p.human_review_notice || "AI-assisted — final decisions remain with authorized authority.",
-          });
-        } catch {}
-        if (gem.trim().length > 20) {
-          return NextResponse.json({
-            answer: gem.trim().slice(0, 1500),
-            evidence: ["Census 2011 demographic index", "4,218 clustered requests"],
-            data_gaps: ["Awaiting updated 2026 survey"],
-            source: "gemini-fallback",
-            confidence: 0.82,
-            human_review_notice: "AI-assisted (Gemini fallback) — final decisions remain with authorized authority.",
-          });
-        }
+      if (gem.text) {
+        const p = parseModelJson(gem.text);
+        if (p?.answer) return NextResponse.json({
+          answer: String(p.answer).slice(0, 2000),
+          evidence: Array.isArray(p.evidence) ? p.evidence.slice(0,4) : ["Verified request clusters"],
+          data_gaps: Array.isArray(p.data_gaps) ? p.data_gaps : [],
+          source: `Gemini ${gem.model} · live`,
+          model: gem.model,
+          confidence: 0.84,
+          human_review_notice: p.human_review_notice || "AI-assisted — final decisions remain with authorized authority.",
+        });
+        if (gem.text.trim().length > 20) return NextResponse.json({
+          answer: gem.text.trim().slice(0, 1500),
+          evidence: ["Verified request clusters"],
+          data_gaps: [],
+          source: `Gemini ${gem.model} · live (unstructured)`,
+          model: gem.model,
+          confidence: 0.8,
+          human_review_notice: "AI-assisted — final decisions remain with authorized authority.",
+        });
       }
+      geminiError = { code: gem.code, status: gem.status, message: gem.message, hint: gem.hint };
     }
     // Handle greetings/help — must catch before generic Gemini/deterministic so "how do you help?" doesn't become 4 clusters stub
     if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim()) || /how (can|do) (u|you) help|what can you do|capabilities|help me|assist me|what do you do/i.test(qRaw)) {
       // Try Gemini for help too, if available
-      if (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY) {
-        const gemHelp = await callGeminiFallback(
-          "You are JANSETU Policy Copilot. Explain your capabilities concisely and helpfully. Mention you answer from verified civic datasets, ranking, budget optimization. Keep to 2 sentences and list 4 example questions.",
+      {
+        const helpGem = await callGeminiFallback(
+          "You are JANSETU Policy Copilot. Explain your capabilities concisely and helpfully. Mention you answer from verified civic datasets, ranking, budget optimization. Keep to 2 sentences and list 4 example questions. Return ONLY JSON {\"answer\": string}.",
           `Question: ${qRaw}`,
-          { model: process.env.GEMINI_MODEL || "gemini-3.7-flash" }
         );
-        if (gemHelp && gemHelp.trim().length > 20) {
-          return NextResponse.json({
-            answer: gemHelp.trim().slice(0, 1000),
-            evidence: ["Policy Copilot capabilities · grounded in verified datasets"],
-            data_gaps: [],
-            source: "Gemini 3.7-flash · live",
-            confidence: 0.92,
-            human_review_notice: "Grounded AI — ask a policy question for verified data.",
-          });
+        if (helpGem.text) {
+          const hp = parseModelJson(helpGem.text);
+          const helpText = String(hp?.answer || helpGem.text).trim();
+          if (helpText.length > 20) {
+            return NextResponse.json({
+              answer: helpText.slice(0, 1000),
+              evidence: ["Policy Copilot capabilities · grounded in verified datasets"],
+              data_gaps: [],
+              source: `Gemini ${helpGem.model} · live`,
+              model: helpGem.model,
+              confidence: 0.92,
+              human_review_notice: "Grounded AI — ask a policy question for verified data.",
+            });
+          }
         }
+        geminiError = geminiError || { code: helpGem.code, status: helpGem.status, message: helpGem.message, hint: helpGem.hint };
       }
       return NextResponse.json({
         answer: "I’m JANSETU Policy Copilot — I help prioritize civic projects from verified citizen voice + Census + infrastructure data.\n\nI can:\n• Rank the highest-impact projects (Which 5 should we prioritize?)\n• Explain any ranking (Why is this project #1?)\n• Simulate budgets (What can we achieve with ₹10 Cr?)\n• Identify underserved regions (Which regions are underserved?)\n• Summarize what changed this month\n\nAll answers cite evidence and never hallucinate — try one of the chips below or type your own question.",
         evidence: ["Grounded — answers only from request_clusters, priority engine v1, Census 2011, infrastructure_indices"],
         data_gaps: [],
-        source: process.env.GEMINI_API_KEY ? "Gemini 3.7-flash · live (help)" : "stub-greeting",
+        source: geminiError ? `capabilities list (Gemini unavailable: ${geminiError.code}${geminiError.status ? ` HTTP ${geminiError.status}` : ""})` : "capabilities list",
+        gemini: geminiError || { ok: true, model: MAIN_MODEL() },
         confidence: 0.99,
         human_review_notice: "Grounded AI — ask a policy question for verified data.",
       });
@@ -473,83 +510,91 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       answer = `Based on JANSETU's verified civic demand index, ${FALLBACK_CLUSTERS.length} clusters representing ${FALLBACK_REQUESTS.length + 6893} citizen requests are currently mapped. Top priority is road and stormwater drainage infrastructure in high-vulnerability rural blocks.`;
       evidence.push("District Municipal Administration datasets", "Department of Posts PIN Directory");
     }
-    const src = process.env.GEMINI_API_KEY ? "verified-datasets · deterministic (Gemini was tried but returned no JSON — fallback)" : "verified-datasets-stub (set GEMINI_API_KEY in Vercel to enable Gemini 3.7-flash live)";
+    // Say exactly what happened. "Gemini was tried but returned no JSON" hid the
+    // real cause (a rejected key) — the failure mode must be named.
+    const src = !hasGeminiKey()
+      ? proxyStatus === "unreachable"
+        ? "verified-datasets · deterministic (in-process fallback — API backend on :8080 unreachable and no GEMINI_API_KEY here; run npm run dev for live Gemini)"
+        : "verified-datasets · deterministic (GEMINI_API_KEY not configured — set it to enable Gemini live)"
+      : geminiError
+      ? `verified-datasets · deterministic (Gemini ${geminiError.code}${geminiError.status ? ` HTTP ${geminiError.status}` : ""} — ${geminiError.message})`
+      : "verified-datasets · deterministic (Gemini declined to answer from these datasets)";
     return NextResponse.json({
       answer,
       evidence,
       data_gaps: ["Awaiting updated 2026 ground water survey report"],
       source: src,
+      gemini: geminiError
+        ? { code: geminiError.code, status: geminiError.status, message: geminiError.message, hint: geminiError.hint }
+        : { ok: true, model: MAIN_MODEL() },
       confidence: 0.88,
       human_review_notice: "This is an AI-assisted recommendation. Final funding and policy decisions remain with the authorized government authority.",
     });
   }
 
-  // Transcribe — real Gemini 3.5-transcribe with audio inline_data, no fabricated road text
+  // Transcribe — real Gemini 3.5 Transcribe through the shared voice client.
+  // No fabricated road-closure text: a failure returns an empty transcript plus
+  // the *classified* reason (auth / quota / no speech), so VoiceRecorder can tell
+  // the citizen what actually happened and what to do next.
   if (normPath === "transcribe") {
-    const hint = String(jsonBody?.langHint || "auto").toLowerCase();
+    const hint = normalizeVoiceLang(jsonBody?.langHint);
     const dataUrl: string | undefined = jsonBody?.dataUrl;
-    const hasKey = !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
-    // If audio present and Gemini key available, do real transcription via 3.5-audio with inline audio
-    if (dataUrl && hasKey) {
-      try {
-        // Parse dataUrl: data:audio/webm;codecs=opus;base64,....
-        const m = String(dataUrl).match(/^data:([^;]+);base64,([\s\S]+)$/);
-        if (m) {
-          const mimeType = m[1].split(";")[0].toLowerCase();
-          const b64 = m[2].replace(/\s/g, "");
-          if (b64.length < 100) throw new Error("audio too short");
-          // REST v1beta uses camelCase inlineData/mimeType (snake_case 400s).
-          // generateContent also accepts audio natively on 3.5-transcribe / 2.5-flash.
-          const tModel = ((process.env.GEMINI_TRANSCRIBE_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim());
-          const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
-          const url = `https://generativelanguage.googleapis.com/v1beta/models/${tModel}:generateContent?key=${encodeURIComponent(key)}`;
-          const gemRes = await fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              system_instruction: { parts: [{ text: "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language (gu/hi/en) and meaning. Never invent civic facts not spoken. Return ONLY JSON {transcript: string, language: 'gu'|'hi'|'en'|'und'}." }] },
-              contents: [{ parts: [{ text: `Transcribe this audio. langHint=${hint}. Return JSON only.` }, { inlineData: { mimeType, data: b64 } }] }],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 500, responseMimeType: "application/json" },
-            }),
-          });
-          if (gemRes.ok) {
-            const j: any = await gemRes.json();
-            const text = j?.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (text) {
-              try {
-                const p = JSON.parse(text.match(/\{[\s\S]*\}/)?.[0] || text);
-                const tr = String(p.transcript || p.text || "").trim();
-                if (tr) return NextResponse.json({ transcript: tr, language: String(p.language || hint).slice(0,8), source: "gemini" });
-              } catch {}
-              const cleaned = text.replace(/```json|```/g, "").trim();
-              if (cleaned && !cleaned.startsWith("{")) return NextResponse.json({ transcript: cleaned.slice(0,800), language: hint === "auto" ? "und" : hint, source: "gemini" });
-              // if JSON parse succeeded above, already returned
-              if (text.trim()) {
-                try {
-                  const p2 = JSON.parse(text);
-                  if (p2.transcript) return NextResponse.json({ transcript: String(p2.transcript).trim(), language: String(p2.language || hint).slice(0,8), source: "gemini" });
-                } catch {}
-              }
-            }
-          } else {
-            const errText = await gemRes.text().catch(()=> "");
-            console.warn("Gemini transcribe failed", gemRes.status, errText.slice(0,300));
-          }
-        }
-      } catch (e:any) { console.warn("transcribe audio parse error", e?.message); }
-      // Surface the real Gemini status so "integrated but not working" is diagnosable
-      // (VoiceRecorder keeps browser speech when transcript is empty).
-      return NextResponse.json({ transcript: "", language: hint, source: "no_gemini_audio", error: "Gemini transcribe failed — check server logs / GET /api/debug/gemini for status. Browser speech (if any) is preserved." });
-    }
-    // No audio or no key: do NOT fabricate road-closure text. Return empty so VoiceRecorder keeps browser SpeechRecognition result or shows honest error.
-    // This stops the fake English road text you saw.
-    const lang = hint === "hi" || hint === "hi-in" ? "hi" : hint === "en" || hint === "en-in" ? "en" : "gu";
     if (!dataUrl) {
-      // No audio attached — likely browser Web Speech succeeded; if not, caller will show "No speech detected"
-      return NextResponse.json({ transcript: "", language: lang, source: hasKey ? "no_audio" : "mock_disabled", error: "No audio data — rely on browser speech" });
+      return NextResponse.json({
+        transcript: "",
+        language: hint === "auto" ? "und" : hint,
+        source: "no_audio",
+        model: TRANSCRIBE_MODEL(),
+        code: "audio_invalid",
+        error: "No audio reached the server.",
+        hint: "Record for 2–3 seconds, or type your request below.",
+      });
     }
-    // Audio present but no Gemini key configured on this Vercel deployment
-    return NextResponse.json({ transcript: "", language: lang, source: "no_gemini_key", error: "GEMINI_API_KEY not set on Vercel — browser speech will be used if available" });
+    const r = await geminiTranscribe(dataUrl, hint);
+    if (r.transcript) {
+      return NextResponse.json({
+        transcript: r.transcript,
+        language: r.language,
+        source: "gemini",
+        model: r.model,
+        mode: r.mode,
+        latencyMs: r.latencyMs,
+      });
+    }
+    return NextResponse.json({
+      transcript: "",
+      language: r.language,
+      source: "unavailable",
+      model: r.model,
+      code: r.error?.code || "unsupported",
+      status: r.error?.status ?? null,
+      error: r.error?.message || "Transcription unavailable.",
+      hint: backendRecovery(r.error?.hint) || "Please retry, or type your request below.",
+    });
+  }
+
+  // Text to speech — Gemini TTS for all three product languages (ગુજરાતી · हिन्दी · English)
+  if (normPath === "tts") {
+    const text = typeof jsonBody?.text === "string" ? jsonBody.text : "";
+    const lang = normalizeVoiceLang(jsonBody?.lang);
+    if (!text.trim()) {
+      return NextResponse.json({ error: "invalid_payload", detail: "Send { text: string, lang: 'gu'|'hi'|'en' }" }, { status: 400 });
+    }
+    const r = await synthesizeSpeech(text, lang);
+    if (r.source !== "gemini" || !r.audioDataUrl) {
+      return NextResponse.json({
+        source: "unavailable",
+        lang: r.lang,
+        voice: r.voice,
+        model: r.model,
+        audioDataUrl: "",
+        code: r.error?.code || "unsupported",
+        status: r.error?.status ?? null,
+        error: r.error?.message || "Speech synthesis unavailable.",
+        hint: backendRecovery(r.error?.hint) || "Please retry.",
+      });
+    }
+    return NextResponse.json(r);
   }
 
   // Upload

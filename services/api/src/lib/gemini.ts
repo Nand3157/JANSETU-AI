@@ -1,12 +1,19 @@
 /**
- * Gemini via Firebase AI Logic / Gemini Developer API
- * Real call when GEMINI_API_KEY or GCP Vertex configured, else mock from aiOrchestrator heuristics.
+ * Gemini access for the JANSETU API.
+ *
+ * Transport lives in `packages/shared/src/geminiVoice.ts` so the Express API and
+ * the Next.js route handler speak to Gemini identically:
+ *   - key authenticated with the `x-goog-api-key` header (accepts AIza… and AQ.…)
+ *   - failures classified (auth / quota / model_not_found / …) instead of swallowed
+ *   - real `gemini-3.5-transcribe` speech-to-text and real TTS
+ *
  * Prompt files in docs/prompts/ are loaded as system instructions.
  */
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { parseMediaDataUrl } from "./media.js";
+import { generateText, transcribeAudio as transcribeShared, type TranscribeResult } from "@jansetu/shared/geminiVoice";
+import { parseMediaDataUrl, MAX_TRANSCRIBE_BYTES } from "./media.js";
 
 type GeminiOpts = {
   systemPrompt: string;
@@ -54,6 +61,11 @@ function isValidGeminiKey(key: string): boolean {
   return true;
 }
 
+/**
+ * Back-compat wrapper used by aiOrchestrator. Returns null when Gemini could not
+ * answer so callers keep their deterministic path — but the reason is logged and
+ * available on GET /api/debug/gemini (lastCall.code).
+ */
 export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; raw: any } | null> {
   const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   if (!key || !isValidGeminiKey(key)) {
@@ -67,101 +79,47 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
     console.warn(`Gemini daily cap reached (${q.used}/${q.cap}) — using deterministic fallback for the rest of ${dayKeySafe()}`);
     return null;
   }
-  try {
-    const { GoogleGenerativeAI } = await import("@google/generative-ai").catch(()=> ({ GoogleGenerativeAI: null })) as any;
-    if (!GoogleGenerativeAI) return null;
-    const genAI = new GoogleGenerativeAI(key);
-    // Model allowlist removed (2026-09 fix): Gemini ships 3.8/3.7/3.6/3.5 + 2.5
-    // families and new names appear monthly. Hard-coding validModels caused
-    // silent fallback to mock whenever .env used a newer valid name.
-    // Sanitize format only (lowercase, gemini-/learnlm- prefix) and pass through.
-    const rawModel = (opts.model || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
-    const looksValid = /^(gemini|learnlm)-[a-z0-9][a-z0-9._-]*$/i.test(rawModel);
-    const modelName = looksValid ? rawModel : "gemini-2.5-flash";
-    if (!looksValid) {
-      console.warn(`Invalid GEMINI_MODEL "${rawModel}" — using ${modelName} instead`);
-    }
-    const jsonMode = opts.jsonMode !== false;
-    // Only set thinkingConfig for models that support it (gemini-2.5+); 2.0-flash ignores it but some SDK versions throw
-    const generationConfig: any = {
-      temperature: 0.2,
-      maxOutputTokens: Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096),
-      responseMimeType: jsonMode ? "application/json" : "text/plain",
-      ...(opts.responseSchema ? { responseSchema: opts.responseSchema } : {}),
-    };
-    // thinkingBudget=0 (fast, cheap) is supported on 2.5+ and all 3.x models.
-    // 2.0/1.5 ignore it — set only where supported to avoid SDK throws.
-    if (/2\.5|3\.\d+|^gemini-3|^gemini-flash-latest/.test(modelName)) {
-      generationConfig.thinkingConfig = { thinkingBudget: 0 };
-    }
-    const model = genAI.getGenerativeModel({
-      model: modelName,
-      systemInstruction: opts.systemPrompt,
-      generationConfig,
-    });
-    // Prompt-injection guardrail: cap user-supplied text length before it reaches the model
-    const userPrompt = String(opts.userPrompt).slice(0, 12000);
 
-    const parts: any[] = [{ text: userPrompt }];
-    if (opts.audioDataUrl) {
-      const { MAX_TRANSCRIBE_BYTES } = await import("./media.js");
-      const parsed = parseMediaDataUrl(opts.audioDataUrl, MAX_TRANSCRIBE_BYTES);
-      if (!parsed || !parsed.mimeType.startsWith("audio/")) throw new Error("invalid audio dataUrl");
-      if (parsed.buffer.length > MAX_TRANSCRIBE_BYTES) throw new Error("audio too large");
-      parts.push({ inlineData: { mimeType: parsed.mimeType, data: parsed.buffer.toString("base64") } });
+  let inline: { mimeType: string; data: string } | undefined;
+  if (opts.audioDataUrl) {
+    const parsed = parseMediaDataUrl(opts.audioDataUrl, MAX_TRANSCRIBE_BYTES);
+    if (!parsed || !parsed.mimeType.startsWith("audio/")) {
+      console.warn("callGeminiReal: invalid audio dataUrl — skipping inline audio");
+    } else {
+      inline = { mimeType: parsed.mimeType, data: parsed.buffer.toString("base64") };
     }
+  }
 
-    const result = await model.generateContent(parts);
-    const text = result.response.text();
-    if (!text) return null;
-    await recordGeminiCall();
-    return { text, raw: result.response };
-  } catch (e: any) {
-    // Surface actionable diagnostics: status + body snippet tells AQ-vs-AIza
-    // auth failures, 404 wrong model, 429 quota apart. Mock fallback still applies.
-    const status = e?.status || e?.response?.status;
-    const body = e?.response?.data || e?.errorDetails;
-    console.warn("Gemini real call failed, falling back to mock:", e.message, status ? `(status ${status})` : "", body ? String(JSON.stringify(body)).slice(0, 300) : "");
+  const res = await generateText({
+    model: (opts.model || process.env.GEMINI_MODEL || "gemini-3.7-flash").trim(),
+    systemInstruction: opts.systemPrompt,
+    userText: opts.userPrompt,
+    jsonMode: opts.jsonMode !== false,
+    responseSchema: opts.responseSchema,
+    inline,
+  });
+
+  if (!res.ok) {
+    // Actionable diagnostics: status + code separate AQ-vs-AIza auth failures,
+    // wrong model names (404) and quota (429). Deterministic fallback still applies.
+    console.warn(`Gemini call failed [${res.error.code}${res.error.status ? ` ${res.error.status}` : ""}] ${res.model}: ${res.error.message}`);
     return null;
   }
+  await recordGeminiCall();
+  return { text: res.text, raw: res.text };
 }
 
-export async function transcribeAudio(
-  audioDataUrl: string,
-  langHint = "auto",
-): Promise<{ transcript: string; language: string; source: "gemini" | "mock" }> {
-  const sys = "You transcribe civic citizen voice notes for JANSETU AI. Preserve the speaker's language and meaning. Never invent civic facts that were not spoken.";
-  const user = `Transcribe the attached audio. langHint=${langHint}. Return ONLY JSON with keys transcript (string) and language (gu|hi|en|und).`;
-  // Dedicated speech-to-text model (2026: gemini-3.5-transcribe stable).
-  // Falls back to the main model if unset — never hardcode an allowlist.
-  const transcribeModel = (process.env.GEMINI_TRANSCRIBE_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash").trim() || "gemini-2.5-flash";
-  const real = await callGeminiReal({ systemPrompt: sys, userPrompt: user, audioDataUrl, jsonMode: true, model: transcribeModel });
-  if (real?.text) {
-    try {
-      let parsed: any;
-      try { parsed = JSON.parse(real.text); } catch {
-        const m = real.text.match(/\{[\s\S]*\}/);
-        if (m) parsed = JSON.parse(m[0]);
-      }
-      const transcript = String(parsed?.transcript || parsed?.text || "").trim();
-      const language = String(parsed?.language || langHint || "und").slice(0, 8);
-      if (transcript) return { transcript, language, source: "gemini" };
-    } catch {}
-    const fallback = real.text.replace(/```json|```/g, "").trim();
-    if (fallback && !fallback.startsWith("{")) return { transcript: fallback, language: langHint === "auto" ? "und" : langHint, source: "gemini" };
-  }
-  // Honest fallback — never fabricate a transcript from silence/failure.
-  // DESIGN.md honesty rules: if transcription fails, say so; the caller
-  // (transcribe route / VoiceRecorder) surfaces an honest retry message and
-  // keeps any browser SpeechRecognition result instead of canned road text.
-  const hint = (langHint || "auto").toLowerCase();
-  const detectedLang =
-    hint === "gu" || hint === "gu-in" ? "gu"
-    : hint === "hi" || hint === "hi-in" ? "hi"
-    : hint === "en" || hint === "en-in" ? "en"
-    : "und";
-  return { transcript: "", language: detectedLang, source: "mock" };
+/**
+ * Real speech-to-text for citizen voice notes (Gemini 3.5 Transcribe).
+ * Empty transcript + classified error when the engine cannot answer — silence
+ * must never become a fabricated complaint.
+ */
+export async function transcribeAudio(audioDataUrl: string, langHint = "auto"): Promise<TranscribeResult> {
+  return transcribeShared(audioDataUrl, langHint);
 }
+
+/** Diagnostics for GET /api/debug/gemini (no secrets, just shapes and outcomes). */
+export { voiceDiagnostics } from "@jansetu/shared/geminiVoice";
 
 function dayKeySafe() { return new Date().toISOString().slice(0, 10); }
 

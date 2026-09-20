@@ -5,7 +5,7 @@
  */
 import { nanoid } from "nanoid";
 import type { CitizenRequest, RequestCluster, Project } from "../lib/index.js";
-import { isFirebaseEnabled, firestore } from "../lib/firebaseAdmin.js";
+import { isFirebaseEnabled, firestore, noteFirestoreFailure } from "../lib/firebaseAdmin.js";
 
 const requests = new Map<string, CitizenRequest>();
 const clusters = new Map<string, RequestCluster>();
@@ -14,7 +14,12 @@ const audit: any[] = [];
 
 function persist(col: string, id: string, data: any) {
   if (!isFirebaseEnabled() || !firestore) return;
-  try { firestore.collection(col).doc(id).set(data, { merge: true }).catch((e: any)=> console.warn(`Firestore persist ${col}/${id} failed:`, e.message)); } catch {}
+  try {
+    firestore.collection(col).doc(id).set(data, { merge: true }).catch((e: any) => {
+      noteFirestoreFailure(e);
+      console.warn(`Firestore persist ${col}/${id} failed:`, e.message);
+    });
+  } catch (e) { noteFirestoreFailure(e); }
 }
 
 // Seed handled by data/demo loader

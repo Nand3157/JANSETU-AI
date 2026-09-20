@@ -3,7 +3,8 @@ import React, { useState, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
-import { Sparkles, Send } from "lucide-react";
+import { ListenButton } from "@/components/civic/ListenButton";
+import { Sparkles, Send, AlertTriangle } from "lucide-react";
 
 const prompts = [
   "Which 5 projects should we prioritize?",
@@ -57,6 +58,18 @@ export default function CopilotPage() {
       human_review_notice: "Demo mode — API unavailable. Human review required.",
     };
   }
+
+  // Budget simulations return a portfolio instead of prose — give the reader
+  // something a voice can actually say rather than a JSON.stringify.
+  const listenText = React.useMemo(() => {
+    if (!ans) return "";
+    if (ans.answer) return String(ans.answer);
+    if (ans.selected_projects?.length) {
+      const names = ans.selected_projects.map((p: any) => p.title).join("; ");
+      return `${ans.selected_projects.length} projects fit within the budget: ${names}. ${ans.trade_offs || ""}`;
+    }
+    return "";
+  }, [ans]);
 
   async function ask(text:string) {
     if (!text.trim()) return;
@@ -112,7 +125,24 @@ export default function CopilotPage() {
                 </div>
               ) : null}
               <div className="text-[11px] text-[#5F6368] mt-2">{ans.human_review_notice}</div>
+              {listenText ? (
+                <div className="mt-3 pt-3 border-t border-[#E5E7EB]">
+                  <ListenButton text={listenText} label="Listen" recovery="The answer text is unaffected — it stays on screen." />
+                </div>
+              ) : null}
             </div>
+            {ans.gemini && (ans.gemini.code || ans.gemini.status) ? (
+              // The old footer said "Gemini was tried but returned no JSON", which
+              // blamed the model for what was usually a rejected key. Name it.
+              <div className="rounded-xl bg-[#FEF7E0] border border-[#FDE68A] text-[#92400E] text-xs p-3 flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" aria-hidden="true" />
+                <span>
+                  <span className="font-medium">Gemini {ans.gemini.code || "failed"}{ans.gemini.status ? ` (HTTP ${ans.gemini.status})` : ""}.</span>{" "}
+                  {ans.gemini.message}
+                  {ans.gemini.hint ? <> {ans.gemini.hint}</> : null}
+                </span>
+              </div>
+            ) : null}
             {ans.sources?.length || ans.source ? <div className="text-[11px] text-[#5F6368]">Sources: {ans.source || ans.sources?.join(" · ")}</div> : null}
           </div>
         )}

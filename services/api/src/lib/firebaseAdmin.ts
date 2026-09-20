@@ -8,13 +8,45 @@
  * and credential.cert flattened to top-level cert. Both shapes are handled here.
  */
 import { createRequire } from "module";
+import { existsSync } from "fs";
+import { dirname, isAbsolute, join } from "path";
+import { fileURLToPath } from "url";
 const require = createRequire(import.meta.url);
+
+const SERVICE_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", ".."); // services/api
+const REPO_ROOT = join(SERVICE_DIR, "..", "..");
 
 let admin: any = null;
 let firestore: any = null;
 let storage: any = null;
 let authAdmin: any = null;
 let isConfigured = false;
+/** Set the first time Firestore proves it cannot authenticate; disables all writes. */
+let disabledReason: string | null = null;
+
+/**
+ * `.env` writes GOOGLE_APPLICATION_CREDENTIALS as a relative path
+ * (`./service-account.json`) while the file usually sits in `services/api/`.
+ * google-auth-library resolves it against the process cwd, failed inside a
+ * background Firestore write, and that unhandled rejection killed the whole API
+ * milliseconds after boot — every screen then silently fell back to the
+ * in-process stub. Resolve the path, or drop the variable so we stay in mock mode.
+ */
+function resolveCredentialPath(): void {
+  const raw = (process.env.GOOGLE_APPLICATION_CREDENTIALS || "").trim();
+  if (!raw) return;
+  const candidates = isAbsolute(raw)
+    ? [raw]
+    : [join(process.cwd(), raw), join(SERVICE_DIR, raw), join(REPO_ROOT, raw)];
+  const found = candidates.find((c) => existsSync(c));
+  if (found) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = found;
+    return;
+  }
+  console.log(`ℹ GOOGLE_APPLICATION_CREDENTIALS "${raw}" was not found (tried ${candidates.length} locations) — using the in-memory store.`);
+  delete process.env.GOOGLE_APPLICATION_CREDENTIALS;
+}
+resolveCredentialPath();
 
 function req(name: string) { try { return require(name); } catch { return null; } }
 
@@ -79,7 +111,24 @@ try {
 
 export { admin, firestore, storage, authAdmin, isConfigured };
 
-export function isFirebaseEnabled() { return isConfigured && !!firestore; }
+/**
+ * Record an auth-level Firestore failure and stop persisting. Without this a
+ * misconfigured deployment keeps retrying (and logging) on every write instead
+ * of quietly running on the in-memory store.
+ */
+export function noteFirestoreFailure(e: any) {
+  const msg = String(e?.message || e || "unknown");
+  const fatal = /ENOENT|does not exist|invalid_grant|Could not load the default credentials|PERMISSION_DENIED|UNAUTHENTICATED|invalid authentication/i.test(msg);
+  if (!fatal || disabledReason) return;
+  disabledReason = msg.slice(0, 240);
+  console.warn("⚠ Firestore persistence disabled — running on the in-memory store:", disabledReason);
+}
+
+export function firebaseStatus() {
+  return { configured: isConfigured, persistenceDisabled: !!disabledReason, reason: disabledReason };
+}
+
+export function isFirebaseEnabled() { return isConfigured && !!firestore && !disabledReason; }
 
 export function col(name: string) {
   return isFirebaseEnabled() ? firestore.collection(name) : null;

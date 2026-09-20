@@ -76,12 +76,12 @@ export async function recordGeminiCall(costUnits = 1) {
   if (q.exceeded) return false;
   used += costUnits;
   try {
-    const { firestore, isFirebaseEnabled } = await import("../lib/firebaseAdmin.js");
+    const { firestore, isFirebaseEnabled, noteFirestoreFailure } = await import("../lib/firebaseAdmin.js");
     if (isFirebaseEnabled() && firestore) {
       firestore.collection("ai_usage").doc(dayKey).set(
         { date: dayKey, calls: used, cap: DAILY_CAP, updatedAt: new Date().toISOString() },
         { merge: true }
-      ).catch(() => {});
+      ).catch((e: any) => noteFirestoreFailure(e));
     }
   } catch {}
   return true;

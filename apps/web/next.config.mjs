@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: { typedRoutes: false },
+  // The Gemini voice/text transport lives in @jansetu/shared so the Next route
+  // handlers and the Express API cannot drift apart. TS package → needs transpiling.
+  transpilePackages: ["@jansetu/shared"],
   compress: true,
   poweredByHeader: false,
   images: {

@@ -10,6 +10,7 @@ import { analyticsRouter } from "./routes/analytics.js";
 import { govDataRouter } from "./routes/govdata.js";
 import { uploadRouter } from "./routes/upload.js";
 import { transcribeRouter } from "./routes/transcribe.js";
+import { ttsRouter } from "./routes/tts.js";
 import { store } from "./services/store.js";
 import { scoreCluster } from "./services/ranking.js";
 
@@ -153,55 +154,72 @@ app.use("/api/requests", requestsRouter);
 app.use("/api/clusters", aiLimiter, clustersRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/copilot", aiLimiter, copilotRouter);
+// TTS costs money per call — same AI budget as the other Gemini routes.
+app.use("/api/tts", aiLimiter, ttsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/govdata", govDataRouter);
 
 // Debug: Gemini/API diagnostics WITHOUT leaking secrets (prefix + length only).
-// This is why "Gemini integrated but not working" was undebuggable — now
-// GET /api/debug/gemini tells key presence, model, quota, SDK reachability.
+// Tells you *why* voice/AI failed: key format, transport, model availability,
+// quota, and the last upstream status (auth vs quota vs model_not_found).
 app.get("/api/debug/gemini", async (_req, res) => {
-  const rawKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
-  const model = (process.env.GEMINI_MODEL || "gemini-2.5-flash").trim();
-  const tModel = (process.env.GEMINI_TRANSCRIBE_MODEL || model).trim();
   const { geminiQuota } = await import("./lib/rateLimit.js");
-  const quota = geminiQuota();
-  let sdk = "not_installed";
+  const { voiceDiagnostics } = await import("./lib/gemini.js");
+  const { firebaseStatus } = await import("./lib/firebaseAdmin.js");
+  const diag = voiceDiagnostics();
+  const key = (process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
   let liveCheck: any = null;
-  try {
-    const mod: any = await import("@google/generative-ai").catch(() => null);
-    sdk = mod?.GoogleGenerativeAI ? "installed" : "not_installed";
-  } catch { sdk = "import_failed"; }
-  // Live reachability: lightweight ListModels (no generation cost). Timeout 8s.
-  if (rawKey && sdk === "installed") {
+  // Live reachability: ListModels (no generation cost), key sent as a header
+  // exactly like the real calls — that is what makes AQ. Auth keys work.
+  if (key) {
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 8000);
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(rawKey)}`, { signal: ctrl.signal } as any);
+      const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models?pageSize=200", {
+        headers: { "x-goog-api-key": key },
+        signal: ctrl.signal,
+      });
       clearTimeout(t);
       const j: any = await r.json().catch(() => null);
       if (r.ok && Array.isArray(j?.models)) {
         const names: string[] = j.models.map((m: any) => String(m.name || "").replace("models/", ""));
+        const wanted = { main: diag.models.main, transcribe: diag.models.transcribe, tts: diag.models.tts };
         liveCheck = {
           ok: true,
           count: names.length,
-          requestedModelFound: names.includes(model),
-          transcribeModelFound: names.includes(tModel),
-          sample: names.slice(0, 8),
-          ...(names.includes(model) ? {} : { hint: `GEMINI_MODEL "${model}" not in ListModels — use one of the sample names` }),
+          available: {
+            main: names.includes(wanted.main),
+            transcribe: names.includes(wanted.transcribe),
+            tts: names.includes(wanted.tts),
+          },
+          sample: names.slice(0, 10),
+          ...(names.includes(wanted.main) ? {} : { hint: `GEMINI_MODEL "${wanted.main}" is not offered to this key — pick one of sample` }),
         };
       } else {
-        liveCheck = { ok: false, status: r.status, error: String(j?.error?.message || "list_models_failed").slice(0, 300) };
+        const reason = String((j as any)?.error?.details?.find?.((d: any) => d?.reason)?.reason || "");
+        liveCheck = {
+          ok: false,
+          status: r.status,
+          reason: reason || undefined,
+          error: String((j as any)?.error?.message || "list_models_failed").slice(0, 300),
+          hint:
+            r.status === 401 || r.status === 403
+              ? "The key was rejected even with x-goog-api-key authentication. Create a fresh unrestricted Gemini key in Google AI Studio and update GEMINI_API_KEY."
+              : undefined,
+        };
       }
     } catch (e: any) {
       liveCheck = { ok: false, error: String(e?.message || "fetch_failed").slice(0, 200) };
     }
+  } else {
+    liveCheck = { ok: false, error: "no_key", hint: "Set GEMINI_API_KEY to enable Gemini text, transcription and speech." };
   }
   res.json({
-    key: { present: !!rawKey, length: rawKey.length, prefix: rawKey.slice(0, 4) || null },
-    models: { main: model, transcribe: tModel },
-    quota,
-    sdk,
+    ...diag,
+    quota: geminiQuota(),
+    firestore: firebaseStatus(),
     liveCheck,
+    endpoints: { transcribe: "POST /api/transcribe", tts: "POST /api/tts", voices: "GET /api/tts/voices" },
     envFile: process.env.SKIP_SEED === "true" ? "seed_skipped" : "seed_on",
   });
 });
@@ -227,7 +245,22 @@ app.use((err:any,_req:any,res:any,_next:any)=> {
   res.status(err?.status || 500).json({ error: "internal_error", ...(expose ? { detail: err?.message } : {}) });
 });
 
-const port = Number(process.env.PORT || 8080);
+// A background write must never take the service down mid-demo: Firestore
+// credential problems used to reject an unawaited promise and exit the process
+// seconds after boot, which made every screen quietly serve stub data.
+process.on("unhandledRejection", (reason: any) => {
+  console.error("[unhandledRejection]", reason instanceof Error ? reason.message : String(reason));
+});
+process.on("uncaughtException", (err: any) => {
+  console.error("[uncaughtException]", err?.message || err);
+});
+
+// PORT comes from the shell as often as from .env, and a non-numeric value
+// silently bound a random port (the Next proxy then always missed the API).
+const rawPort = (process.env.PORT || "").trim();
+const parsedPort = Number(rawPort);
+const port = Number.isInteger(parsedPort) && parsedPort > 0 && parsedPort < 65536 ? parsedPort : 8080;
+if (rawPort && port !== parsedPort) console.warn(`Invalid PORT "${rawPort}" — listening on ${port} instead`);
 app.listen(port, () => {
   console.log(`JANSETU API listening on :${port}`);
   console.log(`Demo: POST http://localhost:${port}/api/requests  then POST /api/requests/{id}/analyze`);

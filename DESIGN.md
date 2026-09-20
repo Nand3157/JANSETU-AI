@@ -39,6 +39,14 @@ Single source of truth for visual tokens. Tailwind config (`apps/web/tailwind.co
 - Async feedback goes through the toast host (`components/ui/toast.tsx`) with `role="alert"` on errors. Native `alert()/confirm()` are banned.
 - Touch targets ≥44×44px on mobile-primary controls.
 
+## Voice & speech (gu · hi · en)
+
+- **Speech to text** — `gemini-3.5-transcribe` via `POST /api/transcribe` (shared client in `packages/shared/src/geminiVoice.ts`). Citizen picks the language; the model auto-detects when they don't. Browser `SpeechRecognition` is a live preview only — server transcription is what gets stored.
+- **Text to speech** — `gemini-3.1-flash-tts-preview` via `POST /api/tts` (`{ text, lang }` → `audioDataUrl`), surfaced by `components/civic/ListenButton.tsx`. Voice per language: gu `Sulafat` · hi `Achird` · en `Kore` (override with `GEMINI_TTS_VOICE_*`). The reader picks the language; the model reads the text in the language it is written in and never translates.
+- **Control shape** — one pill button plus a three-way endonym group (`ગુજરાતી · हिन्दी · English`), `aria-pressed` on the group, ≥44px targets on mobile, a single voice at a time per page, clip released on unmount and on new text.
+- **Failure is named, never invented** — auth, quota, model and no-speech errors reach the UI as classified codes (`auth`, `quota`, `model_not_found`, `empty_response`, `audio_too_short`) with a recovery step. "Engine busy" is banned copy: say what the engine said. An unavailable engine keeps the citizen's own speech/text; it never substitutes canned content.
+- **Diagnostics** — `GET /api/debug/gemini` reports key format (never the key), transport, the three models, quota, Firestore persistence state, and the classified result of the last call.
+
 ## Honesty rules (civic product)
 
 - Demo/sample data must be visibly labeled ("Demo mode" banner, "Sample" badges). Never pre-fill user-facing submission forms with sample content.

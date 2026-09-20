@@ -192,6 +192,8 @@ export function VoiceRecorder({
     let lang = selectedLang === "auto" ? "" : selectedLang;
     let audioUrl: string | null = null;
     let source = combinedFallback ? "speech-recognition" : "transcribe";
+    // Whatever the transcription engine said about a failure, verbatim.
+    let engineNote: { error?: string; hint?: string; code?: string; model?: string } | null = null;
 
     // 1. Try server transcription & media upload
     if (blob && blob.size > 50) {
@@ -210,6 +212,11 @@ export function VoiceRecorder({
           text = tr.transcript.trim();
           if (tr.language && tr.language !== "und") lang = tr.language;
           source = "gemini";
+        } else if (tr) {
+          // Gemini 3.5 Transcribe reports *why* it could not answer
+          // (auth / quota / no speech). Carry that to the citizen instead of
+          // inventing an engine-busy explanation.
+          engineNote = { error: tr.error, hint: tr.hint, code: tr.code, model: tr.model };
         }
 
         // Upload audio note
@@ -222,19 +229,25 @@ export function VoiceRecorder({
           audioUrl = up.audioUrl || up.url || null;
           if (up?.backend === "mock") console.warn("voice note stored as demo mock URL (not persisted):", up.storageError || up.note || "storage unconfigured");
         } catch {}
-      } catch {}
+      } catch (e: any) {
+        engineNote = { error: String(e?.message || "The transcription request failed.") };
+      }
     }
 
     // 2. No fabricated fallback: silence must never become a synthetic complaint
-    // attributed to the citizen. Surface an honest error instead.
+    // attributed to the citizen. Surface the real reason the engine gave.
     if (!text) {
-      // Provide actionable retry help instead of generic error
       const hasAudio = !!(blob && blob.size > 200);
+      const reason = engineNote?.error
+        ? `${engineNote.error}${engineNote.hint ? ` ${engineNote.hint}` : ""}`
+        : hasAudio
+        ? "The speech service returned no transcript."
+        : "";
       setNote({
         kind: "error",
         msg: hasAudio
-          ? "We recorded audio but couldn't transcribe it (engine busy or muted). Please try again — speak for 2–3 seconds clearly, or type your request below."
-          : "No speech detected. Check microphone permission (lock icon in address bar), select the correct language (ગુજરાતી/हिन्दी/English) matching what you spoke, speak louder for 2–3 seconds, then tap Stop. Or type below.",
+          ? `We captured your audio (${(blob!.size / 1024).toFixed(0)} KB) but could not turn it into text. ${reason} Nothing was submitted — retry, or type your request below.`
+          : "No speech detected. Check microphone permission (lock icon in the address bar), pick the language you actually spoke (ગુજરાતી / हिन्दी / English), speak for 2–3 seconds, then tap Stop. Or type your request below.",
       });
       setInterim("");
       setState("idle");

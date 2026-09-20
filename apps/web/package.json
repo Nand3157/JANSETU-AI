@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@jansetu/shared": "file:../../packages/shared",
     "clsx": "^2.1.1",
     "firebase": "^12.18.0",
     "lucide-react": "^0.400.0",
