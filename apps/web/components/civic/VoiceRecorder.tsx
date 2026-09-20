@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2, Volume2, Globe } from "lucide-react";
 import { api } from "@/lib/api";
+import { prefersReducedMotion } from "@/lib/motion";
+import { LANG_BCP47, LANG_NAME, langName } from "@/lib/languages";
 
 function getLocaleMap(): Record<string, string> {
   return {
@@ -19,9 +21,16 @@ export type TranscriptMedia = { audioUrl?: string | null; source?: string };
 export function VoiceRecorder({
   onTranscript,
   langHint = "auto",
+  onLangChange,
 }: {
   onTranscript: (text: string, lang?: string, media?: TranscriptMedia) => void;
   langHint?: string;
+  /**
+   * The citizen picked a language. The parent owns the written text, so it — not
+   * this recorder — decides whether that text should be rendered in the newly
+   * chosen language.
+   */
+  onLangChange?: (lang: string) => void;
 }) {
   const [state, setState] = useState<SRState>("idle");
   const [selectedLang, setSelectedLang] = useState<string>(langHint || "auto");
@@ -34,12 +43,138 @@ export function VoiceRecorder({
   const chunks = useRef<Blob[]>([]);
   const finals = useRef<string[]>([]);
   const isStoppingRef = useRef<boolean>(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number>(0);
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(rafRef.current);
+      try {
+        audioCtxRef.current?.close();
+      } catch {}
+    };
+  }, []);
+
+  /** Recording clock — real elapsed time, not a progress guess. */
+  useEffect(() => {
+    if (state !== "recording") return;
+    setSeconds(0);
+    const id = window.setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => window.clearInterval(id);
+  }, [state]);
+
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
+  // The meter needs the canvas, and the canvas only exists once recording has
+  // started — so the meter attaches on state change, not inside start().
+  useEffect(() => {
+    if (state !== "recording" || !streamRef.current) return;
+    startMeter(streamRef.current);
+    return () => teardownMeter();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   useEffect(() => {
     if (langHint && langHint !== "auto") {
       setSelectedLang(langHint);
     }
   }, [langHint]);
+
+  /* ── Live input meter ─────────────────────────────────────────────────────
+     A citizen speaking into a phone needs proof the microphone is actually
+     hearing them. This is the real signal — an AnalyserNode on the same
+     MediaStream MediaRecorder is capturing — drawn straight to canvas on rAF
+     so no React render happens per frame. Under reduced motion the bars only
+     rise with actual level instead of idling. */
+  function startMeter(stream: MediaStream) {
+    const canvas = canvasRef.current;
+    const AC: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+    if (!canvas || !AC) return;
+    try {
+      const ctx: AudioContext = new AC();
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 1024;
+      analyser.smoothingTimeConstant = 0.72;
+      ctx.createMediaStreamSource(stream).connect(analyser);
+      void ctx.resume?.();
+      audioCtxRef.current = ctx;
+      analyserRef.current = analyser;
+      drawMeter();
+    } catch {
+      analyserRef.current = null;
+    }
+  }
+
+  function drawMeter() {
+    const analyser = analyserRef.current;
+    const canvas = canvasRef.current;
+    const c2d = canvas?.getContext("2d");
+    if (!analyser || !canvas || !c2d) return;
+    const reduced = prefersReducedMotion();
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    const BARS = 40;
+    const step = Math.max(1, Math.floor(data.length / BARS));
+    let dpr = 0;
+
+    const paint = () => {
+      const w = canvas.clientWidth || 320;
+      const h = canvas.clientHeight || 56;
+      const nextDpr = Math.min(window.devicePixelRatio || 1, 2);
+      if (dpr !== nextDpr || canvas.width !== Math.round(w * nextDpr) || canvas.height !== Math.round(h * nextDpr)) {
+        dpr = nextDpr;
+        canvas.width = Math.round(w * nextDpr);
+        canvas.height = Math.round(h * nextDpr);
+      }
+      c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+      analyser.getByteFrequencyData(data);
+      c2d.clearRect(0, 0, w, h);
+      const gap = 2;
+      const bw = Math.max(2, (w - gap * (BARS - 1)) / BARS);
+      const mid = h / 2;
+      const radius = Math.min(bw / 2, 2.5);
+      for (let i = 0; i < BARS; i++) {
+        let sum = 0;
+        for (let j = 0; j < step; j++) sum += data[i * step + j] || 0;
+        const norm = sum / step / 255;
+        // Speech energy sits low in the spectrum — favour low bands, but let
+        // the high bands show silence honestly rather than pinning them up.
+        const weight = 1.25 - (i / BARS) * 0.5;
+        const amp = reduced ? Math.max(0.06, Math.min(0.3, norm)) : Math.min(1, Math.pow(norm * weight, 0.6));
+        const bh = Math.max(3, amp * (h - 4));
+        c2d.fillStyle = `rgba(23,78,166,${0.25 + amp * 0.65})`;
+        const x = i * (bw + gap);
+        const y = mid - bh / 2;
+        c2d.beginPath();
+        if (typeof (c2d as any).roundRect === "function") (c2d as any).roundRect(x, y, bw, bh, radius);
+        else c2d.rect(x, y, bw, bh);
+        c2d.fill();
+      }
+    };
+
+    // Paint one frame immediately: a paused animation frame (background tab)
+    // must never leave an empty box where the level meter should be.
+    paint();
+    const loop = () => {
+      if (!analyserRef.current) return;
+      rafRef.current = requestAnimationFrame(loop);
+      paint();
+    };
+    loop();
+  }
+
+  function teardownMeter() {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = 0;
+    analyserRef.current = null;
+    try {
+      audioCtxRef.current?.close();
+    } catch {}
+    audioCtxRef.current = null;
+  }
 
   function pickMime() {
     if (typeof MediaRecorder === "undefined") return "";
@@ -136,6 +271,7 @@ export function VoiceRecorder({
       return;
     }
 
+    streamRef.current = stream;
     setState("recording");
   }
 
@@ -170,6 +306,7 @@ export function VoiceRecorder({
 
   async function stop() {
     isStoppingRef.current = true;
+    teardownMeter();
     setState("transcribing");
 
     try {
@@ -265,7 +402,9 @@ export function VoiceRecorder({
 
     setNote({
       kind: "success",
-      msg: `Transcribed (${String(lang).toUpperCase()}). You can review and edit the text below before submitting.`,
+      // Name the language in its own script, and say what the picker above does:
+      // the citizen's next move is often "read this back to me in English".
+      msg: `Transcribed in ${langName(lang)}. Review it below — choosing another language above also translates it.`,
     });
     onTranscript(text, lang, { audioUrl, source });
 
@@ -291,7 +430,7 @@ export function VoiceRecorder({
           <Globe className="h-3.5 w-3.5 text-slate-500 ml-1.5 mr-1" aria-hidden="true" />
           <button
             type="button"
-            onClick={() => setSelectedLang("gu")}
+            onClick={() => { setSelectedLang("gu"); onLangChange?.("gu"); }}
             aria-pressed={selectedLang === "gu"}
             className={`min-h-[44px] px-3 rounded-lg font-medium transition-[background-color,box-shadow,color] ${
               selectedLang === "gu" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
@@ -302,7 +441,7 @@ export function VoiceRecorder({
           </button>
           <button
             type="button"
-            onClick={() => setSelectedLang("hi")}
+            onClick={() => { setSelectedLang("hi"); onLangChange?.("hi"); }}
             aria-pressed={selectedLang === "hi"}
             className={`min-h-[44px] px-3 rounded-lg font-medium transition-[background-color,box-shadow,color] ${
               selectedLang === "hi" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
@@ -313,7 +452,7 @@ export function VoiceRecorder({
           </button>
           <button
             type="button"
-            onClick={() => setSelectedLang("en")}
+            onClick={() => { setSelectedLang("en"); onLangChange?.("en"); }}
             aria-pressed={selectedLang === "en"}
             className={`min-h-[44px] px-3 rounded-lg font-medium transition-[background-color,box-shadow,color] ${
               selectedLang === "en" ? "bg-white text-civic-800 shadow-xs" : "text-slate-600 hover:text-slate-900"
@@ -325,9 +464,21 @@ export function VoiceRecorder({
         </div>
 
         {state === "recording" && (
-          <span className="inline-flex items-center gap-1.5 text-xs rounded-full bg-red-50 text-red-700 border border-red-200 px-3 py-1">
-            <span className="h-2 w-2 rounded-full bg-red-500 animate-ping" /> Listening live…
-          </span>
+          <div className="w-full rounded-2xl border border-[#D2E3FC] bg-white px-3 py-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <span className="inline-flex items-center gap-2 text-xs font-semibold text-[#174EA6]">
+                <span className="h-2 w-2 rounded-full bg-[#D93025] animate-ping" aria-hidden="true" />
+                Recording · <span className="tabular-nums">{clock}</span>
+              </span>
+              <span className="text-[11px] text-[#5F6368]">{LANG_NAME[selectedLang as keyof typeof LANG_NAME] || LANG_NAME.auto} · speak for 2–3 seconds, then tap Stop</span>
+            </div>
+            <canvas
+              ref={canvasRef}
+              className="mt-1.5 block h-[56px] w-full"
+              lang={LANG_BCP47[selectedLang as keyof typeof LANG_BCP47] || "en-IN"}
+              aria-hidden="true"
+            />
+          </div>
         )}
 
         {state === "transcribing" && (

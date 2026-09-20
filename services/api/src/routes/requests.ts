@@ -14,6 +14,11 @@ const createRequestSchema = z.object({
   originalText: z.string().trim().min(3).max(5000),
   category: z.enum(["transport","roads","water","sanitation","electricity","healthcare","education","housing","public_safety","digital_connectivity","environment","flooding_drainage","waste_management","public_spaces","other"]).optional(),
   sourceLanguage: z.enum(["auto", "en", "hi", "gu"]).optional(),
+  // The words as the citizen first spoke or wrote them. Sent when they later
+  // chose to read or submit the request in another language, so the audit trail
+  // keeps what they actually said. `originalText` stays what they confirm.
+  verbatimText: z.string().trim().min(1).max(5000).optional(),
+  verbatimLanguage: z.enum(["auto", "en", "hi", "gu"]).optional(),
   latitude: z.number().min(-90).max(90).nullable().optional(),
   longitude: z.number().min(-180).max(180).nullable().optional(),
   locationSource: z.enum(["device", "user_text", "geocoded", "inferred"]).nullable().optional(),
@@ -49,6 +54,8 @@ requestsRouter.post("/", async (req, res) => {
     originalText: d.originalText,
     category: d.category || null,
     sourceLanguage: d.sourceLanguage || "auto",
+    verbatimText: d.verbatimText || null,
+    verbatimLanguage: d.verbatimLanguage || null,
     latitude: d.latitude ?? null,
     longitude: d.longitude ?? null,
     locationSource: d.locationSource || null,

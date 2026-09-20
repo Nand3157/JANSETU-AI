@@ -55,6 +55,8 @@ export function ListenButton({
   const detected = useMemo(() => detectListenLang(clean), [clean]);
   const [lang, setLang] = useState<ListenLang>(defaultLang || detected);
   const [state, setState] = useState<"idle" | "loading" | "playing">("idle");
+  /** Seconds elapsed on the current request — a spinner alone reads as a hang. */
+  const [elapsed, setElapsed] = useState(0);
   const [failure, setFailure] = useState<{ message: string; recovery: string } | null>(null);
   const [partial, setPartial] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -64,6 +66,18 @@ export function ListenButton({
   useEffect(() => {
     if (!pickedByUser.current) setLang(defaultLang || detected);
   }, [defaultLang, detected]);
+
+  // A silent spinner reads as frozen. Count out loud so waiting is measurable:
+  // after ~10s most people have already decided the button is broken.
+  useEffect(() => {
+    if (state !== "loading") {
+      setElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const id = window.setInterval(() => setElapsed(Math.floor((Date.now() - started) / 1000)), 1000);
+    return () => window.clearInterval(id);
+  }, [state]);
 
   const stop = useCallback(() => {
     const a = audioRef.current;
@@ -95,7 +109,9 @@ export function ListenButton({
     setFailure(null);
     setState("loading");
     const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 45_000);
+    // Gemini TTS normally answers in 2–8s; 25s covers a cold model. The old
+    // 45s ceiling meant a wedged request held "Preparing…" for most of a minute.
+    const timer = setTimeout(() => ctrl.abort(), 25_000);
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
@@ -104,7 +120,11 @@ export function ListenButton({
       });
       const data: any = await res.json().catch(() => null);
       if (!res.ok || data?.source !== "gemini" || !data?.audioDataUrl) {
-        const message = data?.error || `Speech is unavailable right now (HTTP ${res.status}).`;
+        const message =
+          data?.error ||
+          (res.ok
+            ? "The speech service returned no audio."
+            : `The speech service failed (HTTP ${res.status}).`);
         const advice = data?.hint || recovery || "Please retry, or read the text below.";
         setFailure({ message, recovery: advice });
         toast(`${message} ${advice}`, "error");
@@ -125,8 +145,10 @@ export function ListenButton({
       setState("playing");
     } catch (e: any) {
       const aborted = e?.name === "AbortError";
-      const message = aborted ? "The speech request timed out." : "Could not reach the speech service.";
-      const advice = recovery || "Please retry.";
+      const message = aborted
+        ? "The speech service did not answer within 25 seconds."
+        : "Could not reach the speech service.";
+      const advice = recovery || "Please retry — if it keeps failing, the Gemini engine may be down.";
       setFailure({ message, recovery: advice });
       toast(`${message} ${advice}`, "error");
       setState("idle");
@@ -160,7 +182,7 @@ export function ListenButton({
         ) : (
           <Volume2 className="h-3.5 w-3.5" aria-hidden="true" />
         )}
-        {state === "loading" ? "Preparing…" : state === "playing" ? "Stop" : label}
+        {state === "loading" ? (elapsed >= 3 ? `Preparing… ${elapsed}s` : "Preparing…") : state === "playing" ? "Stop" : label}
       </Button>
 
       <div
@@ -195,6 +217,15 @@ export function ListenButton({
 
       {partial && !failure && (
         <p className="w-full text-xs leading-snug text-[#5F6368]">Reads the first part of this long text aloud.</p>
+      )}
+
+      {/* Expectation, not surprise: the voice follows the picker, the words stay
+          in the language they were written in. A mismatched pick reads English
+          words in a Gujarati voice — say so before it plays. */}
+      {detected !== lang && !failure && (
+        <p className="w-full text-xs leading-snug text-[#5F6368]">
+          This text is in {LANGS.find((l) => l.id === detected)?.english}; the {current.english} voice will read it exactly as written.
+        </p>
       )}
 
       {failure && (

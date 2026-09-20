@@ -34,6 +34,8 @@ export const store = {
       sourceChannel: (data.sourceChannel as any) || "web",
       sourceLanguage: data.sourceLanguage || "unknown",
       originalText: data.originalText || "",
+      verbatimText: data.verbatimText ?? null,
+      verbatimLanguage: data.verbatimLanguage ?? null,
       translatedText: data.translatedText ?? null,
       audioUrl: data.audioUrl ?? null,
       photoUrl: data.photoUrl ?? null,

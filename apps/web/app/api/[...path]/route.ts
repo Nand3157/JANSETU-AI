@@ -4,9 +4,11 @@ import {
   parseModelJson,
   transcribeAudio as geminiTranscribe,
   synthesizeSpeech,
+  translateText as geminiTranslate,
   normalizeVoiceLang,
   MAIN_MODEL,
   TRANSCRIBE_MODEL,
+  MAX_TRANSLATE_CHARS,
 } from "@jansetu/shared/geminiVoice";
 
 export const dynamic = "force-dynamic";
@@ -460,8 +462,11 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       }
       geminiError = { code: gem.code, status: gem.status, message: gem.message, hint: gem.hint };
     }
-    // Handle greetings/help — must catch before generic Gemini/deterministic so "how do you help?" doesn't become 4 clusters stub
-    if (/^\s*(hello|hi|hey|namaste|hii+|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim()) || /how (can|do) (u|you) help|what can you do|capabilities|help me|assist me|what do you do/i.test(qRaw)) {
+    // Handle greetings/help — must catch before generic Gemini/deterministic so "how do you help?" doesn't become 4 clusters stub.
+    // The greeting check runs on the trimmed original (the old lowercase test
+    // matched the word "hi" anywhere in a sentence, so "Which districts have
+    // hi…" — any substring — collapsed into the capabilities card).
+    if (/^\s*(hello+|hi+|hey+|namaste|namaskar|thanks|thank you)\s*[!?.]*\s*$/i.test(qRaw.trim()) || /how (can|do) (u|you) help|what can you do|capabilities|help me|assist me|what do you do/i.test(q)) {
       // Try Gemini for help too, if available
       {
         const helpGem = await callGeminiFallback(
@@ -570,6 +575,46 @@ async function handleFallback(req: NextRequest, pathStr: string, jsonBody: any) 
       status: r.error?.status ?? null,
       error: r.error?.message || "Transcription unavailable.",
       hint: backendRecovery(r.error?.hint) || "Please retry, or type your request below.",
+    });
+  }
+
+  // Translation between the three intake languages. This path exists for the
+  // case where the web app runs without the Express API (serverless / demo):
+  // it must still be honest, so a failure returns the classified reason and an
+  // empty translation rather than the untranslated text pretending to be done.
+  if (normPath === "translate") {
+    const text = typeof jsonBody?.text === "string" ? jsonBody.text : "";
+    const target = normalizeVoiceLang(jsonBody?.targetLang);
+    if (target === "auto") {
+      return NextResponse.json({ error: "invalid_payload", detail: 'Send { text, targetLang: "gu" | "hi" | "en" }' }, { status: 400 });
+    }
+    if (!text.trim()) {
+      return NextResponse.json({ error: "invalid_payload", detail: "text is required" }, { status: 400 });
+    }
+    if (text.length > MAX_TRANSLATE_CHARS) {
+      return NextResponse.json({ error: "text_too_long", maxChars: MAX_TRANSLATE_CHARS }, { status: 413 });
+    }
+    const r = await geminiTranslate(text, target, jsonBody?.sourceLang);
+    if (r.translation) {
+      return NextResponse.json({
+        translation: r.translation,
+        source: r.alreadyTarget ? "already_target" : "gemini",
+        sourceLanguage: r.sourceLanguage,
+        targetLanguage: r.targetLanguage,
+        model: r.model,
+        latencyMs: r.latencyMs,
+      });
+    }
+    return NextResponse.json({
+      translation: "",
+      source: "unavailable",
+      sourceLanguage: r.sourceLanguage,
+      targetLanguage: r.targetLanguage,
+      model: r.model,
+      code: r.error?.code || "unsupported",
+      status: r.error?.status ?? null,
+      error: r.error?.message || "Translation unavailable.",
+      hint: backendRecovery(r.error?.hint) || "Retry, or keep the text in the language you wrote it in.",
     });
   }
 

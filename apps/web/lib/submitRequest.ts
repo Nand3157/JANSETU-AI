@@ -12,6 +12,13 @@ export async function submitCitizenRequest(input: {
   audioUrl?: string | null;
   photoFile?: File | null;
   photoUrl?: string | null;
+  /**
+   * The words as the citizen first spoke/wrote them, when they later chose to
+   * submit in another language. The record keeps both: `text` is what they
+   * confirmed, this is what they actually said.
+   */
+  verbatimText?: string | null;
+  verbatimLanguage?: string | null;
 }) {
   let photoUrl = input.photoUrl || null;
   if (!photoUrl && input.photoFile) photoUrl = await uploadPhoto(input.photoFile);
@@ -27,6 +34,8 @@ export async function submitCitizenRequest(input: {
       locationSource: input.locSource,
       photoUrl,
       audioUrl: input.audioUrl || null,
+      verbatimText: input.verbatimText || undefined,
+      verbatimLanguage: input.verbatimLanguage || undefined,
     }),
     headers: { "x-role": "citizen", "x-country": "IN" },
   });

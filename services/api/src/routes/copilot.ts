@@ -45,6 +45,21 @@ copilotRouter.post("/", async (req, res) => {
   const projects = store.listProjects();
   const q = question.toLowerCase();
 
+  // Greetings and capability questions must match the *whole* utterance — the
+  // old substring test turned any question containing "hi" into this card.
+  const isGreeting = /^\s*(hello+|hi+|hey+|namaste|namaskar|thanks|thank you)\s*[!?.]*\s*$/i.test(question.trim());
+  const asksCapabilities = /how (can|do) (u|you) help|what can you do|capabilities|help me|assist me|what do you do/i.test(question);
+  if (isGreeting || asksCapabilities) {
+    return res.json({
+      answer: "I'm JANSETU Policy Copilot — I help prioritize civic projects from verified citizen voice + Census + infrastructure data.\n\nI can:\n• Rank the highest-impact projects (Which 5 should we prioritize?)\n• Explain any ranking (Why is this project #1?)\n• Simulate budgets (What can we achieve with ₹10 Cr?)\n• Identify underserved regions (Which regions are underserved?)\n• Summarize what changed this month",
+      evidence: ["Grounded — answers only from request_clusters, priority engine v1, Census 2011, infrastructure_indices"],
+      data_gaps: [],
+      source: "capabilities list",
+      confidence: 0.99,
+      human_review_notice: "Grounded AI — ask a policy question for verified data.",
+    });
+  }
+
   let answer = "";
   const evidence: string[] = [];
   let data_gaps: string[] = [];

@@ -12,7 +12,7 @@
 
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { generateText, transcribeAudio as transcribeShared, type TranscribeResult } from "@jansetu/shared/geminiVoice";
+import { generateText, transcribeAudio as transcribeShared, translateText as translateShared, type TranscribeResult, type TranslateResult } from "@jansetu/shared/geminiVoice";
 import { parseMediaDataUrl, MAX_TRANSCRIBE_BYTES } from "./media.js";
 
 type GeminiOpts = {
@@ -116,6 +116,11 @@ export async function callGeminiReal(opts: GeminiOpts): Promise<{ text: string; 
  */
 export async function transcribeAudio(audioDataUrl: string, langHint = "auto"): Promise<TranscribeResult> {
   return transcribeShared(audioDataUrl, langHint);
+}
+
+/** Renders a citizen's text in another product language — see routes/translate.ts. */
+export async function translate(text: string, targetLang: unknown, sourceLang?: unknown): Promise<TranslateResult> {
+  return translateShared(text, targetLang, sourceLang);
 }
 
 /** Diagnostics for GET /api/debug/gemini (no secrets, just shapes and outcomes). */

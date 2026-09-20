@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { api } from "@/lib/api";
 import { ListenButton } from "@/components/civic/ListenButton";
+import { LANG_BCP47, langName } from "@/lib/languages";
 
 export default function RequestDetailPage({ params }: { params: { id: string } }) {
   const id = params.id;
@@ -49,6 +50,22 @@ export default function RequestDetailPage({ params }: { params: { id: string } }
         <div className="text-xs text-[#5F6368]">{loc} · {data.createdAt ? new Date(data.createdAt).toLocaleDateString("en-IN") : ""} · {data.sourceLanguage || ""}</div>
         <div className="mt-3 flex flex-wrap gap-2"><Badge tone={typeof score==="number" && score>=80 ? "critical" : typeof score==="number" && score>=65 ? "high" : "moderate"}>{score} Priority</Badge><Badge tone="ai">AI-assisted</Badge><span className="text-xs px-2.5 py-1 rounded-full bg-[#E8F0FE] border border-[#D2E3FC]">{status}</span></div>
         {data.originalText && <div className="mt-3 text-sm leading-relaxed bg-[#F8FAFC] border border-[#E5E7EB] rounded-xl p-3">“{data.originalText}”{data.translatedText && data.translatedText!==data.originalText ? <><br/><span className="text-xs text-[#5F6368]">→ {data.translatedText}</span></> : null}</div>}
+        {data.verbatimText && data.verbatimText !== data.originalText && (
+          <div className="mt-2 rounded-xl border border-[#E5E7EB] bg-[#F8FAFC] p-3">
+            <div className="text-[11px] font-semibold tracking-[0.06em] text-[#5F6368]">
+              AS FIRST WRITTEN{data.verbatimLanguage ? ` · ${langName(data.verbatimLanguage)}` : ""}
+            </div>
+            <p
+              lang={LANG_BCP47[(data.verbatimLanguage || "en") as keyof typeof LANG_BCP47]}
+              className="mt-1 text-sm leading-relaxed text-[#172033]"
+            >
+              {data.verbatimText}
+            </p>
+            <p className="mt-1 text-[11px] text-[#5F6368]">
+              Kept because this was submitted in another language. Nothing was rewritten.
+            </p>
+          </div>
+        )}
         {(data.originalText || data.translatedText) && (
           <div className="mt-3 pt-3 border-t border-[#E5E7EB]">
             <ListenButton

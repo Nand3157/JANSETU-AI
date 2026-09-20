@@ -11,6 +11,7 @@ import { govDataRouter } from "./routes/govdata.js";
 import { uploadRouter } from "./routes/upload.js";
 import { transcribeRouter } from "./routes/transcribe.js";
 import { ttsRouter } from "./routes/tts.js";
+import { translateRouter } from "./routes/translate.js";
 import { store } from "./services/store.js";
 import { scoreCluster } from "./services/ranking.js";
 
@@ -156,6 +157,8 @@ app.use("/api/projects", projectsRouter);
 app.use("/api/copilot", aiLimiter, copilotRouter);
 // TTS costs money per call — same AI budget as the other Gemini routes.
 app.use("/api/tts", aiLimiter, ttsRouter);
+// Translation is a Gemini text call — same AI budget again.
+app.use("/api/translate", aiLimiter, translateRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/govdata", govDataRouter);
 

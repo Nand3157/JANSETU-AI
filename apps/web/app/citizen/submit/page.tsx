@@ -1,6 +1,9 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { prefersReducedMotion } from "@/lib/motion";
+import { LANG_BCP47, langName, scriptLang } from "@/lib/languages";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { VoiceRecorder } from "@/components/civic/VoiceRecorder";
@@ -42,6 +45,16 @@ export default function SubmitPage() {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
+  /** The as-written words, frozen when the citizen reads them in another language. */
+  const [verbatim, setVerbatim] = useState<{ text: string; lang: string } | null>(null);
+  const [translation, setTranslation] = useState<{
+    target: string;
+    from: string;
+    pending: boolean;
+    ok: boolean;
+    note?: string;
+  } | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
@@ -58,6 +71,9 @@ export default function SubmitPage() {
         return;
       }
       if (!user) await signInAnonymouslyMock();
+      // The record keeps both: the words the citizen confirms, and — when they
+      // differ — the words they actually wrote or spoke before translating.
+      const keptSource = verbatim && verbatim.text.trim() !== text.trim() ? verbatim : null;
       const analyzed: any = await submitCitizenRequest({
         text,
         category,
@@ -67,6 +83,8 @@ export default function SubmitPage() {
         locSource,
         audioUrl,
         photoFile,
+        verbatimText: keptSource?.text ?? null,
+        verbatimLanguage: keptSource?.lang ?? null,
       });
       setResult(analyzed);
       setHistory((h) => [{ ...analyzed.request, analyzed }, ...h].slice(0, 6));
@@ -89,6 +107,81 @@ export default function SubmitPage() {
   const hasText = text.trim().length > 8;
   const hasLocation = locText.trim().length > 3 || !!coords;
   const activeStep = !hasText ? 0 : !hasLocation ? 1 : 2;
+
+  /**
+   * Changing the language changes the words, not just the microphone.
+   *
+   * Three rules make this safe to use:
+   *  - The citizen's own words are frozen as `verbatim` before the first
+   *    translation, and never overwritten by one. Switching language re-renders
+   *    that original, never the previous translation — translating a translation
+   *    is how meaning drifts.
+   *  - Switching back to the language they wrote in restores their exact text.
+   *  - A failure changes nothing and says why; the request stays readable in the
+   *    language it was written in.
+   */
+  async function changeLanguage(next: string) {
+    setLang(next);
+    setShowOriginal(false);
+    const written = text.trim();
+    if (!written || next === "auto") {
+      setTranslation(null);
+      return;
+    }
+    const authored = verbatim ?? { text, lang: scriptLang(text) };
+    if (authored.lang === next) {
+      setText(authored.text);
+      setVerbatim(null);
+      setTranslation(null);
+      saveDraft({ text: authored.text, lang: next });
+      return;
+    }
+    if (!verbatim) setVerbatim(authored);
+    setTranslation({ target: next, from: authored.lang, pending: true, ok: true });
+    try {
+      const r: any = await api("/api/translate", {
+        method: "POST",
+        body: JSON.stringify({ text: authored.text, targetLang: next, sourceLang: authored.lang }),
+        headers: { "x-role": "citizen" },
+      });
+      if (r?.translation) {
+        setText(r.translation);
+        setTranslation({ target: next, from: r.sourceLanguage || authored.lang, pending: false, ok: true });
+        saveDraft({ text: r.translation, lang: next });
+        return;
+      }
+      setTranslation({
+        target: next,
+        from: authored.lang,
+        pending: false,
+        ok: false,
+        note: [r?.error, r?.hint].filter(Boolean).join(" ") || "The translation engine did not answer.",
+      });
+    } catch (e: any) {
+      setTranslation({
+        target: next,
+        from: authored.lang,
+        pending: false,
+        ok: false,
+        note: String(e?.message || "The translation request failed."),
+      });
+    }
+  }
+
+  /**
+   * The stepper navigates. Each step scrolls to the control it names and puts
+   * the caret there, so tapping "Locate" is faster than hunting for the field.
+   */
+  function goToStep(i: number) {
+    const id = i === 0 ? "citizen-text" : i === 1 ? "citizen-location" : "citizen-submit";
+    const el = typeof document === "undefined" ? null : document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    const focusable = el.matches("input, textarea, select, button")
+      ? el
+      : el.querySelector<HTMLElement>("input, textarea, select, button");
+    focusable?.focus({ preventScroll: true });
+  }
 
   return (
     <div className="bg-[#F8FAFC] text-[#172033] min-h-screen">
@@ -130,27 +223,41 @@ export default function SubmitPage() {
             </div>
           </div>
 
-          {/* progress stepper — Blocks / OriginUI inspired, civic restrained */}
-          <div className="mt-6 rounded-[16px] bg-[#F8FAFC] border border-[#E5E7EB] p-2.5 sm:p-3 flex items-center gap-1.5 sm:gap-3 overflow-x-auto">
+          {/* progress stepper — a real navigator: every step moves focus to the
+              control it names, so the bar is usable, not just informative. */}
+          <div className="mt-6 rounded-[16px] bg-[#F8FAFC] border border-[#E5E7EB] p-2 sm:p-2.5 flex items-center gap-1.5 sm:gap-3 overflow-x-auto">
             {stepsMeta.map((s, i) => {
               const done = i < activeStep;
               const active = i === activeStep;
               return (
                 <div key={s.n} className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
-                  <div className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full grid place-items-center text-xs font-bold shrink-0 border transition-colors ${active ? "bg-[#174EA6] text-white border-[#174EA6] shadow-sm" : done ? "bg-[#0B1F3A] text-white border-[#0B1F3A]" : "bg-white text-[#5F6368] border-[#E5E7EB]"}`}>
-                    {done ? <CheckCircle2 className="h-4 w-4" /> : s.n}
-                  </div>
-                  <div className="min-w-0 hidden sm:block">
-                    <div className={`text-xs font-bold leading-none ${active ? "text-[#0B1F3A]" : "text-[#172033]"}`}>{s.t}</div>
-                    <div className="text-[11px] text-[#5F6368] leading-none mt-0.5">{s.d}</div>
-                  </div>
-                  <div className={`hidden sm:block text-[11px] font-medium sm:hidden ${active ? "text-[#0B1F3A]" : "text-[#5F6368]"}`}>{s.t}</div>
+                  <button
+                    type="button"
+                    onClick={() => goToStep(i)}
+                    aria-current={active ? "step" : undefined}
+                    className="group flex items-center gap-2 sm:gap-3 min-w-0 rounded-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#174EA6]/40"
+                  >
+                    <span className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full grid place-items-center text-xs font-bold shrink-0 border transition-colors ${active ? "bg-[#174EA6] text-white border-[#174EA6] shadow-sm" : done ? "bg-[#0B1F3A] text-white border-[#0B1F3A]" : "bg-white text-[#5F6368] border-[#E5E7EB] group-hover:border-[#CBD5E1] group-hover:text-[#172033]"}`}>
+                      {done ? <CheckCircle2 className="h-4 w-4" aria-hidden="true" /> : s.n}
+                    </span>
+                    <span className="min-w-0 hidden sm:block">
+                      <span className={`block text-xs font-bold leading-none ${active ? "text-[#0B1F3A]" : "text-[#172033]"}`}>{s.t}</span>
+                      <span className="block text-[11px] text-[#5F6368] leading-none mt-0.5 truncate">{done ? "Done" : s.d}</span>
+                    </span>
+                  </button>
                   {i < stepsMeta.length - 1 && <div className={`hidden sm:block flex-1 h-px mx-1 ${done ? "bg-[#0B1F3A]" : "bg-[#E5E7EB]"}`} aria-hidden="true" />}
-                  {i < stepsMeta.length - 1 && <div className="sm:hidden text-[#E5E7EB]">—</div>}
+                  {i < stepsMeta.length - 1 && <div className="sm:hidden text-[#E5E7EB]" aria-hidden="true">—</div>}
                 </div>
               );
             })}
           </div>
+          <p className="mt-2 px-1 text-xs text-[#5F6368]" role="status" aria-live="polite">
+            {!hasText
+              ? "Step 1 — describe the issue by voice or in writing."
+              : !hasLocation
+              ? "Step 2 — add a location so this can be clustered with nearby requests. It is optional."
+              : "Step 3 — check the AI understanding below, then submit it for human review."}
+          </p>
         </div>
       </div>
 
@@ -169,7 +276,7 @@ export default function SubmitPage() {
                   </h2>
                   <label className="inline-flex items-center gap-2 text-sm">
                     <span className="text-xs font-semibold tracking-widest text-[#5F6368] hidden sm:inline">INPUT LANGUAGE</span>
-                    <select value={lang} onChange={(e) => setLang(e.target.value)} aria-label="Input language" name="language" autoComplete="language" className="rounded-full border border-[#E5E7EB] bg-[#F8FAFC] text-[#172033] px-3 py-2 text-sm min-h-[40px] focus:border-[#174EA6] focus:bg-white outline-none">
+                    <select value={lang} onChange={(e) => changeLanguage(e.target.value)} aria-label="Input language" name="language" autoComplete="language" className="rounded-full border border-[#E5E7EB] bg-[#F8FAFC] text-[#172033] px-3 py-2 text-sm min-h-[40px] focus:border-[#174EA6] focus:bg-white outline-none">
                       <option value="auto">Auto-detect</option>
                       <option value="gu">ગુજરાતી (GU)</option>
                       <option value="hi">हिन्दी (HI)</option>
@@ -230,12 +337,88 @@ export default function SubmitPage() {
                     <span className="text-xs font-normal text-[#5F6368]">· choose one</span>
                     {hasText && <span className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-[#188038]"><CheckCircle2 className="h-3.5 w-3.5" /> Ready</span>}
                   </label>
-                  <VoiceRecorder langHint={lang} onTranscript={(t, l, media) => { setText(t); if (l) setLang(l); setAudioUrl(media?.audioUrl || null); saveDraft({ text: t, lang: l || lang, audioUrl: media?.audioUrl || null }); }} />
+                  <VoiceRecorder
+                    langHint={lang}
+                    onLangChange={changeLanguage}
+                    onTranscript={(t, l, media) => {
+                      // A fresh transcript supersedes any earlier translation:
+                      // these are newly authored words in the language just heard.
+                      setText(t);
+                      if (l) setLang(l);
+                      setVerbatim(null);
+                      setTranslation(null);
+                      setShowOriginal(false);
+                      setAudioUrl(media?.audioUrl || null);
+                      saveDraft({ text: t, lang: l || lang, audioUrl: media?.audioUrl || null });
+                    }}
+                  />
+
+                  {/* What language the box is in, and where the original words live. */}
+                  {translation && (
+                    <div
+                      role="status"
+                      aria-live="polite"
+                      className={`rounded-[14px] border px-3 py-2.5 text-xs flex flex-wrap items-center gap-x-2 gap-y-1.5 ${
+                        translation.pending
+                          ? "border-[#D2E3FC] bg-[#F8FAFE] text-[#172033]"
+                          : translation.ok
+                          ? "border-[#CEE6D0] bg-[#E6F4EA] text-[#0D652D]"
+                          : "border-[#FDE68A] bg-[#FFFBEB] text-[#92400E]"
+                      }`}
+                    >
+                      {translation.pending ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                          <span>Translating into {langName(translation.target)}…</span>
+                        </>
+                      ) : translation.ok ? (
+                        <>
+                          <Languages className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span className="font-semibold">Written in {langName(translation.target)}</span>
+                          <span>rendered from {langName(translation.from)} · your {langName(translation.from)} words are kept as the record</span>
+                          {verbatim && (
+                            <button
+                              type="button"
+                              onClick={() => setShowOriginal((v) => !v)}
+                              aria-pressed={showOriginal}
+                              className="ml-auto min-h-[32px] rounded-full border border-[#CEE6D0] bg-white px-3 font-semibold text-[#0D652D] transition-colors hover:bg-[#F8FAFC]"
+                            >
+                              {showOriginal ? "Hide my original" : `Show my ${langName(verbatim.lang)}`}
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                          <span className="font-semibold">Could not translate into {langName(translation.target)}.</span>
+                          <span>{translation.note}</span>
+                          <span>Your text is unchanged.</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+
+                  {showOriginal && verbatim && (
+                    <div className="rounded-[14px] border border-[#E5E7EB] bg-[#F8FAFC] p-3">
+                      <div className="text-xs font-semibold text-[#0B1F3A]">
+                        As you wrote it ({langName(verbatim.lang)}) — this is what the record keeps
+                      </div>
+                      <p lang={LANG_BCP47[verbatim.lang as keyof typeof LANG_BCP47]} className="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-[#172033]">
+                        {verbatim.text}
+                      </p>
+                    </div>
+                  )}
                   <div className="relative">
                     <textarea
                       id="citizen-text"
                       value={text}
-                      onChange={(e) => setText(e.target.value)}
+                      onChange={(e) => {
+                        // Typing means the box is authored in `lang` again.
+                        setText(e.target.value);
+                        setTranslation(null);
+                        setShowOriginal(false);
+                      }}
+                      lang={LANG_BCP47[lang as keyof typeof LANG_BCP47]}
                       rows={5}
                       aria-label="Describe the problem in your own words"
                       name="citizenText"
@@ -249,7 +432,7 @@ export default function SubmitPage() {
                     <div className="pointer-events-none absolute right-3 bottom-3 text-[11px] text-[#9AA0A6] tabular-nums">{text.length}/2000</div>
                   </div>
                   <div id="citizen-text-help" className="flex items-center gap-1.5 text-[11px] text-[#5F6368]">
-                    <Eye className="h-3 w-3 shrink-0" /> Original text is immutable & preserved verbatim. Translated preview shown only at confirmation.
+                    <Eye className="h-3 w-3 shrink-0" /> Whatever language you pick is what you submit. Your own words are kept alongside it, and nothing is translated silently.
                   </div>
                 </div>
 
@@ -265,7 +448,7 @@ export default function SubmitPage() {
                 <span className="text-xs font-normal text-[#5F6368]">· optional · centroids only for analytics</span>
                 {hasLocation && <span className="ml-auto hidden sm:inline-flex items-center gap-1 rounded-full bg-[#E6F4EA] border border-[#CEE6D0] px-2.5 py-1 text-xs font-semibold text-[#0D652D]"><CheckCircle2 className="h-3.5 w-3.5" /> Location added</span>}
               </h2>
-              <div className="mt-5">
+              <div id="citizen-location" className="mt-5 scroll-mt-28">
                 <LocationPicker value={locText} onChange={(v, lat, lng, src) => { setLocText(v); if (lat && lng) setCoords({ lat, lng }); if (src) setLocSource(src); }} />
               </div>
               {coords && (
@@ -279,7 +462,7 @@ export default function SubmitPage() {
 
             {/* Submit bar */}
             <div className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-card p-4 flex flex-col sm:flex-row sm:items-center gap-3 sticky bottom-4 z-10">
-              <Button onClick={handleSubmit} disabled={loading} aria-busy={loading} aria-describedby="submit-help" className="gap-2 min-h-[44px] px-6 text-[15px] shrink-0 w-full sm:w-auto justify-center">
+              <Button id="citizen-submit" onClick={handleSubmit} disabled={loading} aria-busy={loading} aria-describedby="submit-help" className="gap-2 min-h-[44px] px-6 text-[15px] shrink-0 w-full sm:w-auto justify-center">
                 {loading ? <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden="true" /> : <Send className="h-4 w-4 shrink-0" aria-hidden="true" />} Submit & Analyze
               </Button>
               <div className="min-w-0 flex-1">

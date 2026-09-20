@@ -128,7 +128,7 @@ export function normalizeVoiceLang(value: unknown): VoiceLang | "auto" {
 
 type LastCall = {
   at: string;
-  kind: "generateContent" | "transcribe" | "tts";
+  kind: "generateContent" | "transcribe" | "tts" | "translate";
   model: string;
   ok: boolean;
   status?: number;
@@ -148,7 +148,8 @@ export function voiceDiagnostics() {
       prefix: key.slice(0, 4) || null,
       transport: "x-goog-api-key header",
     },
-    models: { main: MAIN_MODEL(), transcribe: TRANSCRIBE_MODEL(), tts: TTS_MODEL() },
+    models: { main: MAIN_MODEL(), transcribe: TRANSCRIBE_MODEL(), tts: TTS_MODEL(), translate: MAIN_MODEL() },
+    limits: { maxTranslateChars: MAX_TRANSLATE_CHARS, maxTtsChars: MAX_TTS_CHARS },
     voices: TTS_VOICES,
     lastCall,
   };
@@ -392,6 +393,44 @@ export function parseModelJson(raw: string): any | null {
 
 // ── Speech to text ─────────────────────────────────────────────────────────
 
+// -- Translation: the citizen's language <-> the language they asked to read --
+
+const TRANSLATE_TIMEOUT_MS = Number(process.env.GEMINI_TRANSLATE_TIMEOUT_MS || 30_000);
+export const MAX_TRANSLATE_CHARS = Number(process.env.GEMINI_TRANSLATE_MAX_CHARS || 3000);
+
+export type TranslateResult = {
+  translation: string;
+  /** Script-detected language of the text that was sent. */
+  sourceLanguage: VoiceLang | "und";
+  targetLanguage: VoiceLang;
+  model: string;
+  /** True when no call was needed: the text was already in the target language. */
+  alreadyTarget: boolean;
+  chars: number;
+  latencyMs: number;
+  source: "gemini" | "unavailable";
+  error?: VoiceError;
+};
+
+/**
+ * The translation contract, in the system instruction.
+ *
+ * Non-negotiable product rules encoded here: the citizen's words are the record,
+ * so the engine may only re-say them in another language. It may not answer,
+ * summarise, shorten, soften or "improve" a report, and it may not drop the
+ * village name or the numbers an official will act on.
+ */
+const TRANSLATE_SYSTEM = [
+  "You are the translation engine of JANSETU AI, a civic platform used by citizens and officials in India.",
+  "You translate a citizen's report from one language to another. You are not an assistant: never answer the report, summarise it, correct it, or comment on it.",
+  "Rules:",
+  "- Translate the citizen's own words with the same meaning, register and level of detail. Add nothing, remove nothing, explain nothing.",
+  "- Keep proper nouns, village and district names, numbers, units, currency and dates faithful; transliterate names where that is natural.",
+  "- Keep the citizen's informal first-person voice (\"we\", \"our village\").",
+  "- If the text is already in the target language, return it exactly as it is.",
+  'Output only JSON: {"translation": string, "detected_source_language": "gu" | "hi" | "en" | "und"}',
+].join("\n");
+
 export type ParsedAudio = { mimeType: string; base64: string; bytes: number };
 
 /** Accepts data:audio/webm;codecs=opus;base64,… from MediaRecorder. */
@@ -420,6 +459,130 @@ export function detectLangFromText(text: string): VoiceLang | "und" {
   if (/[\u0900-\u097F]/.test(text)) return "hi";
   if (/[A-Za-z]/.test(text)) return "en";
   return "und";
+}
+
+/**
+ * Translate one citizen text into one of the three product languages.
+ *
+ * Two cheap paths run before any call, and both matter for correctness rather
+ * than cost: an empty text is refused instead of invented, and a text that is
+ * already in the target language is returned untouched. That second rule is what
+ * stops a language picker being switched back and forth from re-translating an
+ * already-correct text — translating a translation is how meaning drifts.
+ *
+ * Callers keep the verbatim source: this returns a rendering, never a record.
+ */
+export async function translateText(
+  text: string,
+  targetLang: unknown,
+  sourceLang?: unknown,
+): Promise<TranslateResult> {
+  const target = normalizeVoiceLang(targetLang);
+  const hinted = normalizeVoiceLang(sourceLang);
+  const raw = String(text ?? "").slice(0, MAX_TRANSLATE_CHARS);
+  const detected = detectLangFromText(raw);
+
+  if (target === "auto") {
+    return translateUnavailable(detected, "en", {
+      code: "bad_request",
+      message: "No target language was given.",
+      hint: "Pick ગુજરાતી, हिन्दी or English.",
+    });
+  }
+  if (!raw.trim()) {
+    return translateUnavailable(detected, target, {
+      code: "bad_request",
+      message: "There is no text to translate.",
+      hint: "Write or dictate the request first.",
+    });
+  }
+  // Already in the language the citizen asked for: nothing to do, nothing spent.
+  if (detected === target || (hinted !== "auto" && hinted === target)) {
+    return {
+      translation: raw,
+      sourceLanguage: detected,
+      targetLanguage: target,
+      model: MAIN_MODEL(),
+      alreadyTarget: true,
+      chars: raw.length,
+      latencyMs: 0,
+      source: "gemini",
+    };
+  }
+
+  const res = await generateText({
+    model: MAIN_MODEL(),
+    systemInstruction: TRANSLATE_SYSTEM,
+    userText: `TARGET_LANGUAGE: ${target} (${VOICE_LANG_LABELS[target].english})\nSOURCE_HINT: ${hinted === "auto" ? detected : hinted}\nCITIZEN_TEXT:\n${raw}`,
+    jsonMode: true,
+    // Translation is a transformation, not a composition: sample greedily.
+    temperature: 0,
+    maxOutputTokens: 2048,
+    timeoutMs: TRANSLATE_TIMEOUT_MS,
+  });
+
+  if (!res.ok) {
+    note("translate", res.model, false, res.latencyMs, res.error, res.error.status);
+    return {
+      translation: "",
+      sourceLanguage: detected,
+      targetLanguage: target,
+      model: res.model,
+      alreadyTarget: false,
+      chars: raw.length,
+      latencyMs: res.latencyMs,
+      source: "unavailable",
+      error: res.error,
+    };
+  }
+
+  const parsed = parseModelJson(res.text);
+  const translation = typeof parsed?.translation === "string" ? parsed.translation.trim() : "";
+  if (!translation) {
+    const error: VoiceError = {
+      code: "empty_response",
+      message: "The translation came back empty.",
+      hint: "Retry, or keep the text in the language you wrote it in.",
+    };
+    note("translate", res.model, false, res.latencyMs, error);
+    return {
+      translation: "",
+      sourceLanguage: detected,
+      targetLanguage: target,
+      model: res.model,
+      alreadyTarget: false,
+      chars: raw.length,
+      latencyMs: res.latencyMs,
+      source: "unavailable",
+      error,
+    };
+  }
+
+  note("translate", res.model, true, res.latencyMs);
+  return {
+    translation,
+    sourceLanguage: normalizeVoiceLang(parsed?.detected_source_language) === "auto" ? detected : (normalizeVoiceLang(parsed?.detected_source_language) as VoiceLang),
+    targetLanguage: target,
+    model: res.model,
+    alreadyTarget: false,
+    chars: raw.length,
+    latencyMs: res.latencyMs,
+    source: "gemini",
+  };
+}
+
+function translateUnavailable(source: VoiceLang | "und", target: VoiceLang, error: VoiceError): TranslateResult {
+  return {
+    translation: "",
+    sourceLanguage: source,
+    targetLanguage: target,
+    model: MAIN_MODEL(),
+    alreadyTarget: false,
+    chars: 0,
+    latencyMs: 0,
+    source: "unavailable",
+    error,
+  };
 }
 
 /**

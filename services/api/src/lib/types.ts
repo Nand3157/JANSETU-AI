@@ -27,6 +27,9 @@ export interface CitizenRequest {
   sourceLanguage: string;
   originalText: string;
   translatedText: string | null;
+  /** The words as first spoken or written, when the citizen later submitted in another language. */
+  verbatimText?: string | null;
+  verbatimLanguage?: string | null;
   audioUrl?: string | null;
   photoUrl?: string | null;
   latitude: number | null;

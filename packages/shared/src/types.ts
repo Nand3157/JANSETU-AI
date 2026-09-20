@@ -27,6 +27,13 @@ export interface CitizenRequest {
   sourceLanguage: string;
   originalText: string;
   translatedText: string | null;
+  /**
+   * The words as first spoken or written, kept when the citizen later chose to
+   * read or submit in another language. `originalText` is what they confirmed;
+   * this is what they actually said, so translation can never erase the source.
+   */
+  verbatimText?: string | null;
+  verbatimLanguage?: string | null;
   audioUrl?: string | null;
   photoUrl?: string | null;
   latitude: number | null;
