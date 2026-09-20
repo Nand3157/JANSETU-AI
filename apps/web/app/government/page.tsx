@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScoreBars } from "@/components/civic/ScoreBars";
@@ -7,9 +8,67 @@ import { TrustLabels } from "@/components/civic/TrustLabels";
 import { HotspotMap } from "@/components/civic/HotspotMap";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { SpotlightCard } from "@/components/ui/spotlight";
+import { CountUp } from "@/components/motion/CountUp";
 import { api } from "@/lib/api";
 import { toast } from "@/components/ui/toast";
-import { MapPinned, TrendingUp, Users, Banknote, Lightbulb, MessageCircle, BarChart3, Shield, Search, Filter, ArrowRight, Sparkles, Target, Eye, Clock, AlertTriangle } from "lucide-react";
+import { MapPinned, TrendingUp, Banknote, Lightbulb, MessageCircle, BarChart3, Shield, Search, Filter, ArrowUpDown, ArrowUpRight, Sparkles, Target, Eye, AlertTriangle, X } from "lucide-react";
+
+/** Sort keys for the queue — each one is a real field on the cluster. */
+type QueueSort = "priority" | "requests" | "population" | "urgency";
+const QUEUE_SORT_LABEL: Record<QueueSort, string> = {
+  priority: "priority score",
+  requests: "request count",
+  population: "population affected",
+  urgency: "urgency",
+};
+const BANDS = ["all", "critical", "high", "moderate", "low"] as const;
+type QueueBand = (typeof BANDS)[number];
+const BAND_ACTIVE: Record<QueueBand, string> = {
+  all: "border-[#0B1F3A] bg-[#0B1F3A] text-white",
+  critical: "border-[#D93025] bg-[#D93025] text-white",
+  high: "border-[#F9AB00] bg-[#F9AB00] text-[#172033]",
+  moderate: "border-[#174EA6] bg-[#174EA6] text-white",
+  low: "border-[#5F6368] bg-[#5F6368] text-white",
+};
+
+/**
+ * KPI cards.
+ *
+ * Three deliberate rules: the figure is only animated when the API actually
+ * returned a number (an em dash must never count up from zero); every card is a
+ * link into the surface that explains it, because a metric an official cannot
+ * open is just decoration; and nothing here is invented — the cards previously
+ * carried seven-bar sparklines whose heights were hard-coded and whose
+ * percentages never resolved against an auto-height flex item, so they were
+ * removed rather than faked.
+ */
+type KpiCard = {
+  label: string;
+  num: number | null;
+  decimals?: number;
+  prefix?: string;
+  suffix?: string;
+  sub: string;
+  icon: React.ComponentType<{ className?: string; "aria-hidden"?: boolean | "true" | "false" }>;
+  href: string;
+};
+
+function kpiNumber(v: unknown): number | null {
+  if (v == null || v === "") return null;
+  const n = typeof v === "number" ? v : Number(String(v).replace(/[^0-9.\-]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+function kpiCards(kpis: any): KpiCard[] {
+  const k = kpis?.kpis ?? kpis ?? {};
+  return [
+    { label: "Requests", num: kpiNumber(k.totalRequests), sub: "last 90 days", icon: Search, href: "/government/explorer" },
+    { label: "Hotspots", num: kpiNumber(k.hotspots ?? kpis?.totalClusters), sub: "clusters above threshold", icon: MapPinned, href: "/government/map" },
+    { label: "High-priority", num: kpiNumber(k.highPriority ?? kpis?.highPriorityHotspots), sub: "need action", icon: TrendingUp, href: "/government/clusters" },
+    { label: "Recommended", num: kpiNumber(k.recommendedProjects ?? kpis?.recommendedProjects), sub: "candidate projects", icon: Lightbulb, href: "/government/projects" },
+    { label: "Investment gap", num: kpiNumber(k.investmentGapCr ?? kpis?.investmentGapCr), decimals: 1, prefix: "₹", suffix: " Cr", sub: "Vadodara roads", icon: Banknote, href: "/government/investment" },
+  ];
+}
 
 const DEMO_KPIS = { kpis: { totalRequests: 4218, hotspots: 12, highPriority: 4, recommendedProjects: 6, investmentGapCr: 18.4 } };
 const DEMO_CLUSTERS = [{ clusterId: "demo-roads", title: "Monsoon road access", districtId: "Vadodara", category: "roads", requestCount: 4218, populationAffected: 12400, priorityScore: 94, priorityBand: "critical", demandScore: 92, infrastructureGapScore: 88, populationImpactScore: 80, vulnerabilityScore: 82, urgencyScore: 90, feasibilityScore: 64, investmentGapScore: 71, evidenceRefs: ["demo survey", "citizen requests"] }];
@@ -32,7 +91,37 @@ export default function GovernmentDashboard() {
   const [explain, setExplain] = useState<any>(null);
   const [decision, setDecision] = useState<"approved" | "rejected" | null>(null);
   const [decisionReason, setDecisionReason] = useState("");
+  const [queueQuery, setQueueQuery] = useState("");
+  const [queueSort, setQueueSort] = useState<QueueSort>("priority");
+  const [queueBand, setQueueBand] = useState<QueueBand>("all");
   const copilotInputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * The queue view. Filtering and sorting happen here, in the browser, on the
+   * already-persisted scores — re-ordering a list must never look like it
+   * re-computed a priority.
+   */
+  const visibleClusters = useMemo(() => {
+    const q = queueQuery.trim().toLowerCase();
+    const key = (c: any) =>
+      queueSort === "requests" ? Number(c.requestCount || 0)
+        : queueSort === "population" ? Number(c.populationAffected || 0)
+          : queueSort === "urgency" ? Number(c.urgencyScore || 0)
+            : Number(c.priorityScore || 0);
+    return clusters
+      .filter((c: any) => (queueBand === "all" ? true : c.priorityBand === queueBand))
+      .filter((c: any) =>
+        !q ||
+        [c.title, c.districtId, c.category, ...(c.evidenceRefs || [])]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(q),
+      )
+      .sort((a: any, b: any) => key(b) - key(a));
+  }, [clusters, queueQuery, queueSort, queueBand]);
+
+  const queueFiltered = queueQuery.trim().length > 0 || queueBand !== "all";
 
   async function load() {
     try {
@@ -119,29 +208,35 @@ export default function GovernmentDashboard() {
           </div>
         ) : (
           <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-            {[
-              { label: "Requests", value: String(kpis?.kpis?.totalRequests ?? kpis?.totalRequests ?? "—"), sub: "last 90 days", icon: Search, accent: "#174EA6", bars: [28, 42, 35, 56, 44, 62, 52] },
-              { label: "Hotspots", value: String(kpis?.kpis?.hotspots ?? kpis?.totalClusters ?? "—"), sub: "clusters", icon: MapPinned, accent: "#0B1F3A", bars: [22, 30, 48, 32, 54, 40, 58] },
-              { label: "High-priority", value: String(kpis?.kpis?.highPriority ?? kpis?.highPriorityHotspots ?? "—"), sub: "need action", icon: TrendingUp, accent: "#D93025", bars: [18, 42, 28, 52, 38, 46, 34] },
-              { label: "Recommended", value: String(kpis?.kpis?.recommendedProjects ?? kpis?.recommendedProjects ?? "—"), sub: "candidate projects", icon: Lightbulb, accent: "#188038", bars: [30, 20, 42, 28, 50, 36, 48] },
-              { label: "Investment gap", value: kpis?.kpis?.investmentGapCr != null ? `₹${kpis.kpis.investmentGapCr} Cr` : kpis?.investmentGapCr != null ? `₹${kpis.investmentGapCr} Cr` : "—", sub: "Vadodara roads", icon: Banknote, accent: "#F9AB00", bars: [24, 38, 22, 46, 32, 58, 44] },
-            ].map((card) => (
-              <SpotlightCard key={card.label} className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-card p-4 hover:shadow-card-hover hover:border-[#D2E3FC] transition-[box-shadow,border-color,transform] hover:-translate-y-[1px]">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] tracking-[0.08em] font-bold text-[#5F6368]">{card.label.toUpperCase()}</span>
-                  <span className="h-8 w-8 rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] grid place-items-center">
-                    <card.icon className="h-4 w-4 text-[#0B1F3A]" aria-hidden="true" />
+            {kpiCards(kpis).map((card) => (
+              <SpotlightCard key={card.label} className="rounded-[20px] bg-white border border-[#E5E7EB] shadow-card transition-[box-shadow,border-color,transform] hover:shadow-card-hover hover:border-[#D2E3FC]">
+                <Link
+                  href={card.href}
+                  className="group block rounded-[20px] p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#174EA6]/40"
+                >
+                  <span className="flex items-center justify-between">
+                    <span className="text-[11px] tracking-[0.08em] font-bold text-[#5F6368]">{card.label.toUpperCase()}</span>
+                    <span className="h-8 w-8 rounded-xl bg-[#F8FAFC] border border-[#E5E7EB] grid place-items-center">
+                      <card.icon className="h-4 w-4 text-[#0B1F3A]" aria-hidden="true" />
+                    </span>
                   </span>
-                </div>
-                <div className="mt-2 text-[26px] font-extrabold tracking-[-0.03em] text-[#0B1F3A] tabular-nums leading-none">{card.value}</div>
-                <div className="text-xs font-medium text-[#5F6368] mt-1">{card.sub}</div>
-                <div className="mt-3 flex items-end gap-1 h-[22px]">
-                  {card.bars.map((h, bi) => (
-                    <div key={bi} className="flex-1 max-w-[7px] rounded-full bg-[#E8F0FE] overflow-hidden">
-                      <div className="w-full rounded-full transition-[height] duration-700" style={{ height: `${h}%`, background: card.accent, transformOrigin: "bottom" }} />
-                    </div>
-                  ))}
-                </div>
+                  <span className="mt-2 block text-[26px] font-extrabold tracking-[-0.03em] text-[#0B1F3A] tabular-nums leading-none">
+                    {card.num == null ? (
+                      "—"
+                    ) : (
+                      <CountUp
+                        value={card.num}
+                        prefix={card.prefix}
+                        suffix={card.suffix}
+                        format={card.decimals ? (n) => n.toFixed(card.decimals as number) : undefined}
+                      />
+                    )}
+                  </span>
+                  <span className="mt-1 block text-xs font-medium text-[#5F6368]">{card.sub}</span>
+                  <span className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[#5F6368] transition-colors group-hover:text-[#174EA6]">
+                    Open <ArrowUpRight className="h-3 w-3" aria-hidden="true" />
+                  </span>
+                </Link>
               </SpotlightCard>
             ))}
           </div>
@@ -178,14 +273,82 @@ export default function GovernmentDashboard() {
             </SpotlightCard>
 
             <div className="rounded-[24px] bg-white border border-[#E5E7EB] shadow-card p-5">
-              <div className="flex items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-sm font-bold text-[#0B1F3A]">Priority Queue</h2>
-                <span className="text-xs text-[#5F6368]">{clusters.length} clusters · sorted by priority_score</span>
+                <span className="text-xs text-[#5F6368]" aria-live="polite">
+                  {queueFiltered ? `${visibleClusters.length} of ${clusters.length}` : `${clusters.length}`} clusters · sorted by {QUEUE_SORT_LABEL[queueSort]}
+                </span>
               </div>
-              <p className="text-xs text-[#5F6368] mt-1">Deterministic — human review before funding. Tap to inspect evidence & scoring.</p>
+              <p className="text-xs text-[#5F6368] mt-1">Deterministic — human review before funding. Filtering and sorting are a view over the stored scores; they never re-score a cluster.</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <label className="relative min-w-[190px] flex-1">
+                  <span className="sr-only">Filter the priority queue by district, sector or evidence</span>
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5F6368]" aria-hidden="true" />
+                  <input
+                    value={queueQuery}
+                    onChange={(e) => setQueueQuery(e.target.value)}
+                    placeholder="Filter by district, sector or evidence…"
+                    name="queueFilter"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="h-11 w-full rounded-full border border-[#E5E7EB] bg-[#F8FAFC] pl-9 pr-10 text-sm text-[#172033] outline-none transition-colors placeholder:text-[#5F6368] focus:border-[#174EA6] focus:bg-white focus:ring-2 focus:ring-[#174EA6]/10"
+                  />
+                  {queueQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setQueueQuery("")}
+                      aria-label="Clear the queue filter"
+                      className="absolute right-1.5 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-full text-[#5F6368] transition-colors hover:bg-white hover:text-[#172033]"
+                    >
+                      <X className="h-3.5 w-3.5" aria-hidden="true" />
+                    </button>
+                  )}
+                </label>
+                <label className="relative block">
+                  <span className="sr-only">Sort the priority queue</span>
+                  <ArrowUpDown className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5F6368]" aria-hidden="true" />
+                  <select
+                    value={queueSort}
+                    onChange={(e) => setQueueSort(e.target.value as QueueSort)}
+                    name="queueSort"
+                    className="h-11 appearance-none rounded-full border border-[#E5E7EB] bg-[#F8FAFC] pl-9 pr-7 text-sm font-medium text-[#172033] outline-none transition-colors hover:border-[#CBD5E1] focus:border-[#174EA6] focus:bg-white focus:ring-2 focus:ring-[#174EA6]/10"
+                  >
+                    <option value="priority">Priority score</option>
+                    <option value="requests">Request count</option>
+                    <option value="population">Population affected</option>
+                    <option value="urgency">Urgency</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {BANDS.map((b) => {
+                  const count = b === "all" ? clusters.length : clusters.filter((c: any) => c.priorityBand === b).length;
+                  const on = queueBand === b;
+                  return (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setQueueBand(b)}
+                      aria-pressed={on}
+                      disabled={b !== "all" && count === 0}
+                      className={`inline-flex min-h-[32px] items-center gap-1.5 rounded-full border px-2.5 text-xs font-semibold capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                        on ? BAND_ACTIVE[b] : "border-[#E5E7EB] bg-white text-[#172033] hover:border-[#CBD5E1] hover:bg-[#F8FAFC]"
+                      }`}
+                    >
+                      {b === "all" ? "All bands" : b} <span className="tabular-nums opacity-70">{count}</span>
+                    </button>
+                  );
+                })}
+              </div>
               <div className="mt-4 space-y-2.5">
                 {clusters.length === 0 && <div className="rounded-[16px] border border-dashed border-[#E5E7EB] bg-[#F8FAFC] p-6 text-center text-sm text-[#5F6368]">No clusters — start the API (<code className="bg-white border border-[#E5E7EB] rounded px-1.5 py-0.5">npm run dev:api</code>) and submit a citizen request.</div>}
-                {clusters.map((c: any) => {
+                {clusters.length > 0 && visibleClusters.length === 0 && (
+                  <div className="rounded-[16px] border border-dashed border-[#E5E7EB] bg-[#F8FAFC] p-6 text-center text-sm text-[#5F6368]">
+                    No cluster matches{queueQuery.trim() ? ` “${queueQuery.trim()}”` : ""}{queueBand !== "all" ? ` in the ${queueBand} band` : ""}.
+                    <button type="button" onClick={() => { setQueueQuery(""); setQueueBand("all"); }} className="ml-2 font-semibold text-[#174EA6] underline underline-offset-4">Show all {clusters.length}</button>
+                  </div>
+                )}
+                {visibleClusters.map((c: any) => {
                   const active = selected?.clusterId === c.clusterId;
                   return (
                     <button
@@ -199,6 +362,11 @@ export default function GovernmentDashboard() {
                         <div className="text-sm font-bold truncate text-[#0B1F3A] group-hover:text-[#174EA6] transition-colors">{c.title}</div>
                         <div className="text-xs text-[#5F6368] truncate">{c.districtId} · {c.category} · {c.requestCount} req · pop {c.populationAffected ?? "—"}</div>
                         {c.evidenceRefs?.length ? <div className="text-[11px] text-[#5F6368] truncate hidden sm:block">Evidence: {c.evidenceRefs.slice(0, 2).join(" · ")}</div> : null}
+                        {queueSort !== "priority" && (
+                          <div className="text-[11px] font-medium text-[#174EA6] hidden sm:block">
+                            {QUEUE_SORT_LABEL[queueSort]}: {queueSort === "requests" ? c.requestCount : queueSort === "population" ? c.populationAffected ?? "—" : c.urgencyScore ?? "—"}
+                          </div>
+                        )}
                       </div>
                       <Badge tone={c.priorityBand === "critical" ? "critical" : c.priorityBand === "high" ? "high" : c.priorityBand === "moderate" ? "moderate" : "low"}>{c.priorityBand || "—"}</Badge>
                     </button>

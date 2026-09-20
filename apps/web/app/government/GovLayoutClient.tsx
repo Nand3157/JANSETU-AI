@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LayoutDashboard, Map, Layers, Sparkles, LineChart, Wallet, BarChart3, Database, Settings, Shield, Search, Bell, ChevronDown, Building2, Menu, X, LogOut } from "lucide-react";
 import { getCurrentUser, getVerifiedUser, signOutMock, setMockRole, isFirebaseConfigured, waitForAuth, auth } from "@/lib/firebase";
+import { CommandPalette, PaletteTrigger } from "@/components/site/CommandPalette";
 
 const nav = [
   { href: "/government", label: "Overview", icon: LayoutDashboard, exact: true },
@@ -161,6 +162,8 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
              ))}
           </div>
           <div className="ml-auto flex items-center gap-2">
+            {/* Data search goes to the explorer; the palette (⌘K) navigates the app. */}
+            <PaletteTrigger iconOnly />
             <div className="hidden md:flex items-center gap-2 rounded-full border border-[#E5E7EB] bg-[#F8FAFC] px-3 py-1.5 text-sm focus-within:border-[#174EA6] focus-within:ring-2 focus-within:ring-[#174EA6]/10">
               <Search className="h-4 w-4 text-[#5F6368] shrink-0" aria-hidden="true" />
                <input aria-label="Search government dashboard" name="govSearch" type="search" autoComplete="off" spellCheck={false} value={search} onChange={e=>setSearch(e.target.value)} onKeyDown={e=>e.key === "Enter" && router.push(`/government/explorer?search=${encodeURIComponent(search)}`)} placeholder="Search requests, villages, projects…" className="bg-transparent outline-none placeholder:text-[#5F6368] w-[220px] text-[16px] md:text-sm text-[#172033]" />
@@ -186,8 +189,9 @@ export default function GovLayoutClient({ children }: { children: React.ReactNod
           </div>
         )}
 
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+        <main id="main" className="flex-1 p-4 md:p-6">{children}</main>
       </div>
+      <CommandPalette />
     </div>
   );
 }

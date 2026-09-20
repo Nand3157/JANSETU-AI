@@ -2,13 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --background: 210 40% 98%; --foreground: 222 24% 12%; --border: 220 13% 91%; }
+:root {
+  --background: 210 40% 98%; --foreground: 222 24% 12%; --border: 220 13% 91%;
+  /* Motion tokens — mirror lib/motion.ts. One vocabulary, not per-component guesses. */
+  --m-dur-instant: 120ms; --m-dur-fast: 180ms; --m-dur-base: 280ms; --m-dur-slow: 520ms; --m-dur-focal: 900ms;
+  --m-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --m-ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
 * { border-color: #E5E7EB; }
 html { scroll-behavior: smooth; }
+/* WCAG 2.2 (focus not obscured): the sticky portal header is 64px tall. */
+html { scroll-padding-top: 84px; }
 @media (prefers-reduced-motion: no-preference) {
   html { scroll-behavior: smooth; }
 }
-[id] { scroll-margin-top: 72px; }
+[id] { scroll-margin-top: 84px; }
+/* Browser surfaces belong to the palette too — caret, underline, tabular figures. */
+body { caret-color: #174EA6; }
+a { text-underline-offset: 4px; text-decoration-thickness: 1px; }
+[dir="rtl"] .flip-rtl { transform: scaleX(-1); }
 button, a, [role="button"] { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 input, textarea, select { font-size: 16px; }
 @media (min-width: 768px) {
@@ -132,15 +144,44 @@ a:hover { text-decoration-color: #174EA6; }
 .underline-premium { text-decoration: underline; text-decoration-color: #CBD5E1; text-underline-offset: 4px; text-decoration-thickness: 1px; transition: text-decoration-color 0.2s; }
 .underline-premium:hover { text-decoration-color: #174EA6; }
 
-/* Auto-hover for all premium rounded cards — covers Home, Gov, Citizen without per-file edits */
-div[class*="rounded-[20px]"].bg-white, div[class*="rounded-[20px]"][class*="border"], div[class*="rounded-2xl"].bg-white {
-  transition: transform 0.22s cubic-bezier(0.22,1,0.36,1), box-shadow 0.22s ease, border-color 0.22s ease;
+/* Surfaces that acknowledge the pointer.
+   Narrowed deliberately: the old rule also matched [class*="border"], which lifted
+   plain wrappers and dividers (and nested cards inside cards). This keeps the feel
+   for real card surfaces only — white, 20px+, and not a nested child of another one. */
+div[class*="rounded-[20px]"].bg-white:not([data-no-hover] *):not([data-no-hover]),
+div[class*="rounded-2xl"].bg-white:not([data-no-hover] *):not([data-no-hover]) {
+  transition: transform var(--m-dur-fast) var(--m-ease-soft), box-shadow var(--m-dur-fast) ease, border-color var(--m-dur-fast) ease;
 }
-div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*="border"]:hover, div[class*="rounded-2xl"].bg-white:hover {
+div[class*="rounded-[20px]"].bg-white:hover:not([data-no-hover] *):not([data-no-hover]),
+div[class*="rounded-2xl"].bg-white:hover:not([data-no-hover] *):not([data-no-hover]) {
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(11,31,58,0.07);
   border-color: #D2D8E3;
 }
+
+/* — Reveal: the one entrance this product uses (see components/motion/Reveal.tsx).
+     Visible by default; only below-the-fold elements get armed on mount, so a
+     failed script can never leave the page blank. Not armed when motion is reduced. */
+[data-reveal="armed"] {
+  opacity: 0;
+  transform: translate3d(0, var(--reveal-distance, 14px), 0);
+}
+[data-reveal="armed"],
+[data-reveal="in"] {
+  transition: opacity var(--m-dur-slow) var(--m-ease-out) var(--reveal-delay, 0ms),
+    transform var(--m-dur-slow) var(--m-ease-out) var(--reveal-delay, 0ms);
+}
+[data-reveal="in"] { opacity: 1; transform: none; }
+
+/* — Tactile press: acknowledges the tap without moving layout. */
+.press { transition: transform var(--m-dur-instant) ease-out; }
+.press:active { transform: scale(0.985); }
+.row-interactive {
+  transition: background-color var(--m-dur-instant) ease, transform var(--m-dur-instant) ease;
+}
+.row-interactive:hover { background: #F8FAFC; }
+.row-interactive[data-selected="true"] { background: #E8F0FE; }
+.metric-figure { font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 @keyframes hotspot-pulse { 0%,100% { transform: scale(1); opacity:0.88 } 50% { transform: scale(1.07); opacity:1 } }
 .hotspot-pulse { animation: hotspot-pulse 2.6s ease-in-out infinite; }
 .hotspot-hover { transition: transform 0.2s, filter 0.2s; }
@@ -174,10 +215,20 @@ div[class*="rounded-[20px]"].bg-white:hover, div[class*="rounded-[20px]"][class*
     transition-property: opacity, background-color, border-color, color, box-shadow, fill, stroke !important;
   }
   .hover-lift, .hover-scale, .nav-pill, .badge-hover, .card-premium,
-  .hotspot-hover, table tbody tr,
-  div[class*="rounded-[20px]"].bg-white, div[class*="rounded-[20px]"][class*="border"],
-  div[class*="rounded-2xl"].bg-white {
+  .hotspot-hover, table tbody tr, .press,
+  div[class*="rounded-[20px]"].bg-white, div[class*="rounded-2xl"].bg-white {
     transform: none !important;
     filter: none !important;
   }
+  /* Reduced motion: state changes stay legible (colour, border, shadow) and
+     nothing travels. The Reveal primitive never arms in this mode. */
+  [data-reveal="armed"], [data-reveal="in"] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+/* Transparency is a separate preference from motion — honour it on its own terms. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card, .navbar-blur { backdrop-filter: none; background: #FFFFFF; }
 }

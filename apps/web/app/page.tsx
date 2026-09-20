@@ -8,6 +8,7 @@ import { ShimmerButton } from "@/components/ui/shimmer-button";
 import { Marquee } from "@/components/ui/marquee";
 import { DotPattern } from "@/components/ui/dot-pattern";
 import { Accordion } from "@/components/ui/accordion";
+import { EvidenceThread } from "@/components/home/EvidenceThread";
 
 // Refinement for 90+ — section-by-section with audit fixes
 // Design inspiration: heyparker-ai (generous whitespace, ruthless reduction), shadcn foundation, MagicUI subtle
@@ -257,27 +258,10 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="mt-8 relative">
-          {/* FIX: line inset 5% to avoid overflow/dot cutoff on mobile */}
-          <div className="hidden md:block absolute left-[5%] right-[5%] top-[20px] h-px bg-[#E5E7EB]" aria-hidden="true" />
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4">
-            {[
-              { n: "01", t: "Citizen Voice", d: "Speak / type / photo" },
-              { n: "02", t: "AI Understanding", d: "Translate & structure" },
-              { n: "03", t: "Data Fusion", d: "GIS + demographics" },
-              { n: "04", t: "Priority Intelligence", d: "Deterministic score" },
-              { n: "05", t: "Government Action", d: "Human review" },
-              { n: "06", t: "Impact", d: "Measure change" },
-            ].map((s) => (
-              <div key={s.n} className="group rounded-[20px] bg-white border border-[#E5E7EB] p-4 hover:border-[#D2E3FC] hover:shadow-sm transition-[border-color,box-shadow] flex flex-col min-h-[44px]">
-                <div className="h-9 w-9 rounded-full bg-[#0B1F3A] text-white grid place-items-center text-xs font-bold tracking-widest group-hover:bg-[#174EA6] transition-colors">
-                  {s.n}
-                </div>
-                <div className="mt-3 font-semibold text-[13.5px] leading-tight group-hover:text-[#174EA6] transition-colors">{s.t}</div>
-                <div className="text-xs leading-snug text-[#5F6368] mt-1">{s.d}</div>
-              </div>
-            ))}
-          </div>
+        {/* The thread replaces six identical static cards: one chain you can walk,
+            each stop opening what actually happens there. */}
+        <div className="mt-8">
+          <EvidenceThread />
         </div>
 
         <div className="mt-10 grid md:grid-cols-4 gap-4">
@@ -460,7 +444,6 @@ export default function Home() {
             </div>
           ))}
         </div>
-        <p className="mt-3 text-xs text-[#5F6368]">Repeated Explore link demoted to plain text above to avoid CTA duplication (Fix #4).</p>
       </section>
 
       {/* FAQ — plain disclosure rows (Fix #4: not button-styled) */}

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
+import { CommandPalette, PaletteTrigger } from "./CommandPalette";
 
 function Logo() {
   return (
@@ -47,6 +48,7 @@ export function Header() {
   }, [open]);
   if (hidePublic) return null;
   return (
+    <>
     <header className={`sticky top-0 z-50 ${scrolled ? "navbar-blur shadow-nav" : "bg-white/85 backdrop-blur-xl border-b border-[#E5E7EB]/60"}`}>
       <div className="mx-auto max-w-[1280px] px-4 md:px-6 h-[64px] flex items-center justify-between gap-6">
         <Logo />
@@ -65,6 +67,7 @@ export function Header() {
           </ul>
         </nav>
         <div className="flex items-center gap-2">
+          <PaletteTrigger />
           <Link href="/login" className="hidden md:inline-flex h-9 px-3 items-center text-sm font-normal text-[#5F6368] hover:text-[#172033] transition-colors min-h-[44px]">Log In</Link>
           <Link href="/register" className="hidden md:inline-flex h-9 px-3 items-center text-sm font-normal text-[#5F6368] hover:text-[#172033] hover:underline underline-offset-4 decoration-[#E5E7EB] transition-colors min-h-[44px]">Register</Link>
           <button onClick={()=> setOpen(v=> !v)} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-nav" className="lg:hidden h-11 w-11 grid place-items-center rounded-full border border-[#E5E7EB] bg-white touch-manipulation hover:border-[#CBD5E1] transition-colors" style={{ WebkitTapHighlightColor: "transparent", touchAction: "manipulation" }}>
@@ -88,5 +91,10 @@ export function Header() {
         </div>
       )}
     </header>
+    {/* One palette for the whole public site — a sibling of the header, never a
+        child: the header is backdrop-blurred, and a filtered ancestor becomes the
+        containing block that would clip the overlay to the header's own box. */}
+    <CommandPalette />
+    </>
   );
 }

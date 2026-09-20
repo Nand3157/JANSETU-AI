@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Home, Mic, FileText, BarChart3, User } from "lucide-react";
 import { getCurrentUser, getVerifiedUser, isFirebaseConfigured, waitForAuth, auth } from "@/lib/firebase";
+import { CommandPalette, PaletteTrigger } from "@/components/site/CommandPalette";
 
 const nav = [
   { href: "/citizen", label: "Home", icon: Home },
@@ -57,6 +58,54 @@ export default function CitizenLayoutClient({ children }: { children: React.Reac
     );
   return (
     <div className="min-h-[calc(100vh-0px)] bg-[#F8FAFC] pb-16 md:pb-0">
+      {/* Desktop parity: the bottom bar is mobile-only, so wide screens get a
+          slim top bar with the same destinations plus ⌘K. */}
+      <div className="sticky top-0 z-30 hidden border-b border-[#E5E7EB] bg-white/92 backdrop-blur md:block">
+        <div className="mx-auto flex h-[64px] max-w-[960px] items-center gap-4 px-4">
+          <Link href="/citizen" aria-label="JANSETU AI — citizen portal" className="flex items-center gap-2.5">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#174EA6] text-white">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M4 16 C7 10, 10 8, 12 12 C14 16, 17 13, 20 16" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
+                <circle cx="7" cy="13.5" r="1.6" fill="white" />
+                <circle cx="12" cy="12" r="1.6" fill="white" />
+                <circle cx="17" cy="13.5" r="1.6" fill="white" />
+              </svg>
+            </span>
+            <span className="text-sm font-bold tracking-tight text-[#0B1F3A]">JANSETU AI</span>
+          </Link>
+          <nav aria-label="Citizen navigation (desktop)" className="ml-2">
+            <ul className="flex list-none items-center gap-1">
+              {nav
+                .filter((n) => !(n as any).center)
+                .map((n) => {
+                  const active = pathname === n.href;
+                  return (
+                    <li key={n.href}>
+                      <Link
+                        href={n.href}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex h-9 items-center rounded-full px-3 text-sm font-medium transition-colors ${
+                          active ? "bg-[#E8F0FE] text-[#174EA6]" : "text-[#172033] hover:bg-[#F8FAFC] hover:text-[#174EA6]"
+                        }`}
+                      >
+                        {n.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+            </ul>
+          </nav>
+          <div className="ml-auto flex items-center gap-2">
+            <PaletteTrigger />
+            <Link
+              href="/citizen/submit"
+              className="inline-flex h-9 items-center rounded-full bg-[#174EA6] px-4 text-sm font-semibold text-white transition-colors hover:bg-[#0B1F3A]"
+            >
+              Raise a need
+            </Link>
+          </div>
+        </div>
+      </div>
       <div className="mx-auto max-w-[960px]">{children}</div>
       {!hide && (
         <nav aria-label="Citizen navigation" className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E7EB] md:hidden flex items-center justify-around py-2 safe-area-bottom">
@@ -79,14 +128,16 @@ export default function CitizenLayoutClient({ children }: { children: React.Reac
                 key={n.href}
                 href={n.href}
                 aria-label={n.label}
-                className={`flex flex-col items-center gap-1 text-xs ${active ? "text-[#174EA6] font-medium" : "text-[#5F6368]"}`}
+                aria-current={active ? "page" : undefined}
+                className={`flex flex-col items-center gap-1 text-xs transition-colors ${active ? "text-[#174EA6] font-medium" : "text-[#5F6368]"}`}
               >
-                <n.icon className="h-5 w-5" /> {n.label}
+                <n.icon className="h-5 w-5" aria-hidden="true" /> {n.label}
               </Link>
             );
           })}
         </nav>
       )}
+      <CommandPalette />
     </div>
   );
 }
